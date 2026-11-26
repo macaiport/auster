@@ -9,7 +9,7 @@ Product name Auster (decided 2026-11-25), repo `macaiport/auster`. Concept, road
 |---|---|---|
 | 0 | Scaffold: CLAUDE.md, SPEC.md, memory/, docs/, concept captured | Done 2026-11-25 |
 | 1 | Household assistant built by hand on the Studio: engine, a model that fits, always-on server, one client, per-user keys, all measured | Current: under way. Models A, B and C measured and quizzed; MLX compared; keys, the chat page and an iPad on the home network tested ([docs/phase-1.md](docs/phase-1.md)). Left: two devices with one key revoked, and the restart tests (AD15). The model is chosen (plan A6) and a cold start measured (step 10) |
-| 2 | v0.1: the `household-assistant` recipe. Recipe format, from-zero installer, capability rules, and the built-in update of Auster and of its models | Planning only. [`docs/plans/v0.1.md`](docs/plans/v0.1.md) is drafted in full (2026-11-26). The whole plan was reviewed the same day (pass 2, seven lenses), found to need rework, and reworked; re-checked four times and each pass's fixes folded; the owner accepted BD8 to BD17, and BD18 waits. **check-it'd 2026-11-26 — build-ready-with-fixes (pass 2e)** |
+| 2 | v0.1: the `household-assistant` recipe. Recipe format, from-zero installer, capability rules, and the built-in update of Auster and of its models | Planning only. [`docs/plans/v0.1.md`](docs/plans/v0.1.md) is drafted in full (2026-11-26). The whole plan was reviewed the same day (pass 2, seven lenses), found to need rework, and reworked; re-checked five times and each pass's fixes folded; the owner accepted BD8 to BD17, and BD18 and BD19 wait. **check-it'd 2026-11-26 — build-ready-with-fixes (pass 2f)**. Phase 2's first step settled the facts that can be settled on the development Mac ([docs/phase-2.md](docs/phase-2.md)) |
 | 3 | `coders-companion`, the second recipe on the same format | Planning only |
 | 4 | Launcher window (concept v0.2) | Planning only |
 | 5 | `kids-homework-box`, `audit-tower`, trust-tier labels (concept v0.3) | Planning only |
@@ -50,13 +50,14 @@ MLX fits.
 
 Side tracks, not phases: the name checks and funding. Their notes are kept privately.
 
-**Current phase:** 1 (under way). The household recipe's model is chosen: Mistral Small 4, then Magistral Small (plan A6)
+**Current phase:** 1's last items, which need the owner, and 2's first step, done as far as the development Mac allows ([docs/phase-2.md](docs/phase-2.md)). The household recipe's model is chosen: Mistral Small 4, then Magistral Small (plan A6)
 
 **Next:**
 1. Phase 1's last items: the restart tests for AD15 (they need the owner at the Mac and an administrator),
    and two devices at once with one key revoked.
-2. Phase 2's first step: settle the open facts in the plan's D12 that V6, V7 and U5 rest on, then build
-   from V1. U5 builds the server check first, against its tests, before the rest of the switch.
+2. The owner's word on BD18 and BD19, and the D12 checks that need the owner: the iPad reading the QR
+   code, the launchd override, and a launchd job for the engine's speeds. Then build from V1; U5 builds
+   the server check first, against its tests, before the rest of the switch.
 
 ---
 

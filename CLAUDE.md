@@ -47,8 +47,8 @@ The full concept, roadmap and open questions are in [docs/concept.md](docs/conce
 ## Places outside the repo
 - **`~/Library/Developer/Auster/phase-1/`**, phase 1's workspace (since 2026-11-26): the engine build,
   model files, keys made for tests, and run logs. Outside the repo because model files are 14 to 44 GB
-  and the repo is public. It is not the data root; section B of the v0.1 plan decides that. Remove it
-  when phase 1 is done.
+  and the repo is public. It is not the data root; section B of the v0.1 plan decides that. Phase 2's
+  first step uses it too (`runs/p2-first-step/`). Remove it when phase 2 no longer measures by hand.
 
 ## Deliberate deviations from sibling-repo practice
 - **No phases, no SPEC.md** (from 1launcher, declined 2026-11-25). The work here is phased, and
