@@ -68,18 +68,14 @@ Done on 2026-11-26:
 
 1. Internal notes (funding, naming, the original concept note) are out of the tracked files and in
    `private/`, which is never tracked. `docs/concept.md` is an edited public version.
-2. A clean history of one commit is ready on the local branch `public-root`, holding the same files as
-   `main`. **`main` itself still carries the earlier commits, which hold those notes, so it must not be
-   made public as it is.**
+2. The GitHub repo was deleted and created again from a history of one commit, so no commit there
+   carries those notes. The earlier history is kept privately.
 3. An MIT licence, in the name of the contributors.
 4. README, CHANGELOG, CONTRIBUTING, SECURITY and CODE_OF_CONDUCT, on 1launcher's pattern.
 5. A scan of the tracked files for references to the owner's other projects: none left.
 
 Still to do, each on the owner's word:
 
-- **Replace the GitHub repo's history with `public-root`** (rebuilt first from `main`'s files, since it
-  lags any later commit). Deleting the GitHub repo and creating it again from that branch is the certain
-  way: a force-push leaves the earlier commits reachable by their hash for a time.
 - **Repo settings as 1launcher:** issues and discussions on, wiki off, and private vulnerability
   reporting on, which `SECURITY.md` points to.
 - **The name checks that are still open** (listed privately).

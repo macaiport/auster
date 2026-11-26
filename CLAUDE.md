@@ -37,9 +37,7 @@ The full concept, roadmap and open questions are in [docs/concept.md](docs/conce
   files do not name the owner's other projects. `private/` exists only on the Studio.
 - Tracking: SPEC.md build-status table is the roadmap; discrete work items go in GitHub Issues on
   `macaiport/auster`, as in 1launcher.
-- **`main` must not be published as it is.** Its earlier commits hold internal notes. The clean,
-  one-commit history is the local branch `public-root`.
-- **The repo is private for now** (`macaiport/auster`, created 2026-11-26) and prepared for going
+- **The repo is private for now** (`macaiport/auster`, created again with a clean history on 2026-11-26) and prepared for going
   public; `SPEC.md` § Going public lists what is left. The visibility changes only on the owner's word.
 
 ## Deliberate deviations from sibling-repo practice
