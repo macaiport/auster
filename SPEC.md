@@ -52,7 +52,8 @@ Side tracks, not phases: the name checks and funding. Their notes are kept priva
    on llama.cpp, with one MLX measurement on the small model. Wait for disk space and for the other
    project's tests first.
 2. Finish [`docs/plans/v0.1.md`](docs/plans/v0.1.md). Its update section was reviewed by seven lenses on
-   2026-11-26, found to need rework, and reworked. Several of its 15 decisions wait for the owner (D9). Still to write, from phase 1's measurements: recipe format and registry
+   2026-11-26, found to need rework, and reworked. Fourteen of its 15 decisions are answered; the last, how the server
+   comes back after a restart, waits on phase 1 (D9, AD15). Still to write, from phase 1's measurements: recipe format and registry
    (Q4), installer (Q3), capability rules. Licensing stance (Q5) is also open.
 3. Run `check it` on it; build only from a dated verdict.
 
