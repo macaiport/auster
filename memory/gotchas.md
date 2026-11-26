@@ -23,6 +23,15 @@ Patterns, not tasks. On every bug fix, add an entry under the matching heading:
 
 ## Data
 
+### A memory figure measured at one setting was used at a larger one (2026-11-26)
+- **Symptom:** the v0.1 plan carried Magistral Small's GPU working buffer as 272 MiB; at the recipe's
+  largest setting (four people at 32K) the engine reports 665 MiB. Order 1's CPU buffer was carried as
+  160 MiB from a run at other settings; at the household's setting it is 64.
+- **Root cause:** the engine's working buffers grow with the total context, and the figures were read
+  from whatever run was at hand, at the engine's default log level, which hides its memory report.
+- **Prevention:** take every memory figure from a `-lv 4` run at the largest setting the recipe allows,
+  keep the log, and cite the run (`docs/phase-1.md`, steps 13 and 14).
+
 ## Testing
 
 ### A bare `wait` in a script that started a server waits for ever (2026-11-26)
