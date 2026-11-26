@@ -8,7 +8,7 @@ Product name Auster (decided 2026-11-25), repo `macaiport/auster`. Concept, road
 | Phase | Scope | Status |
 |---|---|---|
 | 0 | Scaffold: CLAUDE.md, SPEC.md, memory/, docs/, concept captured | Done 2026-11-25 |
-| 1 | Household assistant built by hand on the Studio: engine, a model that fits, always-on server, one client, per-user keys, all measured | Current: under way. Models A, B and C fetched, verified and measured; keys and the chat page tested ([docs/phase-1.md](docs/phase-1.md)) |
+| 1 | Household assistant built by hand on the Studio: engine, a model that fits, always-on server, one client, per-user keys, all measured | Current: under way. Models A, B and C measured and quizzed; MLX compared; keys, the chat page and an iPad on the home network tested ([docs/phase-1.md](docs/phase-1.md)). Left: the choice of model, a cold start, two devices with one key revoked, and the restart tests (AD15) |
 | 2 | v0.1: the `household-assistant` recipe. Recipe format, from-zero installer, capability rules, and the built-in update of Auster and of its models | Planning only. [`docs/plans/v0.1.md`](docs/plans/v0.1.md) is started: the update section is drafted, and was reviewed and reworked on 2026-11-26; three sections are not written; the plan as a whole is not checked |
 | 3 | `coders-companion`, the second recipe on the same format | Planning only |
 | 4 | Launcher window (concept v0.2) | Planning only |

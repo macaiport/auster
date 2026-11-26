@@ -325,6 +325,60 @@ What the recipe needs from this step:
 - **Plain HTTP for now.** The key crosses the home Wi-Fi unencrypted. HTTPS needs a certificate the
   household's devices trust: a decision for section B.
 
+## Step 8. The one MLX measurement, of model A (2026-11-26, 13:20 to 13:50)
+
+**The build:** `lmstudio-community/Magistral-Small-2509-MLX-4bit` at commit `bb18789f…`, the most-used MLX
+build of model A (MLX's own community build needs a login). 15 files, 14.12 GB, fetched in 422 s; every
+large file checked against its sha256 and every small one against its git hash, none failing.
+
+**The engine:** Apple's `mlx` 0.32.5 and `mlx-lm` 0.32.2, pinned, in a throwaway Python 3.12 environment
+in the workspace (389 MB). The plan preferred the Swift stack; it has no ready command to run, and the
+work on the GPU is MLX's either way. Python is not something Auster would ship; this was a measurement.
+MLX sees the same 51.8 GiB as the limit for the GPU.
+
+**`mlx_lm.benchmark`, three trials each, against `llama-bench` on Mistral's own Q4_K_M:**
+
+| | llama.cpp | MLX |
+|---|---|---|
+| Writing 128 tokens after a short prompt | 38.1 tok/s | 37.7 tok/s |
+| Writing 128 tokens after 16K | 30.7 tok/s | 31.0 tok/s |
+| Reading a prompt of 512 tokens | 992 tok/s | 1,137 tok/s |
+| Reading a prompt of 4,096 tokens | 943 tok/s | 1,309 tok/s |
+| Reading a prompt of 16,384 tokens | 632 to 943 tok/s, falling as the context fills | 1,190 tok/s |
+| Memory at its peak | about 13.8 GiB plus the cache | 13.8 GiB at 512, 16.8 GiB at 16K |
+
+The 16K rows are not quite the same test. `llama-bench` reads 4,096 tokens on top of 16K already held;
+MLX reads one 16K prompt and reports its average.
+
+**What it means:** writing is the same, because both are limited by memory bandwidth. MLX reads prompts
+about 15 to 50% faster. That matters for long documents and long conversations, and little for ordinary
+questions. By the rule agreed before (`SPEC.md`), the gap is not large enough to move MLX ahead of phase
+6, and it was not run on model B. A Swift build of MLX inside Auster's own app stays the long-run shape.
+
+## Step 9. A larger quiz: 56 household questions (2026-11-26)
+
+`scripts/phase-1/questions.json`: 56 questions in seven groups (sums 16, times and dates 11, units 7,
+following a format 8, reading a house note 6, safety 4, common facts 4), each with one answer checked by
+computation before any model saw it. `quiz.py` asks each at temperature 0 with the plain household system
+prompt, grades it, and keeps every reply so that a grade can be read again by hand.
+
+The grader was wrong twice, and was fixed and tested on 29 cases that must pass or fail. **"9/4 cups" was
+marked wrong** (it read the 9); and an answer such as "1260 / 12 = 105" or "2 1/4" would have been. Model A's
+replies were graded again from what was kept, not asked again.
+
+| | By the program | Real mistakes, read by hand | Right, but outside the asked format | Time for all 56 |
+|---|---|---|---|---|
+| A, Magistral Small | 52 | **4**: an oven time (16:30 for 16:45); the term date (13 April for 10 April); 8 days for 7 over New Year; the bin date (26 July for 26 June) | none | 65 s |
+| B, Mistral Small 4 at about 3 bits | 53 | **2**: the fourth dose of a medicine taken every 6 hours from 07:00 (19:00, which is the third; it is 01:00); and the term date, where it asked for the year instead of answering | the bin date, right, with no "Answer:" line | **16 s** |
+| C, Apertus 70B | 47 | **6**: a meal split (17.5 for 20); 10 days after Wednesday (Wednesday for Saturday); the term date; a school pickup (15:35 for 14:45); gas mark 4 "hotter" than 220 °C (it is about 180 °C); savings weeks (14.29 on the answer line, then 15 in the next sentence) | three: 356 °F, "no" to bleach and ammonia, "no" to a fork in a microwave | 250 s |
+
+All three got every safety question right in substance, and every reading question but A's bin date.
+
+**What it says, with 56 questions still being a small set:** on these questions **B at about 3 bits made
+the fewest mistakes, in a quarter of A's time and a fifteenth of C's.** C, the open model, made the most,
+and was the slowest by far. Both A and C slip on date and time sums. B follows the asked format least
+often of the three when it is sure of the answer.
+
 ## The three side by side (phase 1, as far as it has gone)
 
 | | A: Magistral Small 2509, Q4_K_M | B: Mistral Small 4, UD-IQ3_S | C: Apertus 70B, Q4_K_M |
@@ -337,8 +391,9 @@ What the recipe needs from this step:
 | Two people at once, each | 31 tok/s | **60 tok/s** | 10 tok/s |
 | Ready after a start, cached | 1.3 to 2.9 s | 2.4 to 2.6 s | 2.8 to 3.5 s |
 | Chat template in the file | **none**: pinned from llama.cpp | yes | yes |
-| Quiz, read by hand: mistakes of 15 | 2 | 1, a non-answer | 2 |
-| Quiz, time for all 15 | 21 s | **5 s** | 79 s |
+| Quiz of 15, read by hand: mistakes | 2 | 1, a non-answer | 2 |
+| Quiz of 56, read by hand: mistakes | 4 | 2 | 6 |
+| Quiz, time for all 15 / all 56 | 21 s / 65 s | **5 s / 16 s** | 79 s / 250 s |
 | Openness | open weights | open weights | **open weights, data and training** |
 
 What this says, for the choice of model (not yet made):
@@ -355,8 +410,7 @@ What this says, for the choice of model (not yet made):
 
 ## Not done yet in phase 1
 
-- The one MLX measurement, of model A.
-- A larger graded set of questions, before the model is chosen.
+- The choice of model, from steps 3 to 9.
 - Two devices at once on the home network, and revoking one while the other keeps working. The iPad
   worked on its own key (step 7).
 - A cold start from disk, and what the Mac does after a restart (the plan's AD15).
