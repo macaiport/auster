@@ -1,5 +1,5 @@
 # Phase 1 of Auster: household questions with one checkable answer each (questions.json beside this
-# file), asked of a running server at temperature 0 and graded by this program. A probe for "does this
+# file), asked of a running server at temperature 0 (or QUIZ_TEMPERATURE) and graded by this program. A probe for "does this
 # build answer worse", not a benchmark.
 #
 #   quiz.py <url of /v1/chat/completions> <key file> <label> [system prompt file] [questions file]
@@ -10,11 +10,12 @@
 import json, os, re, sys, time, urllib.request
 
 TAIL = "\n\nEnd your reply with a final line of the form: Answer: <answer>"
+TEMPERATURE = float(os.environ.get("QUIZ_TEMPERATURE", "0"))
 
 
 def ask(url, key, system, q):
     msgs = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": q}]
-    body = json.dumps({"messages": msgs, "temperature": 0, "max_tokens": 1200}).encode()
+    body = json.dumps({"messages": msgs, "temperature": TEMPERATURE, "max_tokens": 1200}).encode()
     req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json", "Authorization": "Bearer " + key})
     t0 = time.time()
     with urllib.request.urlopen(req, timeout=600) as r:
