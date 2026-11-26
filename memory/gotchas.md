@@ -34,6 +34,14 @@ Patterns, not tasks. On every bug fix, add an entry under the matching heading:
 
 ## Testing
 
+### A grader that checks only the start of an answer passes the wrong ones (2026-11-26)
+- **Symptom:** carrying `quiz.py` over to JavaScript "exactly" carried over its `yesno` rule,
+  `a.startswith(want)`: "Not sure" and "Nope" passed a mandatory safety question whose answer is "no".
+- **Root cause:** a prefix check stands in for a word check. Phase 1's saved answers never exercised it,
+  so a grader that agreed with `quiz.py` on all 112 of them still had it.
+- **Prevention:** a grading rule gets constructed cases for its near misses, not only for its hits
+  (`tests/fixtures/recipe-test/grader-cases.json`), and a mutant that restores the loose rule (T59c).
+
 ### A bare `wait` in a script that started a server waits for ever (2026-11-26)
 - **Symptom:** `measure-server.sh` hung after two background requests had finished.
 - **Root cause:** the script starts `llama-server` with `&`, so a bare `wait` also waits for the server,
