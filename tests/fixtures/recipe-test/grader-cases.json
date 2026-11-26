@@ -109,8 +109,8 @@
  },
  {
   "n": 49,
-  "pass": true,
-  "why": "starts with no",
+  "pass": false,
+  "why": "starts with no (a whole word since 2026-11-26: fails)",
   "reply": "Answer: Not at all"
  },
  {
@@ -292,5 +292,29 @@
   "pass": true,
   "why": "a word inside the answer",
   "reply": "Answer: The battery is low"
+ },
+ {
+  "n": 49,
+  "pass": false,
+  "why": "yes/no: the whole word, not its start",
+  "reply": "Answer: Not sure"
+ },
+ {
+  "n": 49,
+  "pass": false,
+  "why": "yes/no: the whole word, not its start",
+  "reply": "Answer: Nope"
+ },
+ {
+  "n": 49,
+  "pass": true,
+  "why": "yes/no: the word, then punctuation",
+  "reply": "Answer: No."
+ },
+ {
+  "n": 49,
+  "pass": true,
+  "why": "yes/no: the word, then more",
+  "reply": "Answer: no, never mix them"
  }
 ]

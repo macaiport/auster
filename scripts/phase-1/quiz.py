@@ -76,7 +76,9 @@ def grade(item, text):
     if kind == "time":
         return want in a.replace(".", ":")
     if kind == "yesno":
-        return a.startswith(want)
+        # the whole word: "no" and "no, never" pass, "nope" and "not sure" do not
+        rest = a[len(want):]
+        return a.startswith(want) and not (rest and (rest[0].isalnum() or rest[0] == "_"))
     if kind == "re":
         return re.search(want, a) is not None
     return want in a  # "word"

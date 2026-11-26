@@ -176,7 +176,11 @@ function auGrade(item, text) { // quiz.py grade()
     return Math.abs(v - want) <= (item.tol !== undefined ? item.tol : 0.51);
   }
   if (kind === 'time') return auPyReplaceAll(a, '.', ':').indexOf(want) >= 0;
-  if (kind === 'yesno') return a.startsWith(want);
+  if (kind === 'yesno') {   // the whole word: "no" and "no, never" pass, "nope" and "not sure" do not
+    if (!a.startsWith(want)) return false;
+    var next = Array.from(a.slice(want.length))[0];
+    return next === undefined || !(/[\p{L}\p{N}]/u.test(next) || next === '_');
+  }
   if (kind === 're') return auReSearch(want, a) !== null;
   return a.indexOf(want) >= 0;   // "word"
 }

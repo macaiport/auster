@@ -3,7 +3,7 @@
 # and the same verdict twice. Also on the constructed cases of tests/fixtures/recipe-test/grader-cases.json,
 # whose verdicts are quiz.py's too: one for each rule (the last "Answer:", fractions, mixed numbers, the
 # value after the last "=", Python's whitespace, json.loads), so that a rule the saved replies happen not
-# to exercise is still held. Mutants: tests/mutants/T59a and T59b.
+# to exercise is still held. Mutants: tests/mutants/T59a to T59c.
 . "$TESTS/lib.sh"
 W=$(mktemp -d "${TMPDIR%/}/t59.XXXXXX")
 P=$TESTS/fixtures/phase-1
@@ -43,6 +43,6 @@ for f in "$P/q56-A-replies.json" "$P/q56-B-replies.json" "$TESTS/fixtures/recipe
 done
 same "$total" 112 "phase 1's saved replies: 112 in all"
 same "$(grep -c '"pass": false' "$TESTS/fixtures/recipe-test/grader-cases.json") $(grep -c '"pass": true' "$TESTS/fixtures/recipe-test/grader-cases.json")" \
-  "21 28" "the constructed cases: 21 that fail and 28 that pass"
+  "24 29" "the constructed cases: 24 that fail and 29 that pass"
 
 done_
