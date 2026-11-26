@@ -1,0 +1,3 @@
+# file: common/registry-lib.js
+# choose a build missing from the order
+s/^  var ids = reg\.orders\[recipeId\]\.builds;$/  var ids = reg.orders[recipeId].builds.concat(Object.keys(reg.builds));/

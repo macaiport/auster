@@ -1,0 +1,3 @@
+# file: common/registry-lib.js
+# rewrite only the known fields
+s/raw: ln\.raw, extra: ln\.extra/raw: ln.fields.slice(0, auRegCount(ln.kind)[1]).join('\\t'), extra: ln.extra/

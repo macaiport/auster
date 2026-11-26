@@ -1,0 +1,3 @@
+# file: common/registry-lib.js
+# a pattern anchored at one end only (the label's, at its start)
+/^  label: /s/\$\//\//

@@ -1,0 +1,3 @@
+# file: tools/check-registry.js
+# the gate counts ids per kind only
+s/^    var key = f\[1\];$/    var key = f[0] + ' ' + f[1];/

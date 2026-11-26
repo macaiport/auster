@@ -11,6 +11,9 @@ The ids
   b7adwcqnfap56  order 2 (b12359 + Magistral)   bv4tbuqiaa3al  Mistral on b12400 (good-v0.2.0)
   b4cvp4l4ee5tl  the third-party build          b5gekhbuvd6hx, bc35hcwnetoqb  fits / does not fit
   bhoe4j755eetl  a build in no order line       bqcj2a3zgsijq  never defined (withdraw-unknown)
+Used only in lines the registry tests make at run time (tests/t48, t52):
+  bsyn3jk2ujtyp  order 1 corrected (T52)        by5tj7eyogjys  a build naming an undefined engine
+  bicef73fxu6v2  never defined (T48)            ewiqx4pcoartv  never defined (T48)
 
 The household lines follow A6: real sizes, hashes and commits for the engine and both models, the
 system prompt c44bab6b...d02e49 and order 2's template 39f03c38...81fdcda. Two values are placeholders,
@@ -35,8 +38,8 @@ malformed-line.tsv   good-v0.1.0 and a later order line whose last build id ends
                      is passed over, so the earlier order stands and order 1 is chosen.
 hostile.tsv          good-v0.1.0 and five model or engine lines that nothing names: a repository
                      ../mistralai, a file name -rf.gguf, a file name $(touch f).gguf, a sha256 with z,
-                     a size 17e6. The last four are passed over, the recipe is used, and no file f is
-                     made. See the open questions about the first.
+                     a size 17e6. All five are passed over (A3's repository pattern refuses a part
+                     that begins with . or -), the recipe is used, and no file f is made (T22).
 dup-ids.tsv          good-v0.1.0, then a second `model` line for Magistral's id (one byte larger) and a
                      second `build` line for order 1's id (other figures). The gate fails it and names
                      both. A Mac keeps the first definition of each and passes over the second (T48).
@@ -46,7 +49,9 @@ line-1001.tsv        The same with 1,001 bytes: the gate fails it, naming line 9
                      line and uses the rest, so it reads as line-1000.tsv does.
 unknown-kind.tsv     good-v0.1.0 and a line of the kind `tool`: passed over, the rest used (T40).
 field-count.tsv      good-v0.1.0, a `recipe` line one field short and a `withdraw` line one field long:
-                     both passed over, so the recipe keeps its first line and order 1 is not withdrawn.
+                     the gate fails both. A Mac passes over the short line, so the recipe keeps its
+                     first line, and keeps the long one without reading its last field (A3), so order 1
+                     is withdrawn (security) and order 2 is chosen (T48).
 empty-middle.tsv     good-v0.1.0 and a later `recipe` line with an empty third field, its values moved
                      one field right (family-helper, publisher, 2 people, 8,192 to 16,384). Split on
                      single tabs it has 8 fields and is passed over: the recipe stays household,
@@ -54,7 +59,9 @@ empty-middle.tsv     good-v0.1.0 and a later `recipe` line with an empty third f
                      reads it as 7 good fields and chooses order 2 (T50).
 crlf-line.tsv        good-v0.1.0 and a later order line ending in CR LF: passed over, order 1 chosen.
 crlf-all.tsv         good-v0.1.0 with every line ending in CR LF. The first line's version field is
-                     "v0.1.0" and a CR, and every record's last field carries a CR: nothing is used.
+                     "v0.1.0" and a CR, and every record's last field carries a CR: not read at
+                     all, since its first line holds a CR, and every recipe shows
+                     `passed over (cannot be read)` (T50).
 format-2.tsv         The first line says format 2: not read at all; every recipe shows
                      `passed over (cannot be read)` (T40).
 judgements.tsv       good-v0.1.0, a third build that is in no order line, a second `recipe` line
@@ -71,7 +78,8 @@ reasons.tsv          good-v0.1.0, `withdraw` order 1 `stolen` (not a known reaso
 
 Made at run time, not kept here: tests/helpers.sh registry_sized SRC BYTES OUT pads a registry with
 comment lines of at most 1,000 bytes to an exact size. good-v0.1.0.tsv padded to 524,288 bytes is
-within the cap; to 524,289 it is over (T48); to 1,048,577 it is an answer over 1 MiB (T3).
+within the cap; to 524,289 it is over, the gate fails it and a Mac does not read it
+at all (T48); to 1,048,577 it is an answer over 1 MiB (T3).
 
 boundary/            For every pattern of A2 and A3, values just inside and just outside (T49).
                      MANIFEST lists each file, the file it differs from, the lines a correct reader
@@ -80,21 +88,25 @@ boundary/            For every pattern of A2 and A3, values just inside and just
                      their one build is chosen. Each out-*.tsv is in-upper.tsv (or in-withdraw.tsv)
                      with one value changed, everywhere that value appears, so the lines it differs on
                      are exactly the lines MANIFEST names; tests/t00-fixtures.sh checks that. Each line
-                     named fails a pattern itself. With the only build or its order gone, the recipe
-                     shows `passed over (cannot be read)`. The out-reason files are the exception: the
+                     named fails a pattern itself. A line that names an id whose own line is passed
+                     over is passed over too (A3), so the build and order lines that name what a named
+                     line defines go with it; MANIFEST names only the lines that fail a pattern
+                     themselves. With the only build or its order gone, the recipe shows
+                     `passed over (cannot be read)`. The out-reason files are the exception: the
                      withdraw line is passed over, so the build stays offered.
 
-Open questions in the plan that these fixtures meet, not settled here
-- A3's repository pattern accepts `..` as the owner or the name (hostile.tsv line 9 matches it), while
-  T22 expects a line holding `../` to be passed over. A Mac builds a download address from it.
-- A line that names an id whose own line was passed over (an order naming a build whose build line
-  failed a pattern): T48 says a line naming an undefined id is passed over, but not whether an id
-  defined by a line that was passed over counts as undefined. The boundary files do not depend on it:
-  either way the recipe cannot be read.
-- `order` has no fixed field count (a recipe id, then one or more build ids). The fixtures read it as
-  at least three fields.
-- A3 passes over a line whose field count is not exactly its kind's, while T55 speaks of a registry
-  line "with a trailing field the Mac does not know" kept in a descriptor.
-- Only comment lines and `order` lines can reach 1,000 bytes: every other record is at most 593 bytes,
-  and an order line is 19 + 14 bytes for each build. The cap is therefore tested with comment lines.
-- A3 does not say what a Mac does with a whole file over 512 KiB.
+What A3 settled after these fixtures were made (2026-11-26), and the files corrected to it
+- The repository pattern refuses a part that begins with . or -, so hostile.tsv line 9 (../mistralai)
+  is passed over like the other four.
+- A line that names an id whose own line was passed over is passed over too: an id defined only by a
+  line that was passed over counts as undefined. A3 says nothing of where in the file a line is, so a
+  line may name an id defined further down.
+- An order line is a recipe id and one to 64 build ids: 3 to 66 fields.
+- A Mac keeps the fields after the last one it knows, byte for byte, and does not read them (that is
+  how format 1 grows); the gate requires each kind's exact count. field-count.tsv's long withdraw line
+  is therefore kept on a Mac.
+- A file over 512 KiB is not read at all, and every recipe shows `passed over (cannot be read)`.
+- With the known fields alone, only comment lines and order lines can reach 1,000 bytes (every other
+  record is at most 593 bytes, an order line 19 + 14 bytes for each build); fields after the last
+  known can make any line longer. The cap is tested with comment lines, and T48 adds an order line
+  over it.

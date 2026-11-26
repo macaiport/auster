@@ -1,0 +1,3 @@
+# file: common/registry-lib.js
+# key the recipe by its label (the registry's form of "use the label as the folder name")
+s/reg\.recipes\[r\.id\] = r;/reg.recipes[r.label] = r;/

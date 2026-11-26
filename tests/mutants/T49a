@@ -1,0 +1,3 @@
+# file: common/registry-lib.js
+# a range widened by one (a label of 42 characters)
+/^  label: /s/{1,40}/{1,41}/

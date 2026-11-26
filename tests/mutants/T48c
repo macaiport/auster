@@ -1,0 +1,3 @@
+# file: common/registry-lib.js
+# the Mac keeps the last of two definitions
+s/^    if (!(id in first)) first\[id\] = ln; else if (ln\.accepted) auRegPass(ln, .*$/    if ((id in first) \&\& first[id].accepted) auRegPass(first[id], 'id defined twice'); first[id] = ln;/

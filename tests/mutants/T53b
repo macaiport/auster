@@ -1,0 +1,3 @@
+# file: common/registry-lib.js
+# accept an unknown tier
+s/^  tier: \/.*$/  tier: \/^[a-z-]+$\/,/

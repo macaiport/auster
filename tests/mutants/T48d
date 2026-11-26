@@ -1,0 +1,3 @@
+# file: tools/check-registry.js
+# --tag does not compare the version line with the tag
+s/^    else if (reg\.version !== tag)/    else if (false)/

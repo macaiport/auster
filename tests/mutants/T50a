@@ -1,0 +1,3 @@
+# file: common/registry-lib.js
+# split on runs of tabs
+s|ln\.fields = raw\.split('\\t');|ln.fields = raw.split(/\\t+/);|

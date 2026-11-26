@@ -1,0 +1,4 @@
+# file: common/registry-lib.js
+# take the first judgement
+s/reg\.recipes\[r\.id\] = r;/if (!reg.recipes[r.id]) reg.recipes[r.id] = r;/
+s/reg\.orders\[o\.recipe\] = o;/if (!reg.orders[o.recipe]) reg.orders[o.recipe] = o;/

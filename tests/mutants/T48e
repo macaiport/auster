@@ -1,0 +1,3 @@
+# file: tools/check-registry.js
+# --release lets a released line go missing or change
+s/^        fail('line ' + w\.n + ' of the release/        return; fail('line ' + w.n + ' of the release/

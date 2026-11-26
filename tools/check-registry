@@ -1,0 +1,63 @@
+#!/bin/bash
+# The repo's registry gate (docs/plans/v0.1.md, A3 and D3.9). It reads the registry with the reader every
+# Mac uses (common/registry-lib.js, through tools/check-registry.js) and is stricter than a Mac: where a
+# Mac passes a line over, or keeps a field it does not know and does not read, the gate fails.
+usage() {
+  cat >&2 <<'EOF'
+usage: tools/check-registry <registry.tsv> [--assets DIR] [--release FILE] [--tag vX.Y.Z]
+
+Fails, naming each failure on its own line, when:
+  - the file is over 512 KiB, or is not a registry of format 1 with a version line;
+  - a line is over 1,000 bytes, ends without a newline, holds a CR or another control character, is not
+    UTF-8, is empty, or is of a kind format 1 does not have;
+  - a line has a field too few or too many for its kind (an order: a recipe and 1 to 64 builds), an empty
+    field, or a field that fails its pattern or is over its ceiling;
+  - an id is defined twice, by lines of the same kind or of two kinds;
+  - a build, order or withdraw names an id no line defines, or one whose own line fails (so every order
+    names builds whose engine and model exist); an order names a build twice, or a build already in
+    another recipe's order; a build is withdrawn twice;
+  --tag     the first line's version is not the tag, or the format is not 1;
+  --release a fact or judgement line of FILE, the registry the last release holds, is missing, changed or
+            moved; a new recipe or order line sits above the release's line for the same recipe; or the
+            version is not newer than FILE's;
+  --assets  a template, system prompt or test that a build names by sha256 is not a file in DIR with that
+            sha256. Files are found by their hash, so their names do not matter.
+
+Exit 0 when nothing fails, 1 when something does, 2 for usage. Not asked here, because they need the
+network or the engine, and done by the release steps instead (D3.9): that every model and engine a
+build uses answers a HEAD at its publisher with the registry's size and hash, and that a new engine's
+--help has been compared with the last released engine's.
+EOF
+  exit 2
+}
+set -u
+ROOT=$(cd "$(dirname "$0")/.." && pwd -P)
+reg= assets= opts=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --assets) [ $# -ge 2 ] || usage; assets=$2; shift 2 ;;
+    --release|--tag) [ $# -ge 2 ] || usage; opts+=("$1" "$2"); shift 2 ;;
+    -*) usage ;;
+    *) [ -z "$reg" ] || usage; reg=$1; shift ;;
+  esac
+done
+[ -n "$reg" ] || usage
+if [ -n "$assets" ] && [ ! -d "$assets" ]; then echo "check-registry: $assets is not a folder" >&2; exit 2; fi
+
+out=$(osascript -l JavaScript "$ROOT/tools/check-registry.js" "$ROOT" "$reg" ${opts[@]+"${opts[@]}"}) || {
+  echo "check-registry: the reader failed" >&2; exit 2; }
+
+fails=$(printf '%s\n' "$out" | sed -n 's/^fail	//p')
+if [ -n "$assets" ]; then
+  have=$(find "$assets" -type f -print0 | while IFS= read -r -d '' f; do shasum -a 256 < "$f" | cut -c1-64; done)
+  while IFS=$'\t' read -r kind sha build what; do
+    [ "$kind" = asset ] || continue
+    printf '%s\n' "$have" | grep -qx "$sha" && continue
+    fails+="${fails:+$'\n'}build $build: its $what $sha is not in $assets"
+  done <<< "$out"
+fi
+if [ -n "$fails" ]; then
+  printf '%s\n' "$fails"
+  exit 1
+fi
+exit 0

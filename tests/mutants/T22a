@@ -1,0 +1,3 @@
+# file: common/registry-lib.js
+# split the line and use the fields unmatched
+s/^  if (!AU_REG_PATTERNS\[spec\[1\]\]\.test(v)) return 'fails its pattern';$/  if (false) return 'fails its pattern';/

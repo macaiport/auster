@@ -1,0 +1,4 @@
+# file: common/registry-lib.js
+# call any appropriate build that differs waiting
+s/^  var pick = auRegFirstAppropriate(list);$/  var pick = auRegFirstAppropriate(list.filter(function (e) { return e.id !== servingId; })) || auRegFirstAppropriate(list);/
+/pick\.position > s\.position/d

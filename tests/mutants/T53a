@@ -1,0 +1,3 @@
+# file: common/registry-lib.js
+# read the tier from the build
+s/^    e\.tier = e\.model\.tier;$/    e.tier = e.build.tier;/

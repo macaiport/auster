@@ -1,0 +1,3 @@
+# file: tools/check-registry
+# skip the hash
+s/^    printf '%s\\n' "\$have" | grep -qx "\$sha" \&\& continue$/    [ -n "$have" ] \&\& continue/
