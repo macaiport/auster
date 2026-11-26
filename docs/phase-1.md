@@ -233,10 +233,76 @@ narrower: B at about 3 bits is not obviously worse than A at 4 bits on plain hou
 answers in a third of the words and a quarter of the time. A larger graded set is needed before the
 recipe's model is chosen.
 
+## Step 6. Model C, Apertus 70B (2026-11-26, 04:35 to 05:40)
+
+**Fetched** with the same script: `Apertus-70B-Instruct-2509-Q4_K_M.gguf` from
+`unsloth/Apertus-70B-Instruct-2509-GGUF` at commit `aff98136…`. 43,721,598,624 bytes in 3,077 s
+(14.2 MB/s, sharing the line with model B for most of it). sha256 equal; hashing took **17.0 s**.
+
+**The file:** architecture `apertus`, 80 layers, 8 key-value heads of 128. **Its context limit is
+65,536 tokens.** It carries its own chat template (14,244 characters, with tools; no reasoning marks).
+**No licence field** in the file; the publisher's card says Apache-2.0.
+
+**Memory** (the engine's own report):
+
+| Context | Weights on the GPU | Context cache | In all | Ready after |
+|---|---|---|---|---|
+| 16K | 41.1 GiB | 5.0 GiB | about 46.3 GiB | 3.3 s |
+| 32K | 41.1 GiB | 10.0 GiB | about 51.4 GiB | 3.8 s |
+| 48K | **36.4 GiB** | 13.7 GiB | about 50.5 GiB | 8.9 s |
+
+**320 KiB of cache per token**, twice model A's. At 32K it sits just under the 51.8 GiB the GPU may use
+(`recommendedMaxWorkingSetSize` = 55,662.79 MB). **At 48K the engine moved part of the model off the GPU
+by itself** to make room, which slows it, and said so only at debug level. Auster's capability rule has
+to refuse that, not find it afterwards. With C loaded, the whole Mac had 5 to 9% of its memory free.
+
+**Speed** (`llama-bench`, two repetitions):
+
+| | Empty context | At 8K of context |
+|---|---|---|
+| Reading a prompt of 512 / 4,096 tokens | 301 / 273 tok/s | 223 / 212 tok/s |
+| Writing 128 tokens | **11.6 tok/s** | **10.8 tok/s** |
+
+Through the server: 12.3 tok/s after a 1K prompt, 11.2 after 6K; **two people at once got 10.1 tok/s
+each**. 11.6 tok/s × 43.7 GB is about 510 GB/s: limited by memory bandwidth, like A.
+
+**The quiz:** the program counted 12 of 15. One of the three it marked wrong was the grader's fault: C
+wrote "Answer:" twice on one line and the grader read the first number (1260) instead of the last (105).
+Its two real mistakes: 10 days after a Wednesday is a Wednesday (it is a Saturday), and the term date
+(13 April for 10 April). 926 tokens in **79 s**. The grader now reads the last "Answer:" and accepts a
+trailing full stop; the counts in this file were made before that change and are read again by hand here.
+
+## The three side by side (phase 1, as far as it has gone)
+
+| | A: Magistral Small 2509, Q4_K_M | B: Mistral Small 4, UD-IQ3_S | C: Apertus 70B, Q4_K_M |
+|---|---|---|---|
+| File | 14.3 GB, Mistral's own GGUF | 44.4 GB, Unsloth's | 43.7 GB, Unsloth's |
+| Context limit in the file | 40,960 | 1,048,576 (card: 256K) | 65,536 |
+| Memory at 32K | about 18.6 GiB | about 42.8 GiB | about 51.4 GiB, at the limit |
+| Longest context that fits | its limit, 40K | **128K measured** (about 45 GiB); 256K by arithmetic, about 47.8 GiB | about 32K |
+| Writing, empty / 16K (C: 8K) | 38 / 31 tok/s | **81 / 50 tok/s** | 12 / 11 tok/s |
+| Two people at once, each | 31 tok/s | **60 tok/s** | 10 tok/s |
+| Ready after a start, cached | 1.3 to 2.9 s | 2.4 to 2.6 s | 2.8 to 3.5 s |
+| Chat template in the file | **none**: pinned from llama.cpp | yes | yes |
+| Quiz, read by hand: mistakes of 15 | 2 | 1, a non-answer | 2 |
+| Quiz, time for all 15 | 21 s | **5 s** | 79 s |
+| Openness | open weights | open weights | **open weights, data and training** |
+
+What this says, for the choice of model (not yet made):
+
+- **For speed and context on a 64 GB Mac, B is clearly first,** even at about 3 bits. It fits with
+  room, writes twice as fast as A, and answered the quiz as well.
+- **A is the one for smaller Macs.** About 18.6 GiB at 32K. Whether a 32 GB Mac holds it is arithmetic
+  only, until a smaller Mac is measured (the MacBook has 36 GB).
+- **C is the open one, and on this Mac it is slow and tight.** At 11 tok/s a long answer takes
+  minutes, and only one or two people fit. It belongs to the concept's `audit-tower`, where its openness
+  is the point, on a larger Mac.
+- **B and C are built by a third party (Unsloth),** linked from the publisher's card in B's case. A comes
+  from Mistral itself. That is the trust question the concept raised.
+
 ## Not done yet in phase 1
 
 - The one MLX measurement, of model A.
-- Model C (Apertus 70B at 4 bits, 43.7 GB): downloading.
 - A larger graded set of questions, before the model is chosen.
 - Two devices on the home network, and an iPad. The server has so far listened on this Mac only.
 - A cold start from disk, and what the Mac does after a restart (the plan's AD15).
@@ -251,4 +317,4 @@ recipe's model is chosen.
 | B | Mistral Small 4, IQ3_S | 44.4 GB |
 | C | Apertus 70B Instruct 2509, Q4_K_M | 43.7 GB |
 
-Models A and B have been downloaded and verified (steps 2 and 4). C is downloading.
+Models A, B and C have been downloaded and verified (steps 2, 4 and 6).

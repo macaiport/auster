@@ -38,11 +38,11 @@ def grade(kind, want, text):
     if kind == "exact":
         return text.strip().lower().rstrip(".") == want
     if kind == "three":
-        items = [x.strip() for x in text.strip().split("\n")[0].split(",")]
+        items = [x.strip().rstrip(".") for x in text.strip().split("\n")[0].split(",")]
         return len(items) == 3 and all(re.fullmatch(r"[A-Za-z][A-Za-z \-]{1,30}", x) for x in items)
-    m = re.findall(r"Answer:\s*(.+)", text)
-    if not m: return False
-    a = m[-1].strip().lower().rstrip(".").replace("**", "")
+    if "Answer:" not in text: return False
+    # the text after the last "Answer:", which may share a line with an earlier one
+    a = text.rsplit("Answer:", 1)[1].strip().split("\n")[0].lower().rstrip(".").replace("**", "")
     if kind == "num":
         n = re.findall(r"-?\d+(?:[.,]\d+)?", a.replace(",", "") if a.count(",") and "." not in a else a)
         return bool(n) and abs(float(n[0].replace(",", ".")) - want) < 0.51
