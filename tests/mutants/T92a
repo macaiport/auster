@@ -1,0 +1,3 @@
+# file: common/capability-lib.js
+# refuse outright when the first build has no room on disk
+/^    if (n && first && disk && f\.diskFree - e\.cap\.download < floor) codes\.push('room');/d

@@ -1,0 +1,3 @@
+# file: common/capability-lib.js
+# no margin
+s/^  if (!(gpu + AU_CAP_MARGIN_MIB <= figures\.gpuMiB)) return false;/  if (!(gpu <= figures.gpuMiB)) return false;/

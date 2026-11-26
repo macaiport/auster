@@ -1,0 +1,3 @@
+# file: common/capability-lib.js
+# take the first number on the line
+s/^var AU_CAP_MTL0 = .*$/var AU_CAP_MTL0 = \/^  MTL0: [^(]*\\(([0-9]+)\/;/

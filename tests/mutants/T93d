@@ -1,0 +1,3 @@
+# file: common/capability-lib.js
+# kept builds before failed ones
+s/order = failed\.concat(kept), set/order = kept.concat(failed), set/

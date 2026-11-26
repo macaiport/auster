@@ -1,0 +1,3 @@
+# file: common/capability-lib.js
+# choose the smallest build that fits
+s/^    else pick = auRegFirstAppropriate(list);$/    else pick = list.filter(function (e) { return e.appropriate; }).sort(function (a, b) { return a.cap.needs.totalMiB - b.cap.needs.totalMiB; })[0] || null;/

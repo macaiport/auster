@@ -1,0 +1,3 @@
+# file: common/capability-lib.js
+# take the GPU limit as the memory
+s/^  var ramMiB = auCapDivDown(figures\.ramBytes, AU_CAP_MIB);$/  var ramMiB = figures.gpuMiB;/

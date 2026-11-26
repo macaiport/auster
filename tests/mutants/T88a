@@ -1,0 +1,3 @@
+# file: common/capability-lib.js
+# skip the rule for the rest of the Mac
+/^  if (!(ramMiB - total >= AU_CAP_REST_MIB)) return false; /d

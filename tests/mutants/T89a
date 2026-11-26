@@ -1,0 +1,3 @@
+# file: common/capability-lib.js
+# < for <= in the GPU rule
+s/^  if (!(gpu + AU_CAP_MARGIN_MIB <= figures\.gpuMiB)) return false;/  if (!(gpu + AU_CAP_MARGIN_MIB < figures.gpuMiB)) return false;/

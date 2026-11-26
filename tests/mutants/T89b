@@ -1,0 +1,3 @@
+# file: common/capability-lib.js
+# 12,000 for 12 GiB
+s/^var AU_CAP_REST_MIB = 12288;/var AU_CAP_REST_MIB = 12000;/

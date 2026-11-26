@@ -1,0 +1,3 @@
+# file: common/capability-lib.js
+# the smaller of the two floors
+s/^  return Math\.max(AU_CAP_DISK_FLOOR, /  return Math.min(AU_CAP_DISK_FLOOR, /

@@ -1,0 +1,23 @@
+Fixtures for section C of docs/plans/v0.1.md (the capability rules, C1 to C6), used by the tests T88 to
+T93 and T102 through tests/capability-helpers.sh.
+
+household.tsv   The household recipe as A6 gives it, in a registry of format 1: the same lines as
+                tests/fixtures/registry/good-v0.1.0.tsv, byte for byte, with the same ids. Order 1 is
+                Mistral Small 4 (41,923 MiB of weights, 333 MiB of working buffers, 484 MiB outside the
+                GPU, 23,040 bytes of cache a token, endorsed); order 2 is Magistral Small 2509 (13,302,
+                665, 432, 163,840, publisher); engine b12359 for both. The recipe allows
+                publisher,endorsed, 4 people by default, 8,192 to 32,768 a person. The model files' context
+                limits (262,144 and 131,072) are fixture values; T90 changes Mistral's at run time.
+                V8 writes the real registry.tsv; this file stands in for it until then.
+
+Made at run time by the tests, not kept here:
+- the Mac's figures, through the test variables AU_GPU_MIB, AU_RAM_BYTES, AU_DISK_FREE_BYTES and
+  AU_DISK_TOTAL_BYTES (C1); the four Macs of T88 are 16, 36, 64 and 128 GB (17,179,869,184,
+  38,654,705,664, 68,719,476,736 and 137,438,953,472 bytes). T88 gives their GPU limits: 27,648 MiB for
+  36 GB and 53,084 MiB for 64 GB (the development Mac's measured figure). It gives none for 16 and 128 GB:
+  the tests use 12,288 and 98,304 MiB, three quarters of the memory, as 36 GB's figure is, and no verdict
+  depends on them;
+- `mac` records (tests/capability-helpers.sh mac_record), `df -k` output and disk holdings, in the forms
+  common/capability-lib.js's header gives;
+- --list-devices output from tests/fixtures/list-devices/ (the real output of b12359 and its two altered
+  copies), directly and through the stub engine.

@@ -1,0 +1,3 @@
+# file: common/capability-lib.js
+# KiB read as bytes
+s/^var AU_CAP_KIB = 1024; /var AU_CAP_KIB = 1; /

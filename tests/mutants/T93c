@@ -1,0 +1,3 @@
+# file: common/capability-lib.js
+# count a file another recipe's descriptor names as free
+s/^    if (removed\.indexOf(holdings\.descs\[i\]) < 0) holdings/    if (removed.indexOf(holdings.descs[i]) < 0 \&\& removed.some(function (r) { return r.recipe === holdings.descs[i].recipe; })) holdings/

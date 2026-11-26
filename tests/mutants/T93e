@@ -1,0 +1,3 @@
+# file: common/capability-lib.js
+# count the build in use's files as free when no descriptor of it is listed
+/^      auCapEntryFiles(auCapEntry(reg, o\.serving) || pick)\.forEach/d

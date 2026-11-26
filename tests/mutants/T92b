@@ -1,0 +1,3 @@
+# file: common/capability-lib.js
+# start the download when no build has room
+/^    return auCapRefuse(out, 'room');$/d

@@ -1,0 +1,3 @@
+# file: common/capability-lib.js
+# reset people to the recipe's default
+s/^  var people = o\.people === null || o\.people === undefined ? recipe\.people : Math\.min(o\.people, recipe\.people);$/  var people = recipe.people;/

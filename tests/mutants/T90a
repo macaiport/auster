@@ -1,0 +1,3 @@
+# file: common/capability-lib.js
+# apply the limit to people x context
+s/^  var best = 0, n, top = auCapTop(model, recipe);$/  var best = 0, n, top = Math.min(recipe.contextMax, Math.floor(model.contextLimit \/ people));/
