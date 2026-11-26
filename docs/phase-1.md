@@ -379,6 +379,36 @@ the fewest mistakes, in a quarter of A's time and a fifteenth of C's.** C, the o
 and was the slowest by far. Both A and C slip on date and time sums. B follows the asked format least
 often of the three when it is sure of the answer.
 
+## Step 10. A cold start from disk (2026-11-26)
+
+The owner emptied the Mac's file cache (`sudo purge`); 6.0 GiB of files were cached when the test began.
+
+| | Ready after (`/health` 200) | First short answer | The same again |
+|---|---|---|---|
+| B, 44.4 GB | **14.7 s** | 0.32 s | 0.31 s |
+| A, 14.3 GB | **4.1 s** | 0.61 s | 0.59 s |
+
+About 3 GB/s from the internal disk. The slow first question on the iPad (step 7: 5.4 s for a 294-token
+prompt) was not repeated by a short question here. Model B reads only some of its weights for each
+token, so a longer first question probably reaches weights that were never read from disk. A warm-up
+question after each start, long enough to reach most of them, would hide this; how long it must be is
+for phase 2 to measure.
+
+## Step 11. When a model does not fit: the engine's two behaviours (2026-11-26)
+
+Model C at a 48K context does not fit on the GPU of this Mac (step 6). Loaded three ways:
+
+| Settings | What the engine did |
+|---|---|
+| The defaults (`--fit on`, no `-ngl`) | **Moved part of the model off the GPU by itself**, and said so only at debug level. It works, slower |
+| `--fit off -ngl all` | Ran out of GPU memory in its own warm-up. **Answered `/health` with 200 regardless.** A real request then failed at once with HTTP 500, "Compute error", and `/health` still answered 200 |
+| `--fit on -ngl all` | The same: "failed to fit params … abort", out of memory, and `/health` 200 |
+
+So **`/health` does not say the server works.** After every start Auster has to ask a real question and
+check the answer and its speed against what the registry expects. The engine's default fitting is a
+safety net that turns "does not fit" into "slow", and Auster's own rule (section C of the v0.1 plan)
+should mean it is never needed.
+
 ## The three side by side (phase 1, as far as it has gone)
 
 | | A: Magistral Small 2509, Q4_K_M | B: Mistral Small 4, UD-IQ3_S | C: Apertus 70B, Q4_K_M |
@@ -413,7 +443,7 @@ What this says, for the choice of model (not yet made):
 - The choice of model, from steps 3 to 9.
 - Two devices at once on the home network, and revoking one while the other keeps working. The iPad
   worked on its own key (step 7).
-- A cold start from disk, and what the Mac does after a restart (the plan's AD15).
+- What the Mac does after a restart (the plan's AD15).
 
 ## Sizes of the candidates
 
