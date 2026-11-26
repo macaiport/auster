@@ -177,6 +177,9 @@ Two more things the page does:
 
 ## Step 4. Model B, Mistral Small 4 (2026-11-26, 04:35 to 05:25)
 
+> Corrected the same day: some figures in steps 4 and 6 and in the table of the three were first
+> written as GiB when they were MiB divided by 1,000. They are now MiB divided by 1,024.
+
 **Fetched** with `scripts/phase-1/fetch-model.sh`: `Mistral-Small-4-119B-2603-UD-IQ3_S.gguf` from
 `unsloth/Mistral-Small-4-119B-2603-GGUF` at commit `bd93c721…`, the build Mistral's own card links to.
 The checks first: 379 GiB free, and the publisher's size and hash equal to its API's. 44,407,639,744
@@ -192,12 +195,12 @@ measure for this model: it read 3.0 GiB in one run and 44.3 GiB in another):
 
 | | Model A | Model B |
 |---|---|---|
-| Weights on the GPU | 13.3 GiB | 41.9 GiB |
+| Weights on the GPU | 13.0 GiB (13,302 MiB) | 40.9 GiB (41,923 MiB) |
 | Context cache per token | 160 KiB | **22.5 KiB** |
-| In all at 32K | about 18.6 GiB | about 42.8 GiB |
-| In all at 128K | not possible: 40K is the file's limit | **about 45.0 GiB** |
+| In all at 32K | about 18.3 GiB | about 41.8 GiB |
+| In all at 128K | not possible: 40K is the file's limit | **about 44.1 GiB** |
 
-So **model B fits this Mac at about 3 bits with a long context**, leaving about 7 GiB of the 51.8 GiB
+So **model B fits this Mac at about 3 bits with a long context**, leaving about 7.8 GiB of the 51.8 GiB
 the GPU may use. The review's arithmetic ("a 119B model does not fit at 4 bits") stands; at 3 bits it
 does, with room.
 
@@ -247,9 +250,9 @@ recipe's model is chosen.
 
 | Context | Weights on the GPU | Context cache | In all | Ready after |
 |---|---|---|---|---|
-| 16K | 41.1 GiB | 5.0 GiB | about 46.3 GiB | 3.3 s |
-| 32K | 41.1 GiB | 10.0 GiB | about 51.4 GiB | 3.8 s |
-| 48K | **36.4 GiB** | 13.7 GiB | about 50.5 GiB | 8.9 s |
+| 16K | 40.1 GiB | 5.0 GiB | about 45.3 GiB | 3.3 s |
+| 32K | 40.1 GiB | 10.0 GiB | about 50.4 GiB | 3.8 s |
+| 48K | **36.4 GiB**, part moved off the GPU | 13.7 GiB | about 50.4 GiB | 8.9 s |
 
 **320 KiB of cache per token**, twice model A's. At 32K it sits just under the 51.8 GiB the GPU may use
 (`recommendedMaxWorkingSetSize` = 55,662.79 MB). **At 48K the engine moved part of the model off the GPU
@@ -409,14 +412,35 @@ check the answer and its speed against what the registry expects. The engine's d
 safety net that turns "does not fit" into "slow", and Auster's own rule (section C of the v0.1 plan)
 should mean it is never needed.
 
+## Step 12. Two things about keys, found in review (2026-11-26)
+
+Raised by the security lens reviewing the v0.1 plan, and tested the same day on build `b12359`, on this
+Mac only, with model A:
+
+| `--api-key-file` holds | A request with no key | `/v1/models` with no key |
+|---|---|---|
+| nothing (an empty file) | **200: answered** | **200** |
+| three blank lines | **200: answered** | **200** |
+| one comment line | **200: answered** | **200** |
+| one key | 401 | 401 |
+
+**A key file with no key in it leaves the server open to anyone who can reach it,** and nothing says so:
+`/health` answers as usual. A key file written empty by mistake, or with the last device's key revoked,
+would open the household's server to the whole home network. Auster has to refuse to start the engine
+unless the key file holds at least one well-formed key, and check after every start that a request with
+no key is refused.
+
+**`/v1/models` also gives the model's full path on disk** as its id, to any key holder, as `/props`
+does (step 3): the account's name with it.
+
 ## The three side by side (phase 1, as far as it has gone)
 
 | | A: Magistral Small 2509, Q4_K_M | B: Mistral Small 4, UD-IQ3_S | C: Apertus 70B, Q4_K_M |
 |---|---|---|---|
 | File | 14.3 GB, Mistral's own GGUF | 44.4 GB, Unsloth's | 43.7 GB, Unsloth's |
 | Context limit in the file | 40,960 | 1,048,576 (card: 256K) | 65,536 |
-| Memory at 32K | about 18.6 GiB | about 42.8 GiB | about 51.4 GiB, at the limit |
-| Longest context that fits | its limit, 40K | **128K measured** (about 45 GiB); 256K by arithmetic, about 47.8 GiB | about 32K |
+| Memory at 32K | about 18.3 GiB | about 41.8 GiB | about 50.4 GiB, near the limit |
+| Longest context that fits | its limit, 40K | **128K measured** (about 44.1 GiB); 256K by arithmetic, about 46.9 GiB | about 32K |
 | Writing, empty / 16K (C: 8K) | 38 / 31 tok/s | **81 / 50 tok/s** | 12 / 11 tok/s |
 | Two people at once, each | 31 tok/s | **60 tok/s** | 10 tok/s |
 | Ready after a start, cached | 1.3 to 2.9 s | 2.4 to 2.6 s | 2.8 to 3.5 s |
@@ -430,7 +454,7 @@ What this says, for the choice of model (not yet made):
 
 - **For speed and context on a 64 GB Mac, B is clearly first,** even at about 3 bits. It fits with
   room, writes twice as fast as A, and answered the quiz as well.
-- **A is the one for smaller Macs.** About 18.6 GiB at 32K. Whether a 32 GB Mac holds it is arithmetic
+- **A is the one for smaller Macs.** About 18.3 GiB at 32K. Whether a 32 GB Mac holds it is arithmetic
   only, until a smaller Mac is measured (the MacBook has 36 GB).
 - **C is the open one, and on this Mac it is slow and tight.** At 11 tok/s a long answer takes
   minutes, and only one or two people fit. It belongs to the concept's `audit-tower`, where its openness
