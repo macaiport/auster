@@ -314,6 +314,13 @@ What the recipe needs from this step:
 
 - **A way to hand a device its key:** a QR code in a window Auster opens and closes, shown only on the
   Mac, never sent anywhere.
+- **A QR that signs the device in, not just gives it the key, needs phase 6's front door.** Checked the
+  same day: the chat page reads only `q`, `model` and `load` from its address, never a key. Serving a
+  pairing page of Auster's own through the engine (`--path`) removes the engine's chat page (`/` answers
+  404) and puts the pairing page behind the key (401). A pairing page on another port is another origin
+  and cannot hand the key to the chat page. A front door could serve `/pair#<key>` at the chat page's own
+  address, store the key, and wipe it from the address and the browser's history, which a household's
+  devices may share. Until then: a QR of the key alone, or one QR for the address and one for the key.
 - **The address to listen on, chosen with care,** whatever the Mac's firewall setting.
 - **Plain HTTP for now.** The key crosses the home Wi-Fi unencrypted. HTTPS needs a certificate the
   household's devices trust: a decision for section B.
