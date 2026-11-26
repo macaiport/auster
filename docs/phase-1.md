@@ -147,14 +147,30 @@ With a plain one ("You are the household assistant for a family. Answer briefly 
 0.16 s to the first word and 1.4 s in all. The chat page sends no system prompt, so the template's
 reasoning default applies: a dinner question took 18 s and 665 tokens, most of them thinking.
 
+**The chat page's system prompt** (tried later the same day). `--ui-config-file` with
+`{"systemMessage": "..."}` reaches the page through `/props` (`ui_settings`). On a browser that had never
+opened the page, the dinner question was answered directly: 60 tokens in 1.6 s, with no reasoning. On a
+browser that had opened the page before, its own saved settings won, with an empty system prompt, and the
+model reasoned at length. This test ran without a key: the permission system declined to put a key into
+the transcript again, and keys had already been tested through the API.
+
+Two more things the page does:
+
+- **It keeps the key in the browser's local storage, in plain text** (`LlamaUi.config`). On a shared
+  family iPad, anyone using that browser can read it.
+- **`/props`, which any key holder can read, gives the model's full path on disk,** and with it the
+  Mac's account name.
+
 ### What the recipe needs, from steps 1 to 3
 
 - **The engine:** build `b12359`, fetched and checked by sha256, with `--offline`, `--no-slots`,
   `--cors-origins` set to its own address, `--api-key-file`, and the Jinja engine on.
 - **The model file, and beside it a template file and a system prompt**, each pinned by sha256. The
   registry line of the v0.1 plan already has a template hash. The system prompt needs one too.
-- **A way to set the chat page's system prompt.** The server takes default page settings from
-  `--ui-config-file`. Whether that can set a system prompt is not yet tried.
+- **The chat page's system prompt, set by the server** with `--ui-config-file`. The guide says how to
+  reset a device whose browser has saved settings of its own.
+- **One key for each device, not each person,** since the page stores it on the device in plain text.
+  Whether that is good enough for a household is a decision for section B.
 - **Revoking a key restarts the engine.** About 1.3 s with the model in memory. Phase 6's front door
   could avoid it.
 - **Hashing uses `openssl`,** four to five times faster than `shasum` here.
@@ -165,7 +181,6 @@ reasoning default applies: a dinner question took 18 s and 665 tokens, most of t
 - Models B (Mistral Small 4 at about 3 bits, 44.4 GB) and C (Apertus 70B at 4 bits, 43.7 GB).
 - Two devices on the home network, and an iPad. The server has so far listened on this Mac only.
 - A cold start from disk, and what the Mac does after a restart (the plan's AD15).
-- Whether `--ui-config-file` can set the chat page's system prompt.
 
 ## Sizes of the candidates
 
