@@ -10,7 +10,7 @@ local memory for this project, which is never committed.
 - Stack: not decided (concept open questions 1, 3, 4)
 - Phase: 1 (household assistant built by hand, planning) — see [SPEC.md](../SPEC.md)
 - Required from the first release: 1launcher's update process, for Auster itself and for its models
-- Remote: `macaiport/auster`, private (created 2026-11-26)
+- Remote: `macaiport/auster`, public since 2026-11-26
 
 ## Reference index
 - [../docs/concept.md](../docs/concept.md) — concept, recipe roster, capability matrix, roadmap, open questions

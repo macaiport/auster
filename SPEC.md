@@ -58,29 +58,26 @@ Side tracks, not phases: the name checks and funding. Their notes are kept priva
 
 ---
 
-## Going public (prepared 2026-11-26; the repo is still private)
+## Public since 2026-11-26
 
-The owner prefers a public repo from the start, run the way 1launcher is: transparency is part of the
-ethos, and the update check cannot read a private repo. The project is kept apart from the owner's
-other projects, not hidden.
+The repo is public and run the way 1launcher is: transparency is part of the ethos, and the update
+check has to be able to read it. The project is kept apart from the owner's other projects, not hidden.
 
-Done on 2026-11-26:
+What was done first:
 
-1. Internal notes (funding, naming, the original concept note) are out of the tracked files and in
+1. Internal notes (funding, naming, the original concept note) were moved out of the tracked files into
    `private/`, which is never tracked. `docs/concept.md` is an edited public version.
-2. The GitHub repo was deleted and created again from a history of one commit, so no commit there
-   carries those notes. The earlier history is kept privately.
+2. The GitHub repo was deleted and created again from a history of one commit, so no commit carries
+   those notes. The earlier history is kept privately.
 3. An MIT licence, in the name of the contributors.
 4. README, CHANGELOG, CONTRIBUTING, SECURITY and CODE_OF_CONDUCT, on 1launcher's pattern.
-5. A scan of the tracked files for references to the owner's other projects: none left.
+5. A scan of every commit and file for references to the owner's other projects: none.
+6. Repo settings as 1launcher: issues and discussions on, wiki off, private vulnerability reporting on.
 
-Still to do, each on the owner's word:
+Still open:
 
-- **Repo settings as 1launcher:** issues and discussions on, wiki off, and private vulnerability
-  reporting on, which `SECURITY.md` points to.
-- **The name checks that are still open** (listed privately).
-- **Change the visibility.**
-- The rulesets come with the first release (plan AD10).
+- The name checks, the trademark search among them. The repo went public before that search, knowingly.
+- The rulesets on `release` and the `v` tags, which come with the first release (plan AD10).
 
 ---
 
