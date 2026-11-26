@@ -412,6 +412,10 @@ check the answer and its speed against what the registry expects. The engine's d
 safety net that turns "does not fit" into "slow", and Auster's own rule (section C of the v0.1 plan)
 should mean it is never needed.
 
+*Later the same day:* the v0.1 plan does the opposite of both conclusions above. Speed is judged against
+the Mac's own (plan BD8), and the engine serves with its fitting off, so that a setting that does not fit
+fails loudly rather than slowly (plan B4; step 14).
+
 ## Step 12. Two things about keys, found in review (2026-11-26)
 
 Raised by the security lens reviewing the v0.1 plan, and tested the same day on build `b12359`, on this
@@ -474,6 +478,37 @@ The full values the plan shortens:
 | Order 2's template | `mistralai-Ministral-3-14B-Reasoning-2512.jinja` from llama.cpp at `b12359`, sha256 `39f03c383413f531fd302c06c7e982ad98c83f0657a8339ae25478ccb81fdcda` |
 | The system prompt | 73 bytes, sha256 `c44bab6bddc7d9f48e834d2120bffeda2aa087b0bb4a2f1c74d17ab103d02e49` |
 | The engine archive | `llama-b12359-bin-macos-arm64.tar.gz`, 16,907,811 bytes, sha256 `82b00abc740160e1b9980e6cc79c117345fa34af058c80e6c0a69aa8ddccde75`; 42,419,750 bytes unpacked |
+
+## Step 14. Fitting off at the edge, and buffers at the largest setting (2026-11-26, 15:09)
+
+Asked by the plan's fourth re-check: the plan now serves with the engine's fitting off, and step 11 had
+shown only one build far over the limit failing. Mistral Small 4 was started with `--fit off -ngl all`
+and four slots at two contexts, then asked "Count from 1 to 300, one number per line." twice
+(`max_tokens` 128), on `127.0.0.1`. Logs and results are in the workspace's `runs/` folder.
+
+| Context, 4 slots | GPU need by the plan's sum | Against the limit, 53,084 MiB | `/health` | Both requests |
+|---|---|---|---|---|
+| 500,000 | 41,923 + 649 + 11,003 = 53,575 MiB | about 490 MiB over | 200 after 15 s | **HTTP 500, "Compute error"** |
+| 470,000 | 41,923 + 623 + 10,328 = 52,874 MiB | **about 210 MiB inside** | 200 after 6 s | **HTTP 500, "Compute error"** |
+
+- **A setting that does not fit fails loudly with fitting off, and so does one just inside the limit.**
+  The margin the engine keeps for its own fitting, 1,024 MiB, is needed, not cautious; the plan's
+  section C keeps it.
+- **The working buffer on the GPU grows with the total context:** 333 MiB at 4 × 32K (step 13), 623 MiB
+  at 470,000 and 649 MiB at 500,000.
+
+So Magistral Small was measured again at the recipe's largest setting, four people at 32,768 (fitting
+on, as in step 13):
+
+| | At 1 × 40,960 (step 13) | At 4 × 32,768 |
+|---|---|---|
+| Working buffer on the GPU | 272 MiB | **665 MiB** |
+| Cache | 6,400 MiB | 20,480 MiB |
+| The engine's projection for the GPU | 19,974 MiB | **34,447 MiB** = 13,302 + 665 + 20,480 |
+| CPU working buffer | 80 MiB | **72 MiB** |
+| Writing, 128 tokens of the count | | 36.9 tok/s |
+
+The plan's figures for order 2 become 665 MiB of working buffer and 360 + 72 = 432 MiB outside the GPU.
 
 ## The three side by side (phase 1, as far as it has gone)
 

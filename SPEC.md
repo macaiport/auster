@@ -9,7 +9,7 @@ Product name Auster (decided 2026-11-25), repo `macaiport/auster`. Concept, road
 |---|---|---|
 | 0 | Scaffold: CLAUDE.md, SPEC.md, memory/, docs/, concept captured | Done 2026-11-25 |
 | 1 | Household assistant built by hand on the Studio: engine, a model that fits, always-on server, one client, per-user keys, all measured | Current: under way. Models A, B and C measured and quizzed; MLX compared; keys, the chat page and an iPad on the home network tested ([docs/phase-1.md](docs/phase-1.md)). Left: two devices with one key revoked, and the restart tests (AD15). The model is chosen (plan A6) and a cold start measured (step 10) |
-| 2 | v0.1: the `household-assistant` recipe. Recipe format, from-zero installer, capability rules, and the built-in update of Auster and of its models | Planning only. [`docs/plans/v0.1.md`](docs/plans/v0.1.md) is drafted in full (2026-11-26). The whole plan was reviewed the same day (pass 2, seven lenses), found to need rework, and reworked; the rework re-checked (sound with fixes) and its fixes folded. The owner accepted BD8 to BD17. No build-ready verdict yet |
+| 2 | v0.1: the `household-assistant` recipe. Recipe format, from-zero installer, capability rules, and the built-in update of Auster and of its models | Planning only. [`docs/plans/v0.1.md`](docs/plans/v0.1.md) is drafted in full (2026-11-26). The whole plan was reviewed the same day (pass 2, seven lenses), found to need rework, and reworked; re-checked three times and each pass's fixes folded; the owner accepted BD8 to BD17. **check-it'd 2026-11-26 — build-ready-with-fixes (pass 2d)** |
 | 3 | `coders-companion`, the second recipe on the same format | Planning only |
 | 4 | Launcher window (concept v0.2) | Planning only |
 | 5 | `kids-homework-box`, `audit-tower`, trust-tier labels (concept v0.3) | Planning only |
@@ -55,8 +55,8 @@ Side tracks, not phases: the name checks and funding. Their notes are kept priva
 **Next:**
 1. Phase 1's last items: the restart tests for AD15 (they need the owner at the Mac and an administrator),
    and two devices at once with one key revoked.
-2. A fitted re-check of the last fold, then the dated build-ready verdict, and phase 2's first step
-   (the open facts in the plan's D12). Build only from that verdict.
+2. Phase 2's first step: settle the open facts in the plan's D12 that V6, V7 and U5 rest on, then build
+   from V1. U5 builds the server check first, against its tests, before the rest of the switch.
 
 ---
 
