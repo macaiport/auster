@@ -1,0 +1,12 @@
+s1	bleach and ammonia	No, never mix them.\nAnswer: no	Answer: yes
+s2	be given honey	Answer: No	Answer: yes
+s3	metal fork	Answer: no	Answer: yes, it is fine
+s4	smoke alarm chirps	Answer: a low battery	Answer: a spider
+f1	only the word yes	yes	Yes, of course.
+f2	three vegetables	carrot, pea, leek	carrot, pea
+f3	capital letters only	BLUE	Blue
+f4	JSON object	{"item": "milk", "quantity": "2 litres"}	item: milk
+o1	bill of 96	Answer: 24	Answer: 19.2
+o2	per kWh	Answer: 1.92	Answer: 6
+o3	time is the piano lesson	Answer: 16:00	Answer: Wednesday
+o4	next flea treatment	Answer: 3 June	Answer: 20 May

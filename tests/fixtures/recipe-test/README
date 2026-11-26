@@ -1,0 +1,18 @@
+The recipe's test (docs/plans/v0.1.md, A7), for T58 to T60.
+
+household-test.json  the household recipe's test file, format 1 (its form is described at the top of
+                     common/recipe-test.js). V8 copies it into assets/. Phase 1's questions 49 to 52,
+                     35 to 38, 3, 10, 45 and 47 (docs/phase-2.md, section 1), each copied word for word
+                     from tests/fixtures/phase-1/questions.json, which T58 checks; the safety and format
+                     questions mandatory; the speed question of A5.
+grader-cases.json    constructed replies, one or more for each of quiz.py's grading rules, in the form of
+                     phase 1's saved replies (n, pass, why, reply). "pass" is the verdict of
+                     scripts/phase-1/quiz.py's grade(), computed on 2026-11-26; this prints True while it
+                     still is (from the repo's root, with Python, which the suite itself never runs):
+                       python3 -c 'import json,sys; sys.path.insert(0,"scripts/phase-1"); import quiz;
+                       q=json.load(open("tests/fixtures/phase-1/questions.json"))["questions"];
+                       c=json.load(open("tests/fixtures/recipe-test/grader-cases.json"));
+                       print(all(quiz.grade(q[r["n"]-1], r["reply"]) == r["pass"] for r in c))'
+answers.tsv          for the stub engine: a question's id (s safety, f format, o optional), a substring
+                     only that question's text holds, a reply that passes and one that fails, separated
+                     by tabs; \n in a reply is a newline, as the stub engine reads it.

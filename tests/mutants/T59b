@@ -1,0 +1,3 @@
+# file: common/grade-lib.js
+# read the first "Answer:" instead of the last
+s/text\.lastIndexOf('Answer:')/text.indexOf('Answer:')/

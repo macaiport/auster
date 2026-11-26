@@ -1,0 +1,3 @@
+# file: common/recipe-test.js
+# record the test's speed: written beside the test file, as if it were a baseline
+s/if (s\.kind === 'answer' && s\.rate !== null) auSay(/if (s.kind === 'answer' \&\& s.rate !== null \&\& $(String(s.rate)).writeToFileAtomicallyEncodingError(argv[0] + '.speed', true, $.NSUTF8StringEncoding, null)) auSay(/

@@ -1,0 +1,3 @@
+# file: common/recipe-test.js
+# threshold 9: one fewer than the test file's at_least passes
+s/passed >= test\.pass\.at_least &&/passed >= test.pass.at_least - 1 \&\&/

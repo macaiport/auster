@@ -1,0 +1,3 @@
+# file: tests/fixtures/recipe-test/household-test.json
+# threshold 11: the test file asks for 11 of 12
+s/"at_least": 10/"at_least": 11/

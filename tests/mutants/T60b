@@ -1,0 +1,3 @@
+# file: common/recipe-test.js
+# fail a slow build that fits: below 1 tok/s fails
+s/elapsed <= limit) verdict = 'pass'/elapsed <= limit \&\& s \&\& s.rate >= 1) verdict = 'pass'/

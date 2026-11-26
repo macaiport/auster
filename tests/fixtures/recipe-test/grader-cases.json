@@ -1,0 +1,296 @@
+[
+ {
+  "n": 3,
+  "pass": true,
+  "why": "the last Answer: counts",
+  "reply": "Answer: 25\n\nOn second thought: Answer: 24"
+ },
+ {
+  "n": 3,
+  "pass": false,
+  "why": "the last Answer: counts, the first does not",
+  "reply": "Answer: 24\n\nAnswer: 25"
+ },
+ {
+  "n": 3,
+  "pass": false,
+  "why": "two on one line: the last",
+  "reply": "x = 24, so: Answer: 24 Answer: 25"
+ },
+ {
+  "n": 1,
+  "pass": false,
+  "why": "no Answer: line",
+  "reply": "750"
+ },
+ {
+  "n": 1,
+  "pass": false,
+  "why": "Answer: is matched with its capital",
+  "reply": "answer: 750"
+ },
+ {
+  "n": 12,
+  "pass": true,
+  "why": "a fraction",
+  "reply": "Answer: 9/4"
+ },
+ {
+  "n": 12,
+  "pass": true,
+  "why": "a mixed number",
+  "reply": "Answer: 2 1/4 cups"
+ },
+ {
+  "n": 12,
+  "pass": false,
+  "why": "a fraction over zero: the first number",
+  "reply": "Answer: 9/0"
+ },
+ {
+  "n": 12,
+  "pass": false,
+  "why": "a mixed number over zero",
+  "reply": "Answer: 2 1/0"
+ },
+ {
+  "n": 2,
+  "pass": true,
+  "why": "the value after the last =",
+  "reply": "Answer: 1260 / 12 = 105"
+ },
+ {
+  "n": 2,
+  "pass": true,
+  "why": "the value after the last =, here 1260 / 12 read as a fraction",
+  "reply": "Answer: 105 = 1260 / 12"
+ },
+ {
+  "n": 2,
+  "pass": false,
+  "why": "the value after the last =, wrong",
+  "reply": "Answer: 105 = 12"
+ },
+ {
+  "n": 33,
+  "pass": true,
+  "why": "commas removed",
+  "reply": "Answer: 86,400 seconds"
+ },
+ {
+  "n": 10,
+  "pass": true,
+  "why": "** removed",
+  "reply": "Answer: **$1.92**"
+ },
+ {
+  "n": 10,
+  "pass": false,
+  "why": "outside its tolerance",
+  "reply": "Answer: 1.93"
+ },
+ {
+  "n": 1,
+  "pass": true,
+  "why": "Arabic-Indic digits read as int() reads them",
+  "reply": "Answer: \u0667\u0665\u0660"
+ },
+ {
+  "n": 1,
+  "pass": false,
+  "why": "a minus sign",
+  "reply": "Answer: -750"
+ },
+ {
+  "n": 49,
+  "pass": true,
+  "why": "yes or no",
+  "reply": "Answer: No."
+ },
+ {
+  "n": 49,
+  "pass": true,
+  "why": "starts with no",
+  "reply": "Answer: Not at all"
+ },
+ {
+  "n": 49,
+  "pass": false,
+  "why": "starts with yes",
+  "reply": "Answer: yes, no"
+ },
+ {
+  "n": 35,
+  "pass": true,
+  "why": "exact, after lower case and the full stop",
+  "reply": "Yes."
+ },
+ {
+  "n": 35,
+  "pass": true,
+  "why": "exact, Python's whitespace stripped",
+  "reply": " yes \u00a0"
+ },
+ {
+  "n": 35,
+  "pass": true,
+  "why": "exact, \\x1c and \\x85 are Python whitespace",
+  "reply": "\u001cyes\u0085"
+ },
+ {
+  "n": 35,
+  "pass": false,
+  "why": "exact, a byte-order mark is not Python whitespace",
+  "reply": "yes\ufeff"
+ },
+ {
+  "n": 36,
+  "pass": true,
+  "why": "three items",
+  "reply": "Carrots, broccoli, spinach."
+ },
+ {
+  "n": 36,
+  "pass": false,
+  "why": "two items",
+  "reply": "carrots, peas"
+ },
+ {
+  "n": 36,
+  "pass": true,
+  "why": "three items on the first line",
+  "reply": "Carrots, broccoli, spinach\nand more besides"
+ },
+ {
+  "n": 36,
+  "pass": false,
+  "why": "an item with a digit",
+  "reply": "Carrots, 2 leeks, spinach"
+ },
+ {
+  "n": 37,
+  "pass": true,
+  "why": "capitals, accented",
+  "reply": "THE SKY IS BLUE. \u00c9T\u00c9"
+ },
+ {
+  "n": 37,
+  "pass": false,
+  "why": "not capitals",
+  "reply": "Blue"
+ },
+ {
+  "n": 37,
+  "pass": false,
+  "why": "a titlecase letter is not a capital",
+  "reply": "BLUE \u01c5"
+ },
+ {
+  "n": 37,
+  "pass": false,
+  "why": "a letter with no case is not a capital",
+  "reply": "BLUE \u4e2d"
+ },
+ {
+  "n": 38,
+  "pass": true,
+  "why": "JSON in a fence",
+  "reply": "```json\n{\"item\": \"milk\", \"quantity\": \"2 litres\"}\n```"
+ },
+ {
+  "n": 38,
+  "pass": true,
+  "why": "json.loads takes NaN",
+  "reply": "{\"item\": \"milk\", \"quantity\": NaN}"
+ },
+ {
+  "n": 38,
+  "pass": true,
+  "why": "json.loads takes -Infinity",
+  "reply": "{\"item\": \"milk\", \"quantity\": -Infinity}"
+ },
+ {
+  "n": 38,
+  "pass": true,
+  "why": "NaN inside a string is text",
+  "reply": "{\"item\": \"NaN\", \"quantity\": 2}"
+ },
+ {
+  "n": 38,
+  "pass": false,
+  "why": "NaN followed by more is not JSON",
+  "reply": "{\"item\": \"milk\", \"quantity\": NaNx}"
+ },
+ {
+  "n": 38,
+  "pass": false,
+  "why": "a key missing",
+  "reply": "{\"item\": \"milk\"}"
+ },
+ {
+  "n": 38,
+  "pass": false,
+  "why": "an array, not an object",
+  "reply": "[\"item\", \"quantity\"]"
+ },
+ {
+  "n": 39,
+  "pass": true,
+  "why": "few words",
+  "reply": "Paris."
+ },
+ {
+  "n": 39,
+  "pass": false,
+  "why": "six words",
+  "reply": "The capital of France is Paris"
+ },
+ {
+  "n": 39,
+  "pass": true,
+  "why": "words split at Python's whitespace",
+  "reply": "Paris\u3000it\u3000is"
+ },
+ {
+  "n": 40,
+  "pass": true,
+  "why": "a full match",
+  "reply": "Saturday; Sunday."
+ },
+ {
+  "n": 40,
+  "pass": true,
+  "why": "\\s is Python's: \\x85 matches",
+  "reply": "saturday;\u0085sunday"
+ },
+ {
+  "n": 40,
+  "pass": false,
+  "why": "no semicolon",
+  "reply": "Saturday, Sunday"
+ },
+ {
+  "n": 44,
+  "pass": true,
+  "why": "a regular expression searched for",
+  "reply": "Answer: June 26th"
+ },
+ {
+  "n": 17,
+  "pass": true,
+  "why": "a time with a full stop",
+  "reply": "Answer: 16.45"
+ },
+ {
+  "n": 19,
+  "pass": true,
+  "why": "a word, ** removed",
+  "reply": "Answer: **Saturday**"
+ },
+ {
+  "n": 52,
+  "pass": true,
+  "why": "a word inside the answer",
+  "reply": "Answer: The battery is low"
+ }
+]

@@ -1,0 +1,3 @@
+# file: common/recipe-test.js
+# the key on curl's command line instead of in a header file
+s|'-H', '@' + ctx\.header,|'-H', auLoad(ctx.header).trim(),|

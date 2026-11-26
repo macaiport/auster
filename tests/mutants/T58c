@@ -1,0 +1,3 @@
+# file: common/recipe-test.js
+# limit 240 s
+s/var limit = test\.pass\.within_secs,/var limit = 240,/
