@@ -9,7 +9,7 @@ Product name Auster (decided 2026-11-25), repo `macaiport/auster`. Concept, road
 |---|---|---|
 | 0 | Scaffold: CLAUDE.md, SPEC.md, memory/, docs/, concept captured | Done 2026-11-25 |
 | 1 | Household assistant built by hand on the Studio: engine, a model that fits, always-on server, one client, per-user keys, all measured | Current: planning |
-| 2 | v0.1: the `household-assistant` recipe. Recipe format, from-zero installer, capability rules, and the built-in update of Auster and of its models | Planning only. [`docs/plans/v0.1.md`](docs/plans/v0.1.md) is started: the update section is drafted, three sections are not written, nothing is checked |
+| 2 | v0.1: the `household-assistant` recipe. Recipe format, from-zero installer, capability rules, and the built-in update of Auster and of its models | Planning only. [`docs/plans/v0.1.md`](docs/plans/v0.1.md) is started: the update section is drafted, and was reviewed and reworked on 2026-11-26; three sections are not written; the plan as a whole is not checked |
 | 3 | `coders-companion`, the second recipe on the same format | Planning only |
 | 4 | Launcher window (concept v0.2) | Planning only |
 | 5 | `kids-homework-box`, `audit-tower`, trust-tier labels (concept v0.3) | Planning only |
@@ -39,8 +39,8 @@ are rules evaluated on each Mac. A Mac with room for five models is treated as o
 **Fewest parts on the household's Mac (owner, 2026-11-26).** "Lean" means few things installed on the
 person's Mac, ahead of little code for us to write. What follows from it, each to be confirmed in the
 plan: v0.1 requires no Homebrew, Python or Docker; the engine's own chat page is tried before a
-separate client such as Open WebUI (`llama-server` serves one by default); one background job, not
-several. The shape this points to in the long run is the engine inside one native app, which is where
+separate client such as Open WebUI (`llama-server` serves one by default); as few background jobs as is
+safe. The shape this points to in the long run is the engine inside one native app, which is where
 MLX fits.
 
 Side tracks, not phases: the name checks and funding. Their notes are kept privately.
@@ -51,8 +51,8 @@ Side tracks, not phases: the name checks and funding. Their notes are kept priva
 1. Phase 1: confirm the engine and the order of models in [docs/shortlist.md](docs/shortlist.md)
    on llama.cpp, with one MLX measurement on the small model. Wait for disk space and for the other
    project's tests first.
-2. Finish [`docs/plans/v0.1.md`](docs/plans/v0.1.md). Its update section is drafted and has 13
-   decisions, all answered on 2026-11-26 (D9). Still to write, from phase 1's measurements: recipe format and registry
+2. Finish [`docs/plans/v0.1.md`](docs/plans/v0.1.md). Its update section was reviewed by seven lenses on
+   2026-11-26, found to need rework, and reworked. Several of its 15 decisions wait for the owner (D9). Still to write, from phase 1's measurements: recipe format and registry
    (Q4), installer (Q3), capability rules. Licensing stance (Q5) is also open.
 3. Run `check it` on it; build only from a dated verdict.
 
@@ -139,7 +139,9 @@ v0.1 plan needs.
    and the time to a first answer after a restart.
 3. Two people use it from two devices at the same time, each with their own key. Revoking one key
    stops that person only.
-4. The Mac restarts and the server is answering again without anyone touching it.
+4. The Mac restarts and the server is answering again without anyone touching it. **Not true of the
+   Studio as it is set up:** FileVault is on and restart after a power cut is off (measured
+   2026-11-26), so someone has to unlock the disk first. The plan's decision AD15 settles how.
 5. Every step done by hand is written down in order. Phase 2 turns that list into the installer.
 
 ### Test plan (draft)
