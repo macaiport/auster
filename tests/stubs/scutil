@@ -1,0 +1,22 @@
+#!/bin/bash
+# Stub scutil: `--get LocalHostName` (STUB_LOCALHOSTNAME, test-mac), `--get ComputerName`
+# (STUB_COMPUTERNAME, Test Mac), `--get HostName` (not set, exit 1), and `--nwi` describing
+# STUB_NET_IF and STUB_NET_ADDR.
+. "$(dirname "$0")/../stub-lib.sh"
+stub_begin "$@"
+case "$*" in
+  '--get LocalHostName') echo "${STUB_LOCALHOSTNAME:-test-mac}" ;;
+  '--get ComputerName') echo "${STUB_COMPUTERNAME:-Test Mac}" ;;
+  '--get HostName') echo "HostName: not set"; exit 1 ;;
+  --nwi)
+    echo "Network information"; echo; echo "IPv4 network interface information"
+    if [ -n "$STUB_NET_IF" ] && [ -n "$STUB_NET_ADDR" ]; then
+      printf '     %s : flags      : 0x5 (IPv4,DNS)\n           address    : %s\n           reach      : 0x00000002 (Reachable)\n' "$STUB_NET_IF" "$STUB_NET_ADDR"
+      echo; echo "   REACH : flags 0x00000002 (Reachable)"
+    else
+      echo "   No IPv4 states found"; echo; echo "   REACH : flags 0x00000000 (Not Reachable)"
+    fi
+    echo; echo "IPv6 network interface information"; echo "   No IPv6 states found"; echo
+    echo "   REACH : flags 0x00000000 (Not Reachable)"; echo; echo "Network interfaces: ${STUB_NET_IF}" ;;
+  *) stub_untold "scutil $* is not answered" ;;
+esac

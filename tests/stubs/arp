@@ -1,0 +1,14 @@
+#!/bin/bash
+# Stub arp: `arp [-n] ADDRESS` knows one neighbour, the router STUB_NET_GATEWAY (10.0.0.1) at
+# STUB_NET_ROUTER_MAC (0:0:5e:0:53:1) on STUB_NET_IF. Any other address, or STUB_NET_ROUTER_MAC set
+# empty: "-- no entry", exit 1. `arp -a` / `arp -an` lists the router.
+. "$(dirname "$0")/../stub-lib.sh"
+stub_begin "$@"
+entry() { echo "? ($STUB_NET_GATEWAY) at $STUB_NET_ROUTER_MAC on $STUB_NET_IF ifscope [ethernet]"; }
+case "$*" in
+  -a|-an|-na|'-a -n'|'-n -a') [ -z "$STUB_NET_ROUTER_MAC" ] || entry ;;
+  -n\ *|[0-9]*)
+    all="$*"; ip=${all#-n }
+    if [ "$ip" = "$STUB_NET_GATEWAY" ] && [ -n "$STUB_NET_ROUTER_MAC" ]; then entry; else echo "$ip ($ip) -- no entry"; exit 1; fi ;;
+  *) stub_untold "arp $* is not answered" ;;
+esac

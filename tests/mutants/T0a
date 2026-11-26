@@ -1,0 +1,3 @@
+# file: tests/stubs/curl
+# curl -f does nothing
+s/^    f) fail=1 ;; E) fail=1; failbody=1 ;;/    f) ;; E) fail=1; failbody=1 ;;/

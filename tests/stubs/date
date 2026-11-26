@@ -1,0 +1,13 @@
+#!/bin/bash
+# Stub date, the clock. STUB_NOW (seconds since 1970) is now, for `date +%s` and for every other format
+# (as `date -r STUB_NOW ...`). Otherwise STUB_CLOCK, a file holding the seconds, is now: the stub engine
+# moves it on by each answer's seconds. Neither set: the real /bin/date. A call that already says which
+# time it means (-r, -j, -f) goes to /bin/date as it is.
+. "$(dirname "$0")/../stub-lib.sh"
+stub_begin "$@"
+now=${STUB_NOW:-}
+[ -n "$now" ] || { [ -n "${STUB_CLOCK:-}" ] && now=$(cat "$STUB_CLOCK"); }
+[ -n "$now" ] || exec /bin/date "$@"
+for a in "$@"; do case "$a" in -r|-j|-f|-r*|-j*|-f*) exec /bin/date "$@" ;; esac; done
+[ "$*" = +%s ] && { echo "$now"; exit 0; }
+exec /bin/date -r "$now" "$@"

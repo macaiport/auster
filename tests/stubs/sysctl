@@ -1,0 +1,31 @@
+#!/bin/bash
+# Stub sysctl: `sysctl [-n] name...`. Values, and the variable that sets each:
+#   hw.optional.arm64       STUB_ARM64 (1); set it empty for a Mac that has no such name
+#   hw.memsize              STUB_MEMSIZE (68719476736, 64 GiB)
+#   hw.model                STUB_HW_MODEL (Mac16,6)
+#   kern.bootsessionuuid    STUB_BOOT_SESSION (5E1A2B3C-0D4E-4F60-8A7B-9C0D1E2F3A4B)
+#   sysctl.proc_translated  1 when STUB_ROSETTA=1 (a Terminal under Rosetta), else 0
+#   kern.osproductversion   STUB_MACOS (27.2);  kern.osrelease 27.2.0;  hw.ncpu 12
+# Any other name is an unknown oid, as on a real Mac: a message on stderr and exit 1.
+. "$(dirname "$0")/../stub-lib.sh"
+stub_begin "$@"
+bare=0
+[ "${1:-}" = -n ] && { bare=1; shift; }
+[ $# -gt 0 ] || stub_untold "sysctl with no name is not answered"
+rc=0
+for name in "$@"; do
+  v=
+  case "$name" in
+    hw.optional.arm64) v=${STUB_ARM64-1} ;;
+    hw.memsize) v=${STUB_MEMSIZE:-68719476736} ;;
+    hw.model) v=${STUB_HW_MODEL:-Mac16,6} ;;
+    kern.bootsessionuuid) v=${STUB_BOOT_SESSION:-5E1A2B3C-0D4E-4F60-8A7B-9C0D1E2F3A4B} ;;
+    sysctl.proc_translated) [ "${STUB_ROSETTA:-0}" = 1 ] && v=1 || v=0 ;;
+    kern.osproductversion) v=${STUB_MACOS:-27.2} ;;
+    kern.osrelease) v=27.2.0 ;;
+    hw.ncpu) v=12 ;;
+  esac
+  if [ -z "$v" ]; then echo "sysctl: unknown oid '$name'" >&2; rc=1; continue; fi
+  if [ "$bare" = 1 ]; then echo "$v"; else echo "$name: $v"; fi
+done
+exit "$rc"

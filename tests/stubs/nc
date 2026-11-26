@@ -1,0 +1,30 @@
+#!/bin/bash
+# Stub nc: only `nc -z [-v] [-w N] [-G N] HOST PORT`, the connection test. Something answers there
+# when a live stub engine is registered at PORT and listens on HOST (tests/stubs/llama-server), or
+# when PORT is in STUB_NC_OPEN (ports separated by spaces): exit 0. Otherwise exit 1.
+. "$(dirname "$0")/../stub-lib.sh"
+stub_begin "$@"
+z=0 verbose=0 pos=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -z) z=1 ;; -v) verbose=1 ;; -zv|-vz) z=1; verbose=1 ;; -w|-G) shift ;; -n) ;;
+    -*) stub_untold "nc option $1 is not answered" ;;
+    *) pos+=("$1") ;;
+  esac
+  shift
+done
+[ "$z" = 1 ] && [ ${#pos[@]} -eq 2 ] || stub_untold "only nc -z HOST PORT is answered"
+host=${pos[0]} port=${pos[1]}
+[ "$host" = localhost ] && host=127.0.0.1
+answers=1
+case " ${STUB_NC_OPEN:-} " in *" $port "*) answers=0 ;; esac
+pf="${STUB_ENGINE_DIR:-/nonexistent}/ports/$port"
+if [ "$answers" = 1 ] && [ -f "$pf" ] && stub_alive "$(sed -n 's/^pid=//p' "$pf")"; then
+  case ",$(sed -n 's/^hosts=//p' "$pf")," in *",$host,"*|*",0.0.0.0,"*) answers=0 ;; esac
+fi
+if [ "$answers" = 0 ]; then
+  [ "$verbose" = 0 ] || echo "Connection to $host port $port [tcp/*] succeeded!" >&2
+  exit 0
+fi
+[ "$verbose" = 0 ] || echo "nc: connectx to $host port $port (tcp) failed: Connection refused" >&2
+exit 1

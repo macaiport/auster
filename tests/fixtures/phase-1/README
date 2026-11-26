@@ -1,0 +1,12 @@
+Phase 1's 56 household questions and two builds' saved replies (docs/phase-1.md, step 9), for T59: the
+JavaScript grader must give the verdict in each reply's "pass" on every one of them.
+
+questions.json      a copy of scripts/phase-1/questions.json
+q56-A-replies.json  Magistral Small 2509 Q4_K_M, the household recipe's order 2: 52 of 56 pass
+q56-B-replies.json  Mistral Small 4 UD-IQ3_S, order 1: 53 of 56 pass
+
+Each record: n (the question's number in questions.json, from 1), group, pass, secs, tokens, reply.
+
+"pass" is the verdict of quiz.py as it is now (`quiz.py --regrade` reports no change for either file).
+One value differs from the file phase 1 saved: A's question 12 ("9/4 cups") was saved as false by the
+grader before its fraction fix and is true here, as phase 1 step 9 describes.

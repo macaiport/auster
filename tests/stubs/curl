@@ -1,0 +1,480 @@
+#!/bin/bash
+# Stub curl (docs/plans/v0.1.md, D6): answers by address and never reaches the network.
+#
+# Routes: STUB_CURL_DIR/routes, one a line, fields separated by single tabs:
+#   METHOD  URL  STATUS  BODYFILE  [HEADER ...]
+#   METHOD    GET, POST, HEAD... or * for any. A HEAD with no route of its own takes a GET route.
+#   URL       the whole address, compared exactly. The first matching line answers.
+#   STATUS    an HTTP code. A 200 answers a range (-r) or a resume (-C) with 206, or with 416 when the
+#             range starts at or past the end. 301, 302, 303, 307 and 308 send their Location header.
+#             exit:N        curl fails before any answer, with exit N and curl's message (6, 7, 28, 35...)
+#             exit:N:BYTES  the answer starts (200 or 206), BYTES of the body arrive, then exit N
+#                           (18 and 56 are the usual ones; it is how a download is cut short)
+#             sleep:N       nothing for N seconds, then an empty reply (exit 52); --max-time cuts it
+#                           short with exit 28
+#             hang          nothing, ever, whatever --max-time says: only a kill ends it
+#             A,B,C         the first call gets A, the second B, and so on; the last one repeats
+#   BODYFILE  a file, relative to STUB_CURL_DIR unless absolute, or - for an empty body
+#   HEADER    a response header, "Name: value". Two directives are not sent:
+#             "X-Stub-No-Ranges: 1"            the server ignores ranges (a resume then exits 33)
+#             "X-Stub-Ignore-Max-Filesize: 1"  the body is delivered past --max-filesize, exit 0
+#
+# Engine addresses: http://HOST:PORT/... where STUB_ENGINE_DIR/ports/PORT is registered is answered
+# by that stub engine (tests/stubs/llama-server --stub-answer), not by the routes: refused (exit 7)
+# when its process is gone or it does not listen on HOST. Any other address with an IP or localhost
+# as its host and no route is refused too, as a port with nothing listening is. Every other address
+# with no route fails loudly (exit 99) and is added to STUB_CURL_DIR/unrouted.
+#
+# Records:
+#   STUB_LOG                    "curl" and the arguments; "curl <stdin> ..." when it reads its input
+#   STUB_CURL_DIR/requests/NNNN one folder per request sent (redirects too): method, url, headers
+#                               (what curl would send, Host and User-Agent among them) and body.
+#                               A request to an engine carries its key in headers: a test looking for
+#                               keys that left the Mac skips the engine's own address.
+#
+# Options understood: -o -w -X -I -r -C -L -f -s -S -q -H -d -m -A -D -Y -y -i -v and bundles of them
+# (-fsSL), --output --write-out --request --head --range --continue-at --location --fail
+# --fail-with-body --silent --show-error --disable --header --data --data-ascii --data-binary
+# --data-raw --max-time --connect-timeout --user-agent --dump-header --speed-limit --speed-time --proto
+# --proto-redir --max-redirs --max-filesize --retry --retry-delay --retry-max-time --url --create-dirs
+# --include --verbose --tlsv1.2 --tlsv1.3 --http1.1 --http2 --compressed --no-progress-meter
+# --progress-bar --globoff --remote-time. -H and -d take @file and @-. Any other option fails loudly.
+# -w knows %{http_code} %{response_code} %{size_download} %{url_effective} %{redirect_url}
+# %{num_redirects} %{content_type} %{exitcode} %header{name}, and \n \r \t.
+. "$(dirname "$0")/../stub-lib.sh"
+stub_log "$@"
+
+work=$(mktemp -d "${TMPDIR:-/tmp}/stub-curl.XXXXXX")
+trap 'rm -rf "$work"' EXIT
+
+out= wfmt= method= head=0 range= cont= follow=0 fail=0 failbody=0 silent=0 showerr=0 maxtime=
+include=0 dumphdr= proto= protoredir= maxredirs=50 maxfilesize= createdirs=0 ua=curl/8.7.1
+url= urls=0 stdin_file=
+hdrs=() data=()
+
+read_stdin() { # once: what curl reads from its standard input, logged
+  if [ -z "$stdin_file" ]; then stdin_file="$work/stdin"; cat > "$stdin_file"; stub_log_input "$stdin_file"; fi
+}
+
+set_value() { # option letter, value
+  case "$1" in
+    o) out=$2 ;; w) wfmt=$2 ;; X) method=$2 ;; r) range=$2 ;; C) cont=$2 ;; H) hdrs+=("$2") ;;
+    d) data+=("d$2") ;; b) data+=("b$2") ;; R) data+=("r$2") ;; m) maxtime=$2 ;; A) ua=$2 ;;
+    D) dumphdr=$2 ;; Y|y|T|t) ;; P) proto=$2 ;; p) protoredir=$2 ;; M) maxredirs=$2 ;;
+    F) maxfilesize=$2 ;; U) url=$2; urls=$((urls + 1)) ;;
+  esac
+}
+
+set_flag() { # option letter
+  case "$1" in
+    f) fail=1 ;; E) fail=1; failbody=1 ;; s) silent=1 ;; S) showerr=1 ;; q) ;; L) follow=1 ;;
+    I) head=1 ;; i) include=1 ;; v|'#'|z) ;; c) createdirs=1 ;;
+    *) return 1 ;;
+  esac
+}
+
+long_option() { # --name -> "v X" for an option with a value, "f X" for a flag, nothing if unknown
+  case "$1" in
+    --output) echo v o ;; --write-out) echo v w ;; --request) echo v X ;; --range) echo v r ;;
+    --continue-at) echo v C ;; --header) echo v H ;; --data|--data-ascii) echo v d ;;
+    --data-binary) echo v b ;; --data-raw) echo v R ;; --max-time) echo v m ;; --user-agent) echo v A ;;
+    --dump-header) echo v D ;; --speed-limit) echo v Y ;; --speed-time) echo v y ;;
+    --connect-timeout|--retry|--retry-delay|--retry-max-time) echo v T ;;
+    --proto) echo v P ;; --proto-redir) echo v p ;; --max-redirs) echo v M ;; --max-filesize) echo v F ;;
+    --url) echo v U ;;
+    --fail) echo f f ;; --fail-with-body) echo f E ;; --silent) echo f s ;; --show-error) echo f S ;;
+    --disable) echo f q ;; --location) echo f L ;; --head) echo f I ;; --include) echo f i ;;
+    --verbose|--progress-bar|--no-progress-meter|--globoff|--remote-time) echo f v ;;
+    --tlsv1.2|--tlsv1.3|--http1.1|--http2|--compressed) echo f z ;; --create-dirs) echo f c ;;
+  esac
+}
+
+# --- the command line
+argv=("$@"); i=0; n=$#
+while [ "$i" -lt "$n" ]; do
+  a=${argv[$i]}; i=$((i + 1))
+  case "$a" in
+    --) while [ "$i" -lt "$n" ]; do url=${argv[$i]}; urls=$((urls + 1)); i=$((i + 1)); done ;;
+    --*)
+      kind=$(long_option "$a")
+      case "$kind" in
+        v\ *) [ "$i" -lt "$n" ] || stub_untold "$a needs a value"; set_value "${kind#v }" "${argv[$i]}"; i=$((i + 1)) ;;
+        f\ *) set_flag "${kind#f }" ;;
+        *) stub_untold "option $a is not understood by the stub" ;;
+      esac ;;
+    -?*)
+      rest=${a#-}
+      while [ -n "$rest" ]; do
+        l=${rest:0:1}; rest=${rest:1}
+        case "$l" in
+          o|w|X|r|C|H|d|m|A|D|Y|y)
+            if [ -n "$rest" ]; then v=$rest; rest=
+            else [ "$i" -lt "$n" ] || stub_untold "-$l needs a value"; v=${argv[$i]}; i=$((i + 1)); fi
+            set_value "$l" "$v" ;;
+          *) set_flag "$l" || stub_untold "option -$l is not understood by the stub" ;;
+        esac
+      done ;;
+    *) url=$a; urls=$((urls + 1)) ;;
+  esac
+done
+[ "$urls" -eq 1 ] || stub_untold "give exactly one address (got $urls)"
+[ "$method" = HEAD ] && head=1
+[ "$head" = 1 ] && method=HEAD
+
+# --- the request body and headers
+body="$work/request-body"; : > "$body"; has_body=0
+if [ ${#data[@]} -gt 0 ]; then
+  has_body=1; first=1
+  for d in "${data[@]}"; do
+    t=${d:0:1}; v=${d:1}
+    [ "$first" = 1 ] || printf '&' >> "$body"; first=0
+    case "$t$v" in
+      [db]@-) read_stdin; src=$stdin_file ;;
+      [db]@*) src=${v#@}; [ -f "$src" ] || stub_untold "no file for -d @$src" ;;
+      *) printf '%s' "$v" >> "$body"; continue ;;
+    esac
+    if [ "$t" = d ]; then tr -d '\r\n' < "$src" >> "$body"; else cat "$src" >> "$body"; fi
+  done
+  [ -n "$method" ] || method=POST
+fi
+[ -n "$method" ] || method=GET
+
+hnames=() hvalues=()
+set_header() { # name, value; an empty name list entry means removed
+  local k
+  shopt -s nocasematch
+  for k in "${!hnames[@]}"; do
+    if [[ "${hnames[$k]}" == "$1" ]]; then hnames[$k]=$1; hvalues[$k]=$2; shopt -u nocasematch; return; fi
+  done
+  shopt -u nocasematch
+  hnames+=("$1"); hvalues+=("$2")
+}
+del_header() {
+  local k
+  shopt -s nocasematch
+  for k in "${!hnames[@]}"; do [[ "${hnames[$k]}" == "$1" ]] && hnames[$k]=; done
+  shopt -u nocasematch
+}
+sent_has() { # name -> 0 if the request carries that header
+  local k
+  shopt -s nocasematch
+  for k in "${!hnames[@]}"; do
+    if [[ -n "${hnames[$k]}" && "${hnames[$k]}" == "$1" ]]; then shopt -u nocasematch; return 0; fi
+  done
+  shopt -u nocasematch
+  return 1
+}
+header_arg() { # one -H value
+  case "$1" in
+    *:*) local nm=${1%%:*} v=${1#*:}; v=${v# }; if [ -z "$v" ]; then del_header "$nm"; else set_header "$nm" "$v"; fi ;;
+    *\;) set_header "${1%;}" "" ;;
+  esac
+}
+extra_headers() { # the -H options, @file and @- included
+  local h line src
+  for h in ${hdrs[@]+"${hdrs[@]}"}; do
+    case "$h" in
+      @-) read_stdin; src=$stdin_file ;;
+      @*) src=${h#@}; [ -f "$src" ] || stub_untold "no file for -H @$src" ;;
+      *) header_arg "$h"; continue ;;
+    esac
+    while IFS= read -r line || [ -n "$line" ]; do line=${line%$'\r'}; [ -z "$line" ] || header_arg "$line"; done < "$src"
+  done
+}
+
+# --- addresses and protocols
+parse_url() { # url -> scheme host port path (path keeps its query)
+  local r hp
+  case "$1" in *://*) scheme=${1%%://*}; r=${1#*://} ;; *) scheme=http; r=$1 ;; esac
+  hp=${r%%/*}; path=${r#"$hp"}; [ -n "$path" ] || path=/
+  hp=${hp##*@}
+  case "$hp" in
+    \[*\]:*) host=${hp%%]*}]; port=${hp##*]:} ;;
+    \[*\]) host=$hp; port= ;;
+    *:*) host=${hp%%:*}; port=${hp#*:} ;;
+    *) host=$hp; port= ;;
+  esac
+  if [ -z "$port" ]; then case "$scheme" in https) port=443 ;; *) port=80 ;; esac; fi
+}
+
+proto_set() { # spec, starting set -> the set it leaves, as " a b c "
+  local set=" $2 " tok mod p all="http https ftp ftps file"
+  local IFS=,
+  for tok in $1; do
+    mod=+
+    while :; do case "$tok" in [+=-]*) mod=${tok:0:1}; tok=${tok:1} ;; *) break ;; esac; done
+    [ "$tok" = all ] && p=$all || p=$tok
+    case "$mod" in
+      =) set=" $p " ;;
+      +) set="$set$p " ;;
+      -) local q; for q in $(IFS=' '; echo $p); do set=${set// $q / }; done ;;
+    esac
+  done
+  printf '%s' "$set"
+}
+proto_ok() { # scheme, is-redirect
+  local allowed
+  allowed=$(proto_set "$proto" "http https ftp ftps file")
+  case "$allowed" in *" $1 "*) ;; *) return 1 ;; esac
+  [ "$2" = 1 ] || return 0
+  allowed=$(proto_set "$protoredir" "http https ftp ftps")
+  case "$allowed" in *" $1 "*) return 0 ;; esac
+  return 1
+}
+
+# --- results
+code=000 size=0 nredir=0 final_url=$url redirect_url= ctype=
+msg() { if [ "$silent" = 0 ] || [ "$showerr" = 1 ]; then printf 'curl: (%s) %s\n' "$1" "$2" >&2; fi; }
+
+write_out() {
+  [ -n "$wfmt" ] || return 0
+  local f=$wfmt s= v nm
+  case "$f" in @*) f=$(cat "${f#@}") ;; esac
+  while [ -n "$f" ]; do
+    case "$f" in
+      '%%'*) s+=%; f=${f:2} ;;
+      '%{'*'}'*)
+        nm=${f#%\{}; nm=${nm%%\}*}; f=${f#*\}}
+        case "$nm" in
+          http_code|response_code) v=$code ;; size_download) v=$size ;; url_effective) v=$final_url ;;
+          redirect_url) v=$redirect_url ;; num_redirects) v=$nredir ;; content_type) v=$ctype ;;
+          exitcode) v=$1 ;;
+          *) stub_untold "-w %{$nm} is not understood by the stub" ;;
+        esac
+        s+=$v ;;
+      '%header{'*'}'*) nm=${f#%header\{}; nm=${nm%%\}*}; f=${f#*\}}; s+=$(header_of "$nm") ;;
+      '\n'*) s+=$'\n'; f=${f:2} ;;
+      '\r'*) s+=$'\r'; f=${f:2} ;;
+      '\t'*) s+=$'\t'; f=${f:2} ;;
+      *) s+=${f:0:1}; f=${f:1} ;;
+    esac
+  done
+  printf '%s' "$s"
+}
+
+header_of() { # name -> its value in the last answer's headers
+  local line v
+  [ -f "$work/last-headers" ] || return 0
+  shopt -s nocasematch
+  while IFS= read -r line; do
+    line=${line%$'\r'}
+    if [[ "${line%%:*}" == "$1" ]]; then shopt -u nocasematch; v=${line#*:}; printf '%s' "${v# }"; return; fi
+  done < "$work/last-headers"
+  shopt -u nocasematch
+}
+
+finish() { # exit code [message]: prints -w and the message as curl does, then exits
+  [ -z "${2:-}" ] || msg "$1" "$2"
+  write_out "$1"
+  exit "$1"
+}
+
+record_request() { # -> folder for this request, when STUB_CURL_DIR is set; the engine needs one anyway
+  local d k
+  if [ -n "${STUB_CURL_DIR:-}" ]; then d=$(stub_new_dir "$STUB_CURL_DIR/requests"); else d="$work/req"; mkdir -p "$d"; fi
+  printf '%s\n' "$cur_method" > "$d/method"
+  printf '%s\n' "$cur_url" > "$d/url"
+  : > "$d/headers"
+  for k in "${!hnames[@]}"; do [ -z "${hnames[$k]}" ] || printf '%s: %s\n' "${hnames[$k]}" "${hvalues[$k]}" >> "$d/headers"; done
+  [ "$cur_has_body" = 0 ] || cp "$body" "$d/body"
+  printf '%s\n' "$d"
+}
+
+pick_status() { # route line, its status field -> this call's status, for "A,B,C"
+  case "$2" in *,*) ;; *) printf '%s' "$2"; return ;; esac
+  local key cf c
+  key=$(printf '%s' "$1" | cksum | cut -d' ' -f1)
+  cf="$STUB_CURL_DIR/.count-$key"
+  c=$(cat "$cf" 2>/dev/null || echo 0); c=$((c + 1)); echo "$c" > "$cf"
+  local IFS=, parts
+  parts=($2)
+  [ "$c" -le "${#parts[@]}" ] || c=${#parts[@]}
+  printf '%s' "${parts[$((c - 1))]}"
+}
+
+find_route() { # -> sets r_status r_body r_headers (one per line), or returns 1
+  [ -n "${STUB_CURL_DIR:-}" ] && [ -f "$STUB_CURL_DIR/routes" ] || return 1
+  local line pass m
+  for pass in exact get; do
+    while IFS= read -r line || [ -n "$line" ]; do
+      case "$line" in ''|'#'*) continue ;; esac
+      stub_split "$line"
+      [ "${#F[@]}" -ge 4 ] || stub_untold "a route needs four fields: $line"
+      m=${F[0]}
+      if [ "$pass" = exact ]; then [ "$m" = "*" ] || [ "$m" = "$cur_method" ] || continue
+      else [ "$cur_method" = HEAD ] && [ "$m" = GET ] || continue; fi
+      [ "${F[1]}" = "$cur_url" ] || continue
+      r_status=$(pick_status "$line" "${F[2]}")
+      case "${F[3]}" in
+        -) r_body="$work/empty"; : > "$r_body" ;;
+        /*) r_body=${F[3]} ;;
+        *) r_body="$STUB_CURL_DIR/${F[3]}" ;;
+      esac
+      [ -f "$r_body" ] || stub_untold "no body file ${F[3]} for $cur_url"
+      r_headers=; local k
+      for ((k = 4; k < ${#F[@]}; k++)); do r_headers+="${F[$k]}"$'\n'; done
+      return 0
+    done < "$STUB_CURL_DIR/routes"
+  done
+  return 1
+}
+
+engine_answer() { # request folder -> sets r_* from a live stub engine, or returns 1 when none is registered
+  [ "$scheme" = http ] && [ -n "${STUB_ENGINE_DIR:-}" ] && [ -f "$STUB_ENGINE_DIR/ports/$port" ] || return 1
+  local pf="$STUB_ENGINE_DIR/ports/$port" epid hosts h
+  epid=$(sed -n 's/^pid=//p' "$pf")
+  hosts=$(sed -n 's/^hosts=//p' "$pf")
+  h=$host; [ "$h" = localhost ] && h=127.0.0.1
+  if ! stub_alive "$epid"; then finish 7 "Failed to connect to $host port $port after 0 ms: Couldn't connect to server"; fi
+  case ",$hosts," in *",$h,"*|*",0.0.0.0,"*) ;; *) finish 7 "Failed to connect to $host port $port after 0 ms: Couldn't connect to server" ;; esac
+  "$STUB_BIN/llama-server" --stub-answer "$pf" "$cur_method" "$path" "$1" "$work/engine" || stub_untold "the stub engine could not answer"
+  r_status=$(cat "$work/engine/status"); r_body="$work/engine/body"
+  r_headers="$(cat "$work/engine/headers")"$'\n'"X-Stub-No-Ranges: 1"$'\n'
+}
+
+is_ip_host() {
+  case "$1" in localhost|\[*\]) return 0 ;; esac
+  [[ "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
+}
+
+file_size() { stat -f %z "$1" 2>/dev/null || echo 0; }
+
+# --- where the answer goes
+if [ -n "$out" ] && [ "$out" != - ]; then
+  odir=$(dirname "$out")
+  if [ ! -d "$odir" ]; then
+    if [ "$createdirs" = 1 ]; then mkdir -p "$odir"; else finish 23 "Failure writing output to destination"; fi
+  fi
+fi
+off=0
+case "$cont" in
+  '') ;;
+  -) [ -n "$out" ] && [ -f "$out" ] && off=$(file_size "$out") ;;
+  *[!0-9]*) stub_untold "-C takes - or a number" ;;
+  *) off=$cont ;;
+esac
+
+emit() { # file -> the output, appended or written
+  if [ -z "$out" ] || [ "$out" = - ]; then cat "$1"
+  elif [ "$appending" = 1 ]; then cat "$1" >> "$out"
+  else cat "$1" > "$out"; appending=1; fi
+}
+appending=0; [ "$off" -gt 0 ] && appending=1
+
+# --- the transfer, one hop per redirect
+cur_url=$url cur_method=$method cur_has_body=$has_body is_redir=0
+while :; do
+  parse_url "$cur_url"
+  if ! proto_ok "$scheme" "$is_redir"; then finish 1 "Protocol \"$scheme\" disabled"; fi
+  hnames=() hvalues=()
+  hp=$host; [ "$port" = 80 ] || [ "$port" = 443 ] || hp="$host:$port"
+  set_header Host "$hp"; set_header User-Agent "$ua"; set_header Accept '*/*'
+  if [ -n "$range" ]; then set_header Range "bytes=$range"; elif [ "$off" -gt 0 ]; then set_header Range "bytes=$off-"; fi
+  extra_headers
+  if [ "$cur_has_body" = 1 ]; then
+    set_header Content-Length "$(file_size "$body")"
+    sent_has Content-Type || set_header Content-Type application/x-www-form-urlencoded
+  fi
+  req=$(record_request)
+
+  r_status= r_body= r_headers=
+  if ! engine_answer "$req"; then
+    if ! find_route; then
+      if is_ip_host "$host"; then finish 7 "Failed to connect to $host port $port after 0 ms: Couldn't connect to server"; fi
+      [ -z "${STUB_CURL_DIR:-}" ] || printf '%s %s\n' "$cur_method" "$cur_url" >> "$STUB_CURL_DIR/unrouted"
+      stub_untold "no route for $cur_method $cur_url"
+    fi
+  fi
+
+  case "$r_status" in
+    hang) rm -rf "$work"; exec /bin/sleep 2147483647 ;;
+    sleep:*)
+      s=${r_status#sleep:}
+      if [ -n "$maxtime" ] && awk "BEGIN { exit !($maxtime < $s) }"; then
+        /bin/sleep "$maxtime"; finish 28 "Operation timed out after ${maxtime}000 milliseconds with 0 bytes received"
+      fi
+      /bin/sleep "$s"; finish 52 "Empty reply from server" ;;
+    exit:*)
+      spec=${r_status#exit:}; ec=${spec%%:*}; bytes=
+      case "$spec" in *:*) bytes=${spec#*:} ;; esac
+      if [ -n "$bytes" ]; then
+        if [ "$off" -gt 0 ] || [ -n "$range" ]; then code=206; else code=200; fi
+        tail -c +$((off + 1)) "$r_body" | head -c "$bytes" > "$work/part"
+        size=$(file_size "$work/part"); emit "$work/part"
+      fi
+      total=$(file_size "$r_body")
+      case "$ec" in
+        6) finish 6 "Could not resolve host: $host" ;;
+        7) finish 7 "Failed to connect to $host port $port after 0 ms: Couldn't connect to server" ;;
+        18) finish 18 "transfer closed with $((total - off - size)) bytes remaining to read" ;;
+        28) finish 28 "Operation timed out after ${maxtime:-0}000 milliseconds with $size bytes received" ;;
+        35) finish 35 "LibreSSL SSL_connect: SSL_ERROR_SYSCALL in connection to $host:$port " ;;
+        56) finish 56 "Recv failure: Connection reset by peer" ;;
+        *) finish "$ec" "stub failure $ec" ;;
+      esac ;;
+    [1-5][0-9][0-9]) ;;
+    *) stub_untold "status $r_status is not understood (route for $cur_url)" ;;
+  esac
+
+  # an HTTP answer
+  code=$r_status
+  directives=$(printf '%s' "$r_headers" | grep -i '^X-Stub-' || true)
+  sent_headers=$(printf '%s' "$r_headers" | grep -v -i '^X-Stub-' | grep -v '^$' || true)
+  bsize=$(file_size "$r_body")
+  slice="$r_body"; crange=
+  if [ "$code" = 200 ] && [ "$cur_method" != POST ] && { [ -n "$range" ] || [ "$off" -gt 0 ]; }; then
+    if printf '%s' "$directives" | grep -qi '^X-Stub-No-Ranges'; then
+      [ "$off" -eq 0 ] || finish 33 "HTTP server doesn't seem to support byte ranges. Cannot resume."
+    else
+      if [ -n "$range" ]; then a=${range%%-*}; b=${range#*-}; else a=$off; b=; fi
+      if [ "$a" -ge "$bsize" ]; then code=416; slice="$work/empty"; : > "$slice"
+      else
+        { [ -z "$b" ] || [ "$b" -ge "$bsize" ]; } && b=$((bsize - 1))
+        code=206; crange="bytes $a-$b/$bsize"; slice="$work/slice"
+        tail -c +$((a + 1)) "$r_body" | head -c $((b - a + 1)) > "$slice"
+      fi
+    fi
+  fi
+  [ "$cur_method" = HEAD ] && hsize=$bsize || hsize=$(file_size "$slice")
+  {
+    printf 'HTTP/2 %s\r\n' "$code"
+    [ -z "$sent_headers" ] || printf '%s\n' "$sent_headers" | sed 's/$/\r/'
+    printf '%s\n' "$sent_headers" | grep -qi '^content-length:' || printf 'content-length: %s\r\n' "$hsize"
+    [ -z "$crange" ] || printf 'content-range: %s\r\n' "$crange"
+    printf '\r\n'
+  } > "$work/last-headers"
+  ctype=$(header_of Content-Type)
+  if [ "$fail" = 1 ] && [ "$failbody" = 0 ] && [ "$code" -ge 400 ] && ! { [ "$code" = 416 ] && [ "$off" -gt 0 ]; }; then
+    finish 22 "The requested URL returned error: $code"   # before any header is written, as curl -f does
+  fi
+  [ -z "$dumphdr" ] || cat "$work/last-headers" >> "$dumphdr"
+  if [ "$head" = 1 ] || [ "$include" = 1 ]; then emit "$work/last-headers"; fi
+
+  case "$code" in
+    301|302|303|307|308)
+      loc=$(header_of Location)
+      case "$loc" in /*) loc="$scheme://$hp$loc" ;; esac
+      if [ "$follow" = 1 ] && [ -n "$loc" ]; then
+        nredir=$((nredir + 1))
+        [ "$nredir" -le "$maxredirs" ] || finish 47 "Maximum ($maxredirs) redirects followed"
+        case "$code" in 301|302|303) [ "$cur_method" = POST ] && { cur_method=GET; cur_has_body=0; } ;; esac
+        cur_url=$loc; final_url=$loc; is_redir=1
+        continue
+      fi
+      redirect_url=$loc ;;
+  esac
+  break
+done
+
+# --- the body
+if [ "$code" = 416 ] && [ "$off" -gt 0 ]; then finish 0; fi
+if [ -n "$maxfilesize" ] && [ "$cur_method" != HEAD ] && [ "$bsize" -gt "$maxfilesize" ] \
+  && ! printf '%s' "$directives" | grep -qi '^X-Stub-Ignore-Max-Filesize'; then
+  finish 63 "Maximum file size exceeded"
+fi
+if [ "$head" = 0 ]; then
+  size=$(file_size "$slice")
+  emit "$slice"
+fi
+if [ "$fail" = 1 ] && [ "$code" -ge 400 ]; then finish 22 "The requested URL returned error: $code"; fi
+finish 0

@@ -31,7 +31,7 @@ run_file() { # root, test file -> exit code of the test
 files_for() { # root, numbers... -> test files
   local r=$1; shift
   if [ $# -eq 0 ]; then ls "$r"/tests/t[0-9]*.sh; return; fi
-  for n in "$@"; do ls "$r"/tests/t"$n"-*.sh 2>/dev/null; done
+  for n in "$@"; do ls "$r"/tests/t"$n"-*.sh "$r"/tests/t0"$n"-*.sh 2>/dev/null; done   # t00 is T0
 }
 
 if [ "${1:-}" = --mutants ]; then

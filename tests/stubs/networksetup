@@ -1,0 +1,15 @@
+#!/bin/bash
+# Stub networksetup: `-listallhardwareports`, from STUB_NET_PORTS, "Name=device|Name=device|..."
+# (Wi-Fi=en0, Thunderbolt Bridge=bridge0, Thunderbolt 1=en1, Thunderbolt 2=en2). A tunnel such as
+# utun0 is never a hardware port, as on a real Mac.
+. "$(dirname "$0")/../stub-lib.sh"
+stub_begin "$@"
+[ "$*" = -listallhardwareports ] || stub_untold "networksetup $* is not answered"
+echo
+n=16
+IFS='|' read -r -a ports <<< "$STUB_NET_PORTS"
+for p in ${ports[@]+"${ports[@]}"}; do
+  printf 'Hardware Port: %s\nDevice: %s\nEthernet Address: 00:00:5e:00:53:%02x\n\n' "${p%%=*}" "${p#*=}" "$n"
+  n=$((n + 1))
+done
+printf 'VLAN Configurations\n===================\n'

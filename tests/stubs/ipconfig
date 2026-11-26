@@ -1,0 +1,12 @@
+#!/bin/bash
+# Stub ipconfig: `getifaddr IF` prints STUB_NET_ADDR (10.0.0.5) for STUB_NET_IF (en0) and nothing,
+# exit 1, for any other interface or when STUB_NET_ADDR is set empty. `getoption IF router` gives
+# STUB_NET_GATEWAY and `getoption IF subnet_mask` 255.255.255.0.
+. "$(dirname "$0")/../stub-lib.sh"
+stub_begin "$@"
+case "${1:-} ${3:-}" in
+  'getifaddr ') [ "${2:-}" = "$STUB_NET_IF" ] && [ -n "$STUB_NET_ADDR" ] || exit 1; echo "$STUB_NET_ADDR" ;;
+  'getoption router') [ "${2:-}" = "$STUB_NET_IF" ] && [ -n "$STUB_NET_GATEWAY" ] || exit 1; echo "$STUB_NET_GATEWAY" ;;
+  'getoption subnet_mask') [ "${2:-}" = "$STUB_NET_IF" ] || exit 1; echo 255.255.255.0 ;;
+  *) stub_untold "ipconfig $* is not answered" ;;
+esac

@@ -1,0 +1,17 @@
+#!/bin/bash
+# Stub id: who runs the installer. STUB_UID (501) and STUB_USER (tester); STUB_UID=0 is root.
+# Answers -u, -g, -un, -gn, -G, -Gn and no option; anything else fails loudly.
+. "$(dirname "$0")/../stub-lib.sh"
+stub_begin "$@"
+uid=${STUB_UID:-501}
+if [ "$uid" = 0 ]; then user=root gid=0 group=wheel; else user=${STUB_USER:-tester} gid=20 group=staff; fi
+case "$*" in
+  -u) echo "$uid" ;;
+  -g) echo "$gid" ;;
+  -un|-nu|'-u -n'|'-n -u') echo "$user" ;;
+  -gn|-ng|'-g -n'|'-n -g') echo "$group" ;;
+  -G) echo "$gid 80" ;;
+  -Gn|'-G -n') echo "$group admin" ;;
+  '') echo "uid=$uid($user) gid=$gid($group) groups=$gid($group),80(admin)" ;;
+  *) stub_untold "id $* is not answered" ;;
+esac

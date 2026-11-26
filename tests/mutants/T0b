@@ -1,0 +1,3 @@
+# file: tests/stubs/llama-server
+# the stub engine answers without checking the key
+s/^  if \[ "\$p_open" != 1 \]; then$/  if false; then/

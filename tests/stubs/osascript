@@ -1,0 +1,39 @@
+#!/bin/bash
+# Stub osascript, which is also the stub notifier. A script given with -e that shows a notification
+# (AppleScript `display notification`, or JavaScript `displayNotification`) is not run and nothing is
+# shown: one line is appended to STUB_NOTIFY_LOG instead, the script (its -e parts joined by newlines)
+# and then each argument after it, separated by tabs, each written as tests/stub-lib.sh stub_escape
+# writes it. Every other call passes through to /usr/bin/osascript, so that JavaScript for Automation
+# runs for real.
+# Standard input is logged when osascript reads its script from it (no -e and no file); with
+# STUB_OSASCRIPT_INPUT=log it is also read, logged and passed on when a script file is given, for a
+# program that reads its own input.
+. "$(dirname "$0")/../stub-lib.sh"
+stub_begin "$@"
+script= has_e=0 file= argv=() i=1
+args=("$@")
+while [ $i -le $# ]; do
+  a=${!i}
+  case "$a" in
+    -e) i=$((i + 1)); script+="${script:+$'\n'}${!i}"; has_e=1 ;;
+    -l|-s) i=$((i + 1)) ;;
+    -i) ;;
+    *) if [ "$has_e" = 0 ] && [ -z "$file" ]; then file=$a; else argv+=("$a"); fi ;;
+  esac
+  i=$((i + 1))
+done
+[ "$has_e" = 0 ] || { [ -z "$file" ] || argv=("$file" ${argv[@]+"${argv[@]}"}); file=; }
+case "$script" in
+  *'display notification'*|*displayNotification*)
+    line=$(stub_escape "$script")
+    for a in ${argv[@]+"${argv[@]}"}; do line+=$'\t'$(stub_escape "$a"); done
+    printf '%s\n' "$line" >> "${STUB_NOTIFY_LOG:?stub osascript: STUB_NOTIFY_LOG is not set}"
+    exit 0 ;;
+esac
+if { [ "$has_e" = 0 ] && { [ -z "$file" ] || [ "$file" = - ]; }; } || { [ -n "$file" ] && [ "${STUB_OSASCRIPT_INPUT:-}" = log ]; }; then
+  input=$(mktemp "${TMPDIR:-/tmp}/stub-osascript.XXXXXX")
+  cat > "$input"; stub_log_input "$input"
+  /usr/bin/osascript ${args[@]+"${args[@]}"} < "$input"; rc=$?
+  rm -f "$input"; exit "$rc"
+fi
+exec /usr/bin/osascript ${args[@]+"${args[@]}"}

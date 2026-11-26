@@ -1,0 +1,100 @@
+Registry fixtures for section A of docs/plans/v0.1.md (A2, A3), and for the tests of sections C and D
+that read a registry. Each .tsv is a whole registry in format 1 unless it says otherwise. They are
+written by hand, with fixed ids that match A2's patterns; no id here is ever minted again.
+
+The ids
+  rmmsi4vdvxsr4  the household recipe          rsvh4l2c3prht  fit-test, a second recipe (fit.tsv)
+  ebv74racygnzm  engine b12359                  e3umyg6om6bfo  engine b12400 (made up, good-v0.2.0)
+  mjhs5h65av6o4  Mistral Small 4 (endorsed)     maw6njwkqcc35  Magistral Small 2509 (publisher)
+  mwod7poxly5a4  a third-party model            mhao5xfx4uaxi, mxxcb4456zr2v  the model stand-ins A
+  b7275bkg6tizv  order 1 (b12359 + Mistral)       and B of tests/helpers.sh model_standins
+  b7adwcqnfap56  order 2 (b12359 + Magistral)   bv4tbuqiaa3al  Mistral on b12400 (good-v0.2.0)
+  b4cvp4l4ee5tl  the third-party build          b5gekhbuvd6hx, bc35hcwnetoqb  fits / does not fit
+  bhoe4j755eetl  a build in no order line       bqcj2a3zgsijq  never defined (withdraw-unknown)
+
+The household lines follow A6: real sizes, hashes and commits for the engine and both models, the
+system prompt c44bab6b...d02e49 and order 2's template 39f03c38...81fdcda. Two values are placeholders,
+because the files do not exist yet: order 1's template (d54dd73b...) and the recipe's test (41bb822f...).
+The model context limits (262,144 and 131,072), order 1's top-p (0.95) and the Mac label dev-mac-64gb
+are fixture values.
+
+What a correct reader does with each file
+
+good-v0.1.0.tsv      Uses every line: one recipe, order 1 then order 2.
+good-v0.2.0.tsv      The same lines byte for byte, the version v0.2.0, and three added: engine b12400, a
+                     build of Mistral on it, and a later order line that puts that build first. The two
+                     are the registry at two versions, the later one appended to.
+withdrawn.tsv        good-v0.1.0 and `withdraw` of order 1 (security): order 1 is withdrawn, order 2 is
+                     chosen.
+tier.tsv             good-v0.1.0, a third-party model and its build, put first by a later order line:
+                     the recipe allows publisher,endorsed, so that build is never chosen; order 1 is.
+fit.tsv              Recipe fit-test, one person at 4,096 to 8,192. Its order puts first a build that
+                     fits no Mac (1,000,000 MiB of weights, 4,000,000 bytes of cache a token) and second
+                     one that fits any (2,000 MiB). The models are the stand-ins of tests/helpers.sh.
+malformed-line.tsv   good-v0.1.0 and a later order line whose last build id ends in a space: that line
+                     is passed over, so the earlier order stands and order 1 is chosen.
+hostile.tsv          good-v0.1.0 and five model or engine lines that nothing names: a repository
+                     ../mistralai, a file name -rf.gguf, a file name $(touch f).gguf, a sha256 with z,
+                     a size 17e6. The last four are passed over, the recipe is used, and no file f is
+                     made. See the open questions about the first.
+dup-ids.tsv          good-v0.1.0, then a second `model` line for Magistral's id (one byte larger) and a
+                     second `build` line for order 1's id (other figures). The gate fails it and names
+                     both. A Mac keeps the first definition of each and passes over the second (T48).
+line-1000.tsv        good-v0.1.0 and a comment line of exactly 1,000 bytes, not counting its newline:
+                     within the cap; the gate passes it.
+line-1001.tsv        The same with 1,001 bytes: the gate fails it, naming line 9. A Mac passes over that
+                     line and uses the rest, so it reads as line-1000.tsv does.
+unknown-kind.tsv     good-v0.1.0 and a line of the kind `tool`: passed over, the rest used (T40).
+field-count.tsv      good-v0.1.0, a `recipe` line one field short and a `withdraw` line one field long:
+                     both passed over, so the recipe keeps its first line and order 1 is not withdrawn.
+empty-middle.tsv     good-v0.1.0 and a later `recipe` line with an empty third field, its values moved
+                     one field right (family-helper, publisher, 2 people, 8,192 to 16,384). Split on
+                     single tabs it has 8 fields and is passed over: the recipe stays household,
+                     publisher,endorsed, and order 1 is chosen. A reader that splits on runs of tabs
+                     reads it as 7 good fields and chooses order 2 (T50).
+crlf-line.tsv        good-v0.1.0 and a later order line ending in CR LF: passed over, order 1 chosen.
+crlf-all.tsv         good-v0.1.0 with every line ending in CR LF. The first line's version field is
+                     "v0.1.0" and a CR, and every record's last field carries a CR: nothing is used.
+format-2.tsv         The first line says format 2: not read at all; every recipe shows
+                     `passed over (cannot be read)` (T40).
+judgements.tsv       good-v0.1.0, a third build that is in no order line, a second `recipe` line
+                     (family-helper, 2 people, 8,192 to 16,384) and a second `order` line (order 2,
+                     then order 1). The later recipe and order lines are used, both earlier ones stay
+                     in the file, order 2 is chosen, and the build in no order line never is (T51).
+withdraw-unknown.tsv good-v0.1.0, a `withdraw` of a build id defined nowhere, and a `withdraw` naming
+                     Magistral's model id: the gate fails both; a Mac passes both over and withdraws
+                     nothing.
+reasons.tsv          good-v0.1.0, `withdraw` order 1 `stolen` (not a known reason, but it matches the
+                     pattern: order 1 is withdrawn and shows only "withdrawn"), and two `withdraw` lines
+                     for order 2 with the reasons `Security` and an escape sequence: both fail the
+                     pattern and are passed over, so order 2 stays offered and is chosen (T21).
+
+Made at run time, not kept here: tests/helpers.sh registry_sized SRC BYTES OUT pads a registry with
+comment lines of at most 1,000 bytes to an exact size. good-v0.1.0.tsv padded to 524,288 bytes is
+within the cap; to 524,289 it is over (T48); to 1,048,577 it is an answer over 1 MiB (T3).
+
+boundary/            For every pattern of A2 and A3, values just inside and just outside (T49).
+                     MANIFEST lists each file, the file it differs from, the lines a correct reader
+                     passes over, and what it tests. in-upper.tsv holds every field at its largest or
+                     longest value, in-lower.tsv at its smallest or shortest; both are used whole, and
+                     their one build is chosen. Each out-*.tsv is in-upper.tsv (or in-withdraw.tsv)
+                     with one value changed, everywhere that value appears, so the lines it differs on
+                     are exactly the lines MANIFEST names; tests/t00-fixtures.sh checks that. Each line
+                     named fails a pattern itself. With the only build or its order gone, the recipe
+                     shows `passed over (cannot be read)`. The out-reason files are the exception: the
+                     withdraw line is passed over, so the build stays offered.
+
+Open questions in the plan that these fixtures meet, not settled here
+- A3's repository pattern accepts `..` as the owner or the name (hostile.tsv line 9 matches it), while
+  T22 expects a line holding `../` to be passed over. A Mac builds a download address from it.
+- A line that names an id whose own line was passed over (an order naming a build whose build line
+  failed a pattern): T48 says a line naming an undefined id is passed over, but not whether an id
+  defined by a line that was passed over counts as undefined. The boundary files do not depend on it:
+  either way the recipe cannot be read.
+- `order` has no fixed field count (a recipe id, then one or more build ids). The fixtures read it as
+  at least three fields.
+- A3 passes over a line whose field count is not exactly its kind's, while T55 speaks of a registry
+  line "with a trailing field the Mac does not know" kept in a descriptor.
+- Only comment lines and `order` lines can reach 1,000 bytes: every other record is at most 593 bytes,
+  and an order line is 19 + 14 bytes for each build. The cap is therefore tested with comment lines.
+- A3 does not say what a Mac does with a whole file over 512 KiB.

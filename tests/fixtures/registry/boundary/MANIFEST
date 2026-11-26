@@ -1,0 +1,56 @@
+file	compared with	passed over	what it tests
+in-upper.tsv	-	-	every field at its largest or longest value: all used
+in-lower.tsv	-	-	every field at its smallest or shortest value: all used
+in-withdraw.tsv	in-upper.tsv	-	a reason of 20 letters, not a known one: the build is withdrawn
+out-recipe-id-short.tsv	in-upper.tsv	5,6	recipe id of 11 characters
+out-recipe-id-long.tsv	in-upper.tsv	5,6	recipe id of 13 characters
+out-recipe-id-digit-1.tsv	in-upper.tsv	5,6	recipe id holding 1, not base32
+out-build-id-digit-8.tsv	in-upper.tsv	4,6	build id holding 8, not base32
+out-engine-id-digit-0.tsv	in-upper.tsv	2,4	engine id holding 0
+out-model-id-upper.tsv	in-upper.tsv	3,4	model id with a capital letter
+out-build-engine-kind.tsv	in-upper.tsv	4	a model id in the build's engine field
+out-label-long.tsv	in-upper.tsv	5	label of 42 characters
+out-label-digit-first.tsv	in-upper.tsv	5	label starting with a digit
+out-label-junk-after.tsv	in-upper.tsv	5	label with ! after a valid label (a pattern without $)
+out-label-junk-before.tsv	in-upper.tsv	5	label with ! before a valid label (a pattern without ^)
+out-mac-label-long.tsv	in-upper.tsv	4	Mac label of 42 characters
+out-tiers-trailing-comma.tsv	in-upper.tsv	5	allowed tiers ending in a comma
+out-tiers-unknown.tsv	in-upper.tsv	5	an allowed tier not in the list
+out-model-tier-unknown.tsv	in-upper.tsv	3	a model's tier not in the list
+out-people-65.tsv	in-upper.tsv	5	people 65, over the ceiling of 64
+out-people-08.tsv	in-upper.tsv	5	people 08: a leading zero (and not a number in base 8)
+out-context-min-leading-zero.tsv	in-upper.tsv	5	context minimum 01024
+out-context-max-over.tsv	in-upper.tsv	5	context maximum 1048577, over the ceiling
+out-model-context-over.tsv	in-upper.tsv	3	model context limit 1048577
+out-weights-over.tsv	in-upper.tsv	4	weights 1048577 MiB, over the ceiling
+out-outside-over.tsv	in-upper.tsv	4	memory outside the GPU 1048577 MiB
+out-cache-over.tsv	in-upper.tsv	4	cache per token 4194305, over the ceiling
+out-macos-100.tsv	in-upper.tsv	2	oldest macOS 100, over the ceiling of 99
+out-engine-size-16-digits.tsv	in-upper.tsv	2	engine size of 16 digits
+out-model-size-leading-zero.tsv	in-upper.tsv	3	model size with a leading zero
+out-model-size-letters.tsv	in-upper.tsv	3	model size 14e9
+out-platform.tsv	in-upper.tsv	2	platform macos-x86_64
+out-numbered-build-long.tsv	in-upper.tsv	2	numbered build of 8 digits
+out-numbered-build-short.tsv	in-upper.tsv	2	numbered build of 3 digits
+out-engine-file-dot.tsv	in-upper.tsv	2	engine file name with x where the pattern has \. (an unescaped dot)
+out-engine-file-suffix.tsv	in-upper.tsv	2	engine file name with .part after it
+out-repository-owner-97.tsv	in-upper.tsv	3	repository owner of 97 characters
+out-repository-three-parts.tsv	in-upper.tsv	3	repository a/b/c
+out-commit-41.tsv	in-upper.tsv	3	commit of 41 hex digits
+out-commit-upper.tsv	in-upper.tsv	3	commit with capital hex
+out-model-file-stem-202.tsv	in-upper.tsv	3	model file name stem of 202 characters
+out-model-file-upper-ext.tsv	in-upper.tsv	3	model file name ending .GGUF
+out-model-file-dash-first.tsv	in-upper.tsv	3	model file name starting with -
+out-sha256-63.tsv	in-upper.tsv	2	engine sha256 of 63 hex digits
+out-sha256-g.tsv	in-upper.tsv	3	model sha256 holding g
+out-sha256-upper.tsv	in-upper.tsv	4	template sha256 with capital hex
+out-licence-31.tsv	in-upper.tsv	3	licence of 31 characters
+out-licence-upper.tsv	in-upper.tsv	3	licence Apache-2.0
+out-temperature-1.001.tsv	in-upper.tsv	4	temperature 1.001
+out-temperature-4-places.tsv	in-upper.tsv	4	temperature 0.9999
+out-temperature-01.tsv	in-upper.tsv	4	temperature 01
+out-top-p-no-zero.tsv	in-upper.tsv	4	top-p .5
+out-top-p-trailing-dot.tsv	in-upper.tsv	4	top-p 1.
+out-reason-21.tsv	in-withdraw.tsv	7	a reason of 21 letters: the build stays offered
+out-reason-upper.tsv	in-withdraw.tsv	7	a reason with a capital letter
+out-reason-escape.tsv	in-withdraw.tsv	7	a reason holding an escape sequence

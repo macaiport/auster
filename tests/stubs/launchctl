@@ -1,0 +1,71 @@
+#!/bin/bash
+# Stub launchctl: keeps launchd's state for the user's domain in STUB_LAUNCHCTL_DIR, starts nothing.
+#   loaded/LABEL     a job that is bootstrapped; it holds the job file's path
+#   overrides/LABEL  "enabled" or "disabled", as `launchctl enable` / `disable` leave it. Like the real
+#                    launchd, an enable is remembered too, so print-disabled lists it as enabled
+#   pids/LABEL       optional, written by a test: the process `print` and `kickstart -p` report
+#   hooks/LABEL      optional, an executable a test provides: run after bootstrap, bootout, kickstart,
+#                    enable and disable of LABEL, with the action as its argument (to start or stop a
+#                    stub engine as launchd would)
+# Answers, in the domain gui/UID or user/UID:
+#   print-disabled DOMAIN           bootstrap DOMAIN PLIST     bootout DOMAIN/LABEL | DOMAIN PLIST
+#   enable DOMAIN/LABEL             disable DOMAIN/LABEL       kickstart [-k] [-p] [-s] DOMAIN/LABEL
+#   print DOMAIN/LABEL
+# Bootstrapping a disabled or already loaded job, or an unreadable file, fails with 5 as on macOS;
+# bootout, kickstart and print of a job that is not loaded fail with 3, 113 and 113.
+. "$(dirname "$0")/../stub-lib.sh"
+stub_begin "$@"
+S=${STUB_LAUNCHCTL_DIR:-}
+[ -n "$S" ] || stub_untold "STUB_LAUNCHCTL_DIR is not set"
+mkdir -p "$S/loaded" "$S/overrides"
+
+domain_ok() { case "$1" in gui/[0-9]*|user/[0-9]*) return 0 ;; esac; stub_untold "domain $1 is not answered"; }
+target() { # DOMAIN/LABEL -> label
+  local d=${1%/*}; domain_ok "$d"; label=${1#"$d"/}
+  case "$label" in ''|*/*) stub_untold "service target $1 is not answered" ;; esac
+}
+hook() { [ ! -x "$S/hooks/$label" ] || "$S/hooks/$label" "$1"; }
+plist_label() { /usr/bin/plutil -extract Label raw -o - "$1" 2>/dev/null; }
+not_found() { echo "Could not find service \"$label\" in domain for user gui: ${STUB_UID:-501}" >&2; exit 113; }
+
+cmd=${1:-}; shift
+case "$cmd" in
+  print-disabled)
+    [ $# -eq 1 ] || stub_untold "print-disabled takes one domain"; domain_ok "$1"
+    echo; printf '\tdisabled services = {\n'
+    for f in "$S"/overrides/*; do [ -f "$f" ] && printf '\t\t"%s" => %s\n' "${f##*/}" "$(cat "$f")"; done
+    printf '\t}\n' ;;
+  bootstrap)
+    [ $# -eq 2 ] || stub_untold "bootstrap takes a domain and a job file"; domain_ok "$1"
+    label=$(plist_label "$2")
+    if [ -z "$label" ] || [ -f "$S/loaded/$label" ] || [ "$(cat "$S/overrides/$label" 2>/dev/null)" = disabled ]; then
+      echo "Bootstrap failed: 5: Input/output error" >&2
+      echo "Try re-running the command as root for richer errors." >&2
+      exit 5
+    fi
+    printf '%s\n' "$2" > "$S/loaded/$label"; hook bootstrap ;;
+  bootout)
+    if [ $# -eq 2 ]; then domain_ok "$1"; label=$(plist_label "$2"); elif [ $# -eq 1 ]; then target "$1"; else stub_untold "bootout takes a target"; fi
+    if [ -z "$label" ] || [ ! -f "$S/loaded/$label" ]; then echo "Boot-out failed: 3: No such process" >&2; exit 3; fi
+    rm -f "$S/loaded/$label"; hook bootout ;;
+  enable|disable)
+    [ $# -eq 1 ] || stub_untold "$cmd takes one target"; target "$1"
+    echo "${cmd}d" > "$S/overrides/$label"; hook "$cmd" ;;
+  kickstart)
+    showpid=0
+    while [ $# -gt 1 ]; do case "$1" in -k|-s) ;; -p) showpid=1 ;; *) stub_untold "kickstart option $1 is not answered" ;; esac; shift; done
+    [ $# -eq 1 ] || stub_untold "kickstart takes one target"; target "$1"
+    [ -f "$S/loaded/$label" ] || not_found
+    hook kickstart
+    [ "$showpid" = 0 ] || cat "$S/pids/$label" 2>/dev/null ;;
+  print)
+    [ $# -eq 1 ] || stub_untold "print takes one target"; target "$1"
+    if [ ! -f "$S/loaded/$label" ]; then echo "Bad request." >&2; not_found; fi
+    pid=$(cat "$S/pids/$label" 2>/dev/null)
+    if [ -n "$pid" ] && stub_alive "$pid"; then state=running; else state="not running"; pid=; fi
+    printf '%s/%s = {\n\tactive count = 0\n\tpath = %s\n\ttype = LaunchAgent\n\tstate = %s\n' \
+      "${1%/*}" "$label" "$(cat "$S/loaded/$label")" "$state"
+    [ -z "$pid" ] || printf '\tpid = %s\n' "$pid"
+    printf '\tlast exit code = (never exited)\n}\n' ;;
+  *) stub_untold "launchctl $cmd is not answered" ;;
+esac

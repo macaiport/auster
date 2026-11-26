@@ -1,0 +1,306 @@
+#!/bin/bash
+# Stub engine (docs/plans/v0.1.md, D6): stands in for llama.cpp's llama-server. It loads nothing and
+# listens nowhere; the stub curl answers requests to its address by calling it with --stub-answer.
+#
+# Where it keeps its state: STUB_ENGINE_DIR, or, because the engine job starts the engine with an empty
+# environment (B4 step 8), the hidden leading options --stub-dir DIR, --stub-log FILE and
+# --stub-program PATH, which a wrapper put in an engine folder passes (tests/helpers.sh engine_program).
+# They are taken off before the arguments are recorded.
+#
+# Settings: STUB_ENGINE_DIR/config, one a line, fields separated by single tabs:
+#   SELECTOR  SETTING  VALUE
+#   SELECTOR  * for every start, or conditions joined by commas, all of which must hold:
+#             model=NAME (the -m value, or its last part), ctx=N (-c), np=N (-np), alias=ID, port=N
+#   The last matching line for a setting wins. Settings:
+#   behaviour     ok        answers as configured below
+#                 http500   /health 200, every chat request HTTP 500 "Compute error." (a build that does
+#                           not fit, with fitting off)
+#                 open      answers requests with no key or a wrong key
+#                 nolisten  starts and never registers: every request is refused
+#                 exit:N    starts and exits N at once
+#                 Required: a start with no behaviour fails loudly.
+#   rate          tokens per second it reports (timings.predicted_per_second); 10.0 if unset
+#   answers       a file: SUBSTRING<TAB>REPLY[<TAB>RATE[<TAB>SECS]] a line. The first line whose
+#                 SUBSTRING (or *) is in the last user message answers it. REPLY uses \n, \t and \\, or
+#                 is @file (beside the answers file unless absolute). A question no line matches gets
+#                 HTTP 500 and is added to STUB_ENGINE_DIR/unanswered. With no answers file, the speed
+#                 question ("Count from 1 to ...") gets the numbers, one a line, and anything else "ok".
+#   secs          seconds each answer adds to the stub clock (the file STUB_CLOCK, if set); 0 if unset
+#   load          seconds after its start during which every request, /health too, gets HTTP 503
+#                 "Loading model"; 0 if unset
+#   list-devices  which tests/fixtures/list-devices/<NAME>.txt --list-devices prints (or a path);
+#                 required for --list-devices
+#
+# What it records, under STUB_ENGINE_DIR:
+#   starts/NNNN/  one folder per start: args (one argument a line, escaped as in tests/stub-lib.sh),
+#                 env (NAME=value, sorted; bash's own PWD, SHLVL and OLDPWD left out), cwd, program,
+#                 pid, started (epoch), behaviour, keyfile (absolute), keys (the keys it read: it reads
+#                 the file once, at start, as the real engine does), stopped (epoch and signal, at exit)
+#   ports/PORT    while it runs: pid, start, port, hosts, model, alias, ctx, np, behaviour, open, rate,
+#                 answers, secs, load, started, keys; one key=value a line. The stub curl reads it.
+#                 tests/helpers.sh engine_live changes a value while it runs.
+#   pids/PID      the start folder of each engine still running, for tests/helpers.sh stub_cleanup
+#
+# Like the real engine: a key file with no line that is a key (empty, blank lines, # comments) leaves it
+# open to everyone (docs/phase-1.md, step 12); a second engine on a port already taken fails to bind;
+# /health needs no key; /props shows -m as it was given and /v1/models the --alias (else -m); an option
+# it does not know is refused with "error: invalid argument" and exit 1. It knows the options of B4
+# step 8, the ones B4 forbids (so that a test can see them passed), and a few common others.
+. "$(dirname "$0")/../stub-lib.sh"
+
+E=${STUB_ENGINE_DIR:-} program=$0
+while :; do
+  case "${1:-}" in
+    --stub-dir) E=$2; shift 2 ;;
+    --stub-log) STUB_LOG=$2; shift 2 ;;
+    --stub-program) program=$2; shift 2 ;;
+    *) break ;;
+  esac
+done
+
+json_str() { # text -> a JSON string
+  local s
+  s=$(printf "%s." "$1" | tr -d '\000-\010\013\014\016-\037'); s=${s%.}
+  s=${s//\\/\\\\}; s=${s//\"/\\\"}; s=${s//$'\n'/\\n}; s=${s//$'\r'/\\r}; s=${s//$'\t'/\\t}
+  printf '"%s"' "$s"
+}
+
+# --- answer mode: called by the stub curl for each request to a registered engine
+answer() { # port file, method, path, request folder, out folder
+  local pf=$1 method=$2 path=${3%%\?*} req=$4 o=$5
+  mkdir -p "$o"
+  local k v
+  while IFS= read -r line; do k=${line%%=*}; v=${line#*=}; eval "p_$k=\$v"; done < "$pf"
+  reply_() { printf '%s\n' "$1" > "$o/status"; printf 'Content-Type: %s\n' "${3:-application/json; charset=utf-8}" > "$o/headers"; printf '%s' "$2" > "$o/body"; }
+  err_() { reply_ "$1" "{\"error\":{\"code\":$1,\"message\":$(json_str "$2"),\"type\":\"$3\"}}"; }
+
+  if [ "${p_load:-0}" != 0 ] && [ $(( $(/bin/date +%s) - p_started )) -lt "$p_load" ]; then
+    err_ 503 "Loading model" unavailable_error; return 0
+  fi
+  case "$path" in
+    /health|/v1/health) reply_ 200 '{"status":"ok"}'; return 0 ;;
+    /) reply_ 200 '<!doctype html><title>llama.cpp</title>' 'text/html; charset=utf-8'; return 0 ;;
+  esac
+
+  if [ "$p_open" != 1 ]; then
+    local given= line
+    shopt -s nocasematch
+    while IFS= read -r line; do
+      case "$line" in
+        'authorization: bearer '*) given=${line:22} ;;
+        'x-api-key: '*) given=${line:11} ;;
+      esac
+    done < "$req/headers"
+    shopt -u nocasematch
+    if [ -z "$given" ] || ! grep -qxF -- "$given" "$p_keys"; then
+      err_ 401 "Invalid API Key" authentication_error; return 0
+    fi
+  fi
+
+  case "$path" in
+    /v1/chat/completions|/chat/completions) ;;
+    /v1/models|/models)
+      reply_ 200 "{\"object\":\"list\",\"data\":[{\"id\":$(json_str "${p_alias:-$p_model}"),\"object\":\"model\",\"owned_by\":\"llamacpp\"}]}"
+      return 0 ;;
+    /props)
+      reply_ 200 "{\"model_path\":$(json_str "$p_model"),\"model_alias\":$(json_str "$p_alias"),\"total_slots\":${p_np:-1},\"default_generation_settings\":{\"n_ctx\":$(( ${p_ctx:-4096} / ${p_np:-1} ))}}"
+      return 0 ;;
+    /slots) err_ 501 "This server does not support slots endpoint." not_supported_error; return 0 ;;
+    *) err_ 404 "File Not Found" not_found_error; return 0 ;;
+  esac
+
+  [ "$method" = POST ] || { err_ 404 "File Not Found" not_found_error; return 0; }
+  [ "$p_behaviour" != http500 ] || { err_ 500 "Compute error." server_error; return 0; }
+
+  local body="$req/body" n i role q= maxt reply rate=${p_rate:-10.0} secs=${p_secs:-0}
+  n=$(/usr/bin/plutil -extract messages raw -o - "$body" 2>/dev/null) || { err_ 500 "stub engine: the request is not JSON it can read" server_error; return 0; }
+  for ((i = n - 1; i >= 0; i--)); do
+    role=$(/usr/bin/plutil -extract "messages.$i.role" raw -o - "$body" 2>/dev/null)
+    if [ "$role" = user ]; then q=$(/usr/bin/plutil -extract "messages.$i.content" raw -o - "$body" 2>/dev/null); break; fi
+  done
+  maxt=$(/usr/bin/plutil -extract max_tokens raw -o - "$body" 2>/dev/null) || maxt=
+
+  if [ -n "$p_answers" ]; then
+    local found=0 line
+    while IFS= read -r line || [ -n "$line" ]; do
+      case "$line" in ''|'#'*) continue ;; esac
+      stub_split "$line"
+      if [ "${F[0]}" = "*" ] || [[ "$q" == *"${F[0]}"* ]]; then
+        case "${F[1]}" in
+          @/*) reply=$(cat "${F[1]#@}") ;;
+          @*) reply=$(cat "$(dirname "$p_answers")/${F[1]#@}") ;;
+          *) reply=$(stub_unescape "${F[1]}") ;;
+        esac
+        [ -z "${F[2]:-}" ] || rate=${F[2]}
+        [ -z "${F[3]:-}" ] || secs=${F[3]}
+        found=1; break
+      fi
+    done < "$p_answers"
+    if [ "$found" = 0 ]; then
+      printf '%s\n' "$(stub_escape "$q")" >> "$(dirname "$pf")/../unanswered"
+      echo "stub llama-server: no answer for: $q" >&2
+      err_ 500 "stub engine: no answer for this question" server_error; return 0
+    fi
+  else
+    case "$q" in
+      *"Count from 1 to "*) local top=${q#*Count from 1 to }; top=${top%%[!0-9]*}; reply=$(/usr/bin/seq 1 "${top:-300}") ;;
+      *) reply=ok ;;
+    esac
+  fi
+
+  local words finish=stop
+  words=$(printf '%s' "$reply" | wc -w | tr -d ' ')
+  if [ -n "$maxt" ] && [ "$words" -gt "$maxt" ]; then
+    reply=$(printf '%s\n' "$reply" | awk -v n="$maxt" '{ out = ""; for (i = 1; i <= NF && c < n; i++) { out = out (i > 1 ? " " : "") $i; c++ } print out; if (c >= n) exit }')
+    words=$maxt; finish=length
+  fi
+  [ "$words" -gt 0 ] || words=1
+  if [ -n "${STUB_CLOCK:-}" ] && [ "$secs" != 0 ]; then echo $(( $(cat "$STUB_CLOCK") + secs )) > "$STUB_CLOCK"; fi
+  local ms
+  ms=$(awk -v n="$words" -v r="$rate" 'BEGIN { if (r > 0) printf "%.3f", n / r * 1000; else print 0 }')
+  reply_ 200 "{\"choices\":[{\"finish_reason\":\"$finish\",\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":$(json_str "$reply")}}],\"created\":$(/bin/date +%s),\"model\":$(json_str "${p_alias:-$p_model}"),\"object\":\"chat.completion\",\"id\":\"chatcmpl-stub\",\"usage\":{\"completion_tokens\":$words,\"prompt_tokens\":10,\"total_tokens\":$((words + 10))},\"timings\":{\"prompt_n\":10,\"prompt_ms\":1.0,\"predicted_n\":$words,\"predicted_ms\":$ms,\"predicted_per_second\":$rate}}"
+}
+
+if [ "${1:-}" = --stub-answer ]; then shift; answer "$@"; exit $?; fi
+
+# --- start mode
+stub_log "$@"
+[ -n "$E" ] || stub_untold "STUB_ENGINE_DIR is not set and no --stub-dir was given"
+
+model= alias= ctx=4096 np=1 hosts=127.0.0.1 port=8080 keyfile= list=0 apikeys=()
+args=("$@")
+while [ $# -gt 0 ]; do
+  o=$1; shift
+  case "$o" in
+    --list-devices) list=1 ;;
+    --offline|--no-slots|--slots|--no-webui-mcp-proxy|--jinja|--no-webui|--metrics|--props|--verbose|-v|\
+    --log-disable|--no-mmap|--mlock|--cont-batching|--no-cont-batching|--log-colors|--log-prefix|--log-timestamps) ;;
+    -m|--model|-a|--alias|-c|--ctx-size|-np|--parallel|--host|--port|--api-key-file|--api-key|--cors-origins|\
+    --chat-template-file|--chat-template|--ui-config-file|--temp|--top-p|--top-k|--min-p|--fit|-ngl|--n-gpu-layers|\
+    --gpu-layers|--mmproj|--media-path|--slot-save-path|--tools|--mcp-config|--mcp-server|--connect|-t|--threads|\
+    --seed|-fa|--flash-attn|--reasoning-format|--reasoning-budget|-lv|--log-verbosity|--log-file|-n|--n-predict|\
+    --timeout|--threads-http|-b|--batch-size|-ub|--ubatch-size|--cache-type-k|--cache-type-v|-ctk|-ctv)
+      [ $# -gt 0 ] || { echo "error: expected value for argument: $o" >&2; exit 1; }
+      v=$1; shift
+      case "$o" in
+        -m|--model) model=$v ;; -a|--alias) alias=$v ;; -c|--ctx-size) ctx=$v ;; -np|--parallel) np=$v ;;
+        --host) hosts=$v ;; --port) port=$v ;; --api-key-file) keyfile=$v ;; --api-key) apikeys+=("$v") ;;
+      esac ;;
+    *) echo "error: invalid argument: $o" >&2; exit 1 ;;
+  esac
+done
+
+start=$(stub_new_dir "$E/starts")
+: > "$start/args"
+for a in ${args[@]+"${args[@]}"}; do printf '%s\n' "$(stub_escape "$a")" >> "$start/args"; done
+for nm in $(compgen -e | LC_ALL=C sort); do
+  case "$nm" in PWD|SHLVL|OLDPWD) continue ;; esac
+  printf '%s=%s\n' "$nm" "$(stub_escape "${!nm}")"
+done > "$start/env"
+pwd -P > "$start/cwd"
+printf '%s\n' "$program" > "$start/program"
+echo $$ > "$start/pid"
+/bin/date +%s > "$start/started"
+
+stopped() { # signal name -> written once, when the engine ends
+  [ -f "$start/stopped" ] || echo "$(/bin/date +%s) $1" > "$start/stopped"
+}
+
+# settings: the last matching line of the config wins
+behaviour= rate=10.0 answers= secs=0 load=0 listdev=
+mbase=${model##*/}
+if [ -f "$E/config" ]; then
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in ''|'#'*) continue ;; esac
+    stub_split "$line"
+    [ "${#F[@]}" -ge 3 ] || stub_untold "a config line needs three fields: $line"
+    sel=${F[0]} match=1
+    if [ "$sel" != "*" ]; then
+      IFS=, read -r -a conds <<< "$sel"
+      for c in "${conds[@]}"; do
+        cv=${c#*=}
+        case "$c" in
+          model=*) [ "$cv" = "$model" ] || [ "$cv" = "$mbase" ] || match=0 ;;
+          ctx=*) [ "$cv" = "$ctx" ] || match=0 ;;
+          np=*) [ "$cv" = "$np" ] || match=0 ;;
+          alias=*) [ "$cv" = "$alias" ] || match=0 ;;
+          port=*) [ "$cv" = "$port" ] || match=0 ;;
+          *) stub_untold "selector $c is not understood" ;;
+        esac
+      done
+    fi
+    [ "$match" = 1 ] || continue
+    case "${F[1]}" in
+      behaviour) behaviour=${F[2]} ;; rate) rate=${F[2]} ;; secs) secs=${F[2]} ;; load) load=${F[2]} ;;
+      answers) case "${F[2]}" in /*) answers=${F[2]} ;; *) answers="$E/${F[2]}" ;; esac ;;
+      list-devices) listdev=${F[2]} ;;
+      *) stub_untold "setting ${F[1]} is not understood" ;;
+    esac
+  done < "$E/config"
+fi
+
+if [ "$list" = 1 ]; then
+  [ -n "$listdev" ] || { stopped untold; stub_untold "no list-devices setting in $E/config"; }
+  case "$listdev" in /*) f=$listdev ;; *) f="$STUB_TESTS/fixtures/list-devices/$listdev.txt" ;; esac
+  [ -f "$f" ] || { stopped untold; stub_untold "no list-devices fixture $f"; }
+  cat "$f"; stopped exit; exit 0
+fi
+
+[ -n "$behaviour" ] || { stopped untold; stub_untold "no behaviour set in $E/config"; }
+echo "$behaviour" > "$start/behaviour"
+case "$behaviour" in
+  exit:*) stopped exit; exit "${behaviour#exit:}" ;;
+  ok|http500|open|nolisten) ;;
+  *) stopped untold; stub_untold "behaviour $behaviour is not understood" ;;
+esac
+
+# keys, read once, as the real engine reads its key file only at start
+: > "$start/keys"
+if [ -n "$keyfile" ]; then
+  case "$keyfile" in /*) kf=$keyfile ;; *) kf="$(pwd -P)/$keyfile" ;; esac
+  [ ! -d "${kf%/*}" ] || kf="$(cd "${kf%/*}" && pwd -P)/${kf##*/}"
+  echo "$kf" > "$start/keyfile"
+  [ -r "$kf" ] || { echo "error: failed to open api key file: $keyfile" >&2; stopped exit; exit 1; }
+  while IFS= read -r k || [ -n "$k" ]; do
+    case "$k" in ''|'#'*) continue ;; esac
+    [ -n "${k//[[:space:]]/}" ] || continue
+    printf '%s\n' "$k" >> "$start/keys"
+  done < "$kf"
+fi
+for k in ${apikeys[@]+"${apikeys[@]}"}; do printf '%s\n' "$k" >> "$start/keys"; done
+open=0
+[ -s "$start/keys" ] || open=1
+[ "$behaviour" = open ] && open=1
+
+sleeper=
+unregister() {
+  if [ -f "$E/ports/$port" ] && [ "$(sed -n 's/^pid=//p' "$E/ports/$port")" = $$ ]; then rm -f "$E/ports/$port"; fi
+  rm -f "$E/pids/$$"
+}
+on_signal() { stopped "$1"; unregister; [ -z "$sleeper" ] || kill "$sleeper" 2>/dev/null; exit "$2"; }
+trap 'on_signal TERM 143' TERM
+trap 'on_signal INT 130' INT
+trap 'on_signal HUP 129' HUP
+mkdir -p "$E/pids" "$E/ports"
+echo "$start" > "$E/pids/$$"
+
+if [ "$behaviour" != nolisten ]; then
+  lock="$E/ports/.lock-$port"
+  until mkdir "$lock" 2>/dev/null; do /bin/sleep 0.05; done
+  old=$(sed -n 's/^pid=//p' "$E/ports/$port" 2>/dev/null)
+  if [ -n "$old" ] && stub_alive "$old"; then
+    rmdir "$lock"
+    echo "error: couldn't bind HTTP server socket, hostname: $hosts, port: $port" >&2
+    stopped exit; rm -f "$E/pids/$$"; exit 1
+  fi
+  {
+    echo "pid=$$"; echo "start=$start"; echo "port=$port"; echo "hosts=$hosts"; echo "model=$model"
+    echo "alias=$alias"; echo "ctx=$ctx"; echo "np=$np"; echo "behaviour=$behaviour"; echo "open=$open"
+    echo "rate=$rate"; echo "answers=$answers"; echo "secs=$secs"; echo "load=$load"
+    echo "started=$(cat "$start/started")"; echo "keys=$start/keys"
+  } > "$E/ports/.new-$port"
+  mv "$E/ports/.new-$port" "$E/ports/$port"
+  rmdir "$lock"
+fi
+
+while :; do /bin/sleep 3600 & sleeper=$!; wait "$sleeper"; done

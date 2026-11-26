@@ -1,0 +1,24 @@
+#!/bin/bash
+# Stub uname: an Apple Silicon Mac on Darwin 27.2.0. STUB_ROSETTA=1 makes -m print x86_64 and -p i386,
+# as a Terminal under Rosetta sees. Answers -s -n -r -v -m -p -a, alone or combined.
+. "$(dirname "$0")/../stub-lib.sh"
+stub_begin "$@"
+m=arm64 p=arm
+[ "${STUB_ROSETTA:-0}" = 1 ] && { m=x86_64 p=i386; }
+want=
+for a in "$@"; do
+  case "$a" in -[snrvmpa]*) want+=${a#-} ;; *) stub_untold "uname $a is not answered" ;; esac
+done
+[ -n "$want" ] || want=s
+case "$want" in *[!snrvmpa]*) stub_untold "uname -$want is not answered" ;; esac
+case "$want" in *a*) want=snrvm ;; esac
+out=
+for f in s n r v m p; do
+  case "$want" in *$f*) ;; *) continue ;; esac
+  case "$f" in
+    s) v=Darwin ;; n) v="${STUB_LOCALHOSTNAME:-test-mac}.local" ;; r) v=27.2.0 ;;
+    v) v="Darwin Kernel Version 27.2.0: stub; root:xnu~1/RELEASE_ARM64" ;; m) v=$m ;; p) v=$p ;;
+  esac
+  out+="${out:+ }$v"
+done
+echo "$out"

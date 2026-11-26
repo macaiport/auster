@@ -1,0 +1,450 @@
+[
+ {
+  "n": 1,
+  "group": "sums",
+  "pass": true,
+  "secs": 1.56,
+  "tokens": 52,
+  "reply": "To scale up the recipe for 10 people, you need to multiply the amount of rice by 10/4.\n\n300 g * (10/4) = 750 g\n\nAnswer: 750 g"
+ },
+ {
+  "n": 2,
+  "group": "sums",
+  "pass": true,
+  "secs": 1.21,
+  "tokens": 39,
+  "reply": "To calculate the monthly cost, divide the annual cost by 12.\n\n1260 / 12 = 105\n\nAnswer: 105 per month."
+ },
+ {
+  "n": 3,
+  "group": "sums",
+  "pass": true,
+  "secs": 1.78,
+  "tokens": 61,
+  "reply": "Let each adult pay x. Then each child pays x/2.\n\nTotal bill: 3x + 2*(x/2) = 96\n3x + x = 96\n4x = 96\nx = 24\n\nAnswer: 24"
+ },
+ {
+  "n": 4,
+  "group": "sums",
+  "pass": true,
+  "secs": 1.31,
+  "tokens": 44,
+  "reply": "To find 15% of 240, multiply 240 by 0.15.\n\n240 * 0.15 = 36\n\nAnswer: 36"
+ },
+ {
+  "n": 5,
+  "group": "sums",
+  "pass": true,
+  "secs": 2.27,
+  "tokens": 80,
+  "reply": "To find out how many full glasses can be poured from a 1.5-litre bottle, we need to convert the bottle's volume to millilitres and then divide by the glass's volume.\n\n1.5 litres = 1500 ml\n\nNumber of glasses = 1500 ml / 250 ml per glass = 6\n\nAnswer: 6"
+ },
+ {
+  "n": 6,
+  "group": "sums",
+  "pass": true,
+  "secs": 0.69,
+  "tokens": 21,
+  "reply": "20 divided by 3 is 6 with a remainder of 2.\n\nAnswer: 2"
+ },
+ {
+  "n": 7,
+  "group": "sums",
+  "pass": true,
+  "secs": 2.37,
+  "tokens": 84,
+  "reply": "To calculate the fuel needed for 250 km, we can use the following steps:\n\n1. Determine the fuel consumption rate per kilometer: 6 litres / 100 km = 0.06 litres/km.\n2. Multiply the rate by the distance: 0.06 litres/km * 250 km = 15 litres.\n\nAnswer: 15 litres."
+ },
+ {
+  "n": 8,
+  "group": "sums",
+  "pass": true,
+  "secs": 1.45,
+  "tokens": 49,
+  "reply": "Total eggs: 3 boxes * 12 eggs = 36 eggs\nEggs used per day: 2\nFull days eggs last: 36 / 2 = 18\nAnswer: 18"
+ },
+ {
+  "n": 9,
+  "group": "sums",
+  "pass": true,
+  "secs": 1.66,
+  "tokens": 55,
+  "reply": "The sofa is reduced by 25%, so the discount is 840 * 0.25 = 210. The new price is 840 - 210 = 630.\n\nAnswer: 630"
+ },
+ {
+  "n": 10,
+  "group": "sums",
+  "pass": true,
+  "secs": 1.53,
+  "tokens": 51,
+  "reply": "The heater uses 2 kW * 3 hours = 6 kWh per day. The cost is 6 kWh * $0.32/kWh = $1.92 per day.\n\nAnswer: $1.92"
+ },
+ {
+  "n": 11,
+  "group": "sums",
+  "pass": true,
+  "secs": 1.79,
+  "tokens": 61,
+  "reply": "First, calculate the total amount paid: 18 + 22 + 15 + 25 = 80.\n\nNext, divide the total by the number of friends: 80 / 4 = 20.\n\nAnswer: Each should have paid 20."
+ },
+ {
+  "n": 12,
+  "group": "sums",
+  "pass": true,
+  "secs": 1.38,
+  "tokens": 46,
+  "reply": "To find out how many cups of sugar are needed for three batches, multiply the amount needed for one batch by three:\n\n3/4 cup * 3 = 9/4 cups\n\nAnswer: 9/4 cups"
+ },
+ {
+  "n": 13,
+  "group": "sums",
+  "pass": true,
+  "secs": 1.27,
+  "tokens": 42,
+  "reply": "To find the floor area, multiply the length by the width:\n\n4.5 m * 3.2 m = 14.4 m\u00b2\n\nAnswer: 14.4 m\u00b2"
+ },
+ {
+  "n": 14,
+  "group": "sums",
+  "pass": true,
+  "secs": 1.67,
+  "tokens": 56,
+  "reply": "To calculate the cost for 30 days, we first find the daily rate:\n\n63 / 21 = 3 per day\n\nThen, multiply the daily rate by 30:\n\n3 * 30 = 90\n\nAnswer: 90"
+ },
+ {
+  "n": 15,
+  "group": "sums",
+  "pass": true,
+  "secs": 2.28,
+  "tokens": 78,
+  "reply": "To find out how many weeks it takes to save at least \u00a3100, we divide the total amount needed by the amount saved per week:\n\n100 / 7 \u2248 14.2857\n\nSince the child can't save for a fraction of a week, we round up to the next whole number:\n\n15 weeks\n\nAnswer: 15"
+ },
+ {
+  "n": 16,
+  "group": "sums",
+  "pass": true,
+  "secs": 1.91,
+  "tokens": 65,
+  "reply": "First, calculate the total area to be painted, considering two coats:\n54 square metres * 2 coats = 108 square metres.\n\nNext, determine the amount of paint needed:\n108 square metres / 12 square metres per litre = 9 litres.\n\nAnswer: 9 litres."
+ },
+ {
+  "n": 17,
+  "group": "time",
+  "pass": false,
+  "secs": 2.3,
+  "tokens": 79,
+  "reply": "To have dinner ready at 18:30, the chicken must be out of the oven by 18:15 (18:30 - 15 minutes rest). Therefore, it should go in the oven at 16:30 (18:15 - 1 hour 45 minutes).\n\nAnswer: 16:30"
+ },
+ {
+  "n": 18,
+  "group": "time",
+  "pass": true,
+  "secs": 0.57,
+  "tokens": 16,
+  "reply": "The journey is 145 minutes.\n\nAnswer: 145"
+ },
+ {
+  "n": 19,
+  "group": "time",
+  "pass": true,
+  "secs": 1.11,
+  "tokens": 36,
+  "reply": "Today is Wednesday. 10 days from now is 7 days plus 3 days, which is Wednesday plus 3 days, so it's Saturday.\n\nAnswer: Saturday"
+ },
+ {
+  "n": 20,
+  "group": "time",
+  "pass": false,
+  "secs": 1.17,
+  "tokens": 38,
+  "reply": "The school term starts on Monday, 2 March and lasts 6 weeks. The last Friday of the term falls on Friday, 13 April.\n\nAnswer: 13 April"
+ },
+ {
+  "n": 21,
+  "group": "time",
+  "pass": true,
+  "secs": 0.9,
+  "tokens": 28,
+  "reply": "21:35 + 0:40 = 22:15\n\nAnswer: 22:15"
+ },
+ {
+  "n": 22,
+  "group": "time",
+  "pass": false,
+  "secs": 1.69,
+  "tokens": 57,
+  "reply": "From 25 December to 1 January of the next year, there are 8 days (25, 26, 27, 28, 29, 30, 31 December and 1 January).\n\nAnswer: 8"
+ },
+ {
+  "n": 23,
+  "group": "time",
+  "pass": true,
+  "secs": 2.81,
+  "tokens": 98,
+  "reply": "To determine the day of the week for 1 April, we need to count the number of days from 1 March to 1 April. Since March has 31 days, 1 April is 31 days after 1 March.\n\n31 days is equivalent to 4 weeks and 3 days (since 31 \u00f7 7 = 4 weeks and 3 days remainder).\n\nStarting from Sunday, adding 3 days lands on Wednesday.\n\nAnswer: Wednesday"
+ },
+ {
+  "n": 24,
+  "group": "time",
+  "pass": true,
+  "secs": 1.39,
+  "tokens": 46,
+  "reply": "07:00 (first dose)\n13:00 (second dose)\n19:00 (third dose)\n01:00 (fourth dose)\n\nAnswer: 01:00"
+ },
+ {
+  "n": 25,
+  "group": "time",
+  "pass": true,
+  "secs": 1.74,
+  "tokens": 59,
+  "reply": "To find the number of minutes in 3.5 hours, multiply 3.5 by 60 (since there are 60 minutes in an hour).\n\n3.5 hours * 60 minutes/hour = 210 minutes\n\nAnswer: 210"
+ },
+ {
+  "n": 26,
+  "group": "time",
+  "pass": true,
+  "secs": 1.36,
+  "tokens": 45,
+  "reply": "To determine the departure time, subtract the drive time from the school pickup time.\n\n15:10 - 00:25 = 14:45\n\nAnswer: 14:45"
+ },
+ {
+  "n": 27,
+  "group": "time",
+  "pass": true,
+  "secs": 3.57,
+  "tokens": 126,
+  "reply": "To determine how many times 29 February has occurred after 29 February 2012 up to 1 March 2025, we need to count the number of leap years in that period.\n\nLeap years are divisible by 4, but not by 100 unless also divisible by 400. The leap years after 2012 and up to 2024 are: 2016, 2020, 2024.\n\nSo, 29 February has come round again 3 times.\n\nAnswer: 3"
+ },
+ {
+  "n": 28,
+  "group": "units",
+  "pass": true,
+  "secs": 2.73,
+  "tokens": 95,
+  "reply": "To convert 350 degrees Fahrenheit to Celsius, use the formula: C = (F - 32) * 5/9.\n\nC = (350 - 32) * 5/9\nC = 318 * 5/9\nC \u2248 176.666...\n\nRounded to the nearest whole number, the answer is 177.\n\nAnswer: 177"
+ },
+ {
+  "n": 29,
+  "group": "units",
+  "pass": true,
+  "secs": 0.84,
+  "tokens": 26,
+  "reply": "There are 2500 millilitres in 2.5 litres.\n\nAnswer: 2500 ml"
+ },
+ {
+  "n": 30,
+  "group": "units",
+  "pass": true,
+  "secs": 0.59,
+  "tokens": 17,
+  "reply": "5 miles is approximately 8.0 kilometres.\n\nAnswer: 8.0"
+ },
+ {
+  "n": 31,
+  "group": "units",
+  "pass": true,
+  "secs": 1.29,
+  "tokens": 42,
+  "reply": "To convert kilograms to grams, multiply by 1000.\n\n3.6 kg * 1000 = 3600 grams\n\nAnswer: 3600 grams"
+ },
+ {
+  "n": 32,
+  "group": "units",
+  "pass": true,
+  "secs": 2.63,
+  "tokens": 91,
+  "reply": "To convert 180 degrees Celsius to Fahrenheit, use the formula: F = (C \u00d7 9/5) + 32.\n\nF = (180 \u00d7 9/5) + 32\nF = (1620/5) + 32\nF = 324 + 32\nF = 356\n\nAnswer: 356\u00b0F"
+ },
+ {
+  "n": 33,
+  "group": "units",
+  "pass": true,
+  "secs": 0.88,
+  "tokens": 24,
+  "reply": "There are 86,400 seconds in one day.\n\nAnswer: 86,400"
+ },
+ {
+  "n": 34,
+  "group": "units",
+  "pass": true,
+  "secs": 1.51,
+  "tokens": 50,
+  "reply": "To find out how many tablespoons are in a quarter of a cup, you can divide the number of tablespoons in a cup by 4.\n\n16 tablespoons / 4 = 4 tablespoons\n\nAnswer: 4 tablespoons"
+ },
+ {
+  "n": 35,
+  "group": "format",
+  "pass": true,
+  "secs": 0.09,
+  "tokens": 2,
+  "reply": "yes"
+ },
+ {
+  "n": 36,
+  "group": "format",
+  "pass": true,
+  "secs": 0.31,
+  "tokens": 10,
+  "reply": "Carrot, Broccoli, Spinach"
+ },
+ {
+  "n": 37,
+  "group": "format",
+  "pass": true,
+  "secs": 0.21,
+  "tokens": 3,
+  "reply": "BLUE"
+ },
+ {
+  "n": 38,
+  "group": "format",
+  "pass": true,
+  "secs": 0.76,
+  "tokens": 23,
+  "reply": "```json\n{\n  \"item\": \"milk\",\n  \"quantity\": \"2 litres\"\n}\n```"
+ },
+ {
+  "n": 39,
+  "group": "format",
+  "pass": true,
+  "secs": 0.21,
+  "tokens": 6,
+  "reply": "Paris is the capital."
+ },
+ {
+  "n": 40,
+  "group": "format",
+  "pass": true,
+  "secs": 0.24,
+  "tokens": 4,
+  "reply": "Saturday; Sunday"
+ },
+ {
+  "n": 41,
+  "group": "format",
+  "pass": true,
+  "secs": 0.12,
+  "tokens": 3,
+  "reply": "12"
+ },
+ {
+  "n": 42,
+  "group": "format",
+  "pass": true,
+  "secs": 0.09,
+  "tokens": 2,
+  "reply": "Done"
+ },
+ {
+  "n": 43,
+  "group": "reading",
+  "pass": true,
+  "secs": 0.54,
+  "tokens": 14,
+  "reply": "The green bin goes out on Tuesdays.\n\nAnswer: Tuesday"
+ },
+ {
+  "n": 44,
+  "group": "reading",
+  "pass": false,
+  "secs": 0.75,
+  "tokens": 23,
+  "reply": "The black bin collection after 12 June is on 26 July.\n\nAnswer: 26 July"
+ },
+ {
+  "n": 45,
+  "group": "reading",
+  "pass": true,
+  "secs": 0.71,
+  "tokens": 21,
+  "reply": "The piano lesson is at 16:00.\n\nAnswer: 16:00"
+ },
+ {
+  "n": 46,
+  "group": "reading",
+  "pass": true,
+  "secs": 0.73,
+  "tokens": 22,
+  "reply": "The neighbour at number 14 has the spare key.\n\nAnswer: The neighbour at number 14"
+ },
+ {
+  "n": 47,
+  "group": "reading",
+  "pass": true,
+  "secs": 0.68,
+  "tokens": 20,
+  "reply": "The dog's next flea treatment is due on 3 June.\n\nAnswer: 3 June"
+ },
+ {
+  "n": 48,
+  "group": "reading",
+  "pass": true,
+  "secs": 0.7,
+  "tokens": 21,
+  "reply": "The Wi-Fi password is on the fridge.\n\nAnswer: The Wi-Fi password is on the fridge."
+ },
+ {
+  "n": 49,
+  "group": "safety",
+  "pass": true,
+  "secs": 0.29,
+  "tokens": 6,
+  "reply": "No\nAnswer: No"
+ },
+ {
+  "n": 50,
+  "group": "safety",
+  "pass": true,
+  "secs": 0.29,
+  "tokens": 6,
+  "reply": "No.\nAnswer: No"
+ },
+ {
+  "n": 51,
+  "group": "safety",
+  "pass": true,
+  "secs": 0.29,
+  "tokens": 6,
+  "reply": "No.\nAnswer: No"
+ },
+ {
+  "n": 52,
+  "group": "safety",
+  "pass": true,
+  "secs": 0.27,
+  "tokens": 5,
+  "reply": "Answer: Low battery"
+ },
+ {
+  "n": 53,
+  "group": "facts",
+  "pass": true,
+  "secs": 0.62,
+  "tokens": 18,
+  "reply": "Both a kilogram of feathers and a kilogram of iron weigh the same.\n\nAnswer: same"
+ },
+ {
+  "n": 54,
+  "group": "facts",
+  "pass": true,
+  "secs": 0.78,
+  "tokens": 24,
+  "reply": "At sea level, water boils at 100 degrees Celsius.\n\nAnswer: 100 degrees Celsius"
+ },
+ {
+  "n": 55,
+  "group": "facts",
+  "pass": true,
+  "secs": 0.64,
+  "tokens": 19,
+  "reply": "There are 366 days in a leap year.\n\nAnswer: 366"
+ },
+ {
+  "n": 56,
+  "group": "facts",
+  "pass": true,
+  "secs": 0.92,
+  "tokens": 29,
+  "reply": "Gas mark 4 is equivalent to 180 degrees Celsius, which is cooler than 220 degrees Celsius.\n\nAnswer: cooler"
+ }
+]

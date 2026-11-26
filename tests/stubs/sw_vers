@@ -1,0 +1,13 @@
+#!/bin/bash
+# Stub sw_vers: macOS STUB_MACOS (27.2), build STUB_MACOS_BUILD (27C52).
+# Answers no option, -productName, -productVersion and -buildVersion (with one dash or two).
+. "$(dirname "$0")/../stub-lib.sh"
+stub_begin "$@"
+v=${STUB_MACOS:-27.2} b=${STUB_MACOS_BUILD:-27C52}
+case "$*" in
+  '') printf 'ProductName:\t\tmacOS\nProductVersion:\t\t%s\nBuildVersion:\t\t%s\n' "$v" "$b" ;;
+  -productName|--productName) echo macOS ;;
+  -productVersion|--productVersion) echo "$v" ;;
+  -buildVersion|--buildVersion) echo "$b" ;;
+  *) stub_untold "sw_vers $* is not answered" ;;
+esac

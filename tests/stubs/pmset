@@ -1,0 +1,29 @@
+#!/bin/bash
+# Stub pmset: `-g` shows the sleep settings, system sleep STUB_PMSET_SLEEP minutes (1; 0 is never);
+# `-g batt` / `-g ps` shows the power source, with a battery when STUB_BATTERY=1 (a laptop).
+. "$(dirname "$0")/../stub-lib.sh"
+stub_begin "$@"
+case "$*" in
+  -g)
+    cat <<OUT
+System-wide power settings:
+Currently in use:
+ standby              1
+ Sleep On Power Button 1
+ autorestart          0
+ powernap             1
+ networkoversleep     0
+ disksleep            10
+ sleep                ${STUB_PMSET_SLEEP:-1}
+ ttyskeepawake        1
+ displaysleep         10
+ tcpkeepalive         1
+ lowpowermode         0
+ womp                 1
+OUT
+    ;;
+  '-g batt'|'-g ps')
+    echo "Now drawing from 'AC Power'"
+    if [ "${STUB_BATTERY:-0}" = 1 ]; then printf ' -InternalBattery-0 (id=4653155)\t95%%; charging; 0:20 remaining present: true\n'; fi ;;
+  *) stub_untold "pmset $* is not answered" ;;
+esac

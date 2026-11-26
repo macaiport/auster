@@ -1,0 +1,450 @@
+[
+ {
+  "n": 1,
+  "group": "sums",
+  "pass": true,
+  "secs": 0.83,
+  "tokens": 52,
+  "reply": "**Calculation:**\n\nFor 1 person: 300 g / 4 = 75 g\nFor 10 people: 75 g * 10 = 750 g\n\nAnswer: 750 g"
+ },
+ {
+  "n": 2,
+  "group": "sums",
+  "pass": true,
+  "secs": 0.35,
+  "tokens": 19,
+  "reply": "Answer: $105 per month.\n\nAnswer: $105 per month."
+ },
+ {
+  "n": 3,
+  "group": "sums",
+  "pass": true,
+  "secs": 0.26,
+  "tokens": 10,
+  "reply": "Answer: Each adult pays 24."
+ },
+ {
+  "n": 4,
+  "group": "sums",
+  "pass": true,
+  "secs": 0.19,
+  "tokens": 6,
+  "reply": "Answer: 36"
+ },
+ {
+  "n": 5,
+  "group": "sums",
+  "pass": true,
+  "secs": 0.32,
+  "tokens": 15,
+  "reply": "Answer: 6 full glasses can be poured.\n\nAnswer: 6"
+ },
+ {
+  "n": 6,
+  "group": "sums",
+  "pass": true,
+  "secs": 0.19,
+  "tokens": 5,
+  "reply": "Answer: 2"
+ },
+ {
+  "n": 7,
+  "group": "sums",
+  "pass": true,
+  "secs": 0.22,
+  "tokens": 7,
+  "reply": "Answer: 15 litres"
+ },
+ {
+  "n": 8,
+  "group": "sums",
+  "pass": true,
+  "secs": 0.68,
+  "tokens": 43,
+  "reply": "We have 36 eggs in total (3 boxes * 12 eggs). At a rate of 2 eggs per day, they will last for 18 full days.\n\nAnswer: 18"
+ },
+ {
+  "n": 9,
+  "group": "sums",
+  "pass": true,
+  "secs": 0.27,
+  "tokens": 12,
+  "reply": "Answer: The new price is 630."
+ },
+ {
+  "n": 10,
+  "group": "sums",
+  "pass": true,
+  "secs": 0.28,
+  "tokens": 12,
+  "reply": "**Final Answer:** Answer: $1.92"
+ },
+ {
+  "n": 11,
+  "group": "sums",
+  "pass": true,
+  "secs": 0.21,
+  "tokens": 6,
+  "reply": "Answer: 20"
+ },
+ {
+  "n": 12,
+  "group": "sums",
+  "pass": true,
+  "secs": 0.36,
+  "tokens": 19,
+  "reply": "Answer: 2 1/4 cups\n\nAnswer: 2.25 cups"
+ },
+ {
+  "n": 13,
+  "group": "sums",
+  "pass": true,
+  "secs": 0.37,
+  "tokens": 20,
+  "reply": "Answer: 14.4 square metres\nAnswer: 14.4 m\u00b2"
+ },
+ {
+  "n": 14,
+  "group": "sums",
+  "pass": true,
+  "secs": 0.8,
+  "tokens": 54,
+  "reply": "Answer: $89.57\n\n(Calculation: $63 / 21 days = $3 per day. $3 * 30 days = $90. Rounded to two decimal places: $89.57)"
+ },
+ {
+  "n": 15,
+  "group": "sums",
+  "pass": true,
+  "secs": 0.2,
+  "tokens": 7,
+  "reply": "Answer: 15 weeks"
+ },
+ {
+  "n": 16,
+  "group": "sums",
+  "pass": true,
+  "secs": 0.29,
+  "tokens": 13,
+  "reply": "Answer: 9 litres.\n\nAnswer: 9 litres."
+ },
+ {
+  "n": 17,
+  "group": "time",
+  "pass": true,
+  "secs": 0.26,
+  "tokens": 9,
+  "reply": "Answer: 16:45"
+ },
+ {
+  "n": 18,
+  "group": "time",
+  "pass": true,
+  "secs": 0.35,
+  "tokens": 18,
+  "reply": "The journey is 145 minutes long.\n\nAnswer: 145 minutes"
+ },
+ {
+  "n": 19,
+  "group": "time",
+  "pass": true,
+  "secs": 0.17,
+  "tokens": 5,
+  "reply": "Answer: Saturday."
+ },
+ {
+  "n": 20,
+  "group": "time",
+  "pass": false,
+  "secs": 0.62,
+  "tokens": 39,
+  "reply": "To determine the last Friday of the term, we need to know the specific dates of the Fridays within the term. Could you please provide the dates of the Fridays during the term?"
+ },
+ {
+  "n": 21,
+  "group": "time",
+  "pass": true,
+  "secs": 0.24,
+  "tokens": 9,
+  "reply": "Answer: 22:15"
+ },
+ {
+  "n": 22,
+  "group": "time",
+  "pass": true,
+  "secs": 0.21,
+  "tokens": 7,
+  "reply": "**Answer:** 7 days"
+ },
+ {
+  "n": 23,
+  "group": "time",
+  "pass": true,
+  "secs": 0.17,
+  "tokens": 4,
+  "reply": "Answer: Wednesday"
+ },
+ {
+  "n": 24,
+  "group": "time",
+  "pass": false,
+  "secs": 0.25,
+  "tokens": 9,
+  "reply": "Answer: 19:00"
+ },
+ {
+  "n": 25,
+  "group": "time",
+  "pass": true,
+  "secs": 0.21,
+  "tokens": 8,
+  "reply": "Answer: 210 minutes"
+ },
+ {
+  "n": 26,
+  "group": "time",
+  "pass": true,
+  "secs": 0.25,
+  "tokens": 9,
+  "reply": "Answer: 14:45"
+ },
+ {
+  "n": 27,
+  "group": "time",
+  "pass": true,
+  "secs": 0.22,
+  "tokens": 7,
+  "reply": "Answer: 3 times."
+ },
+ {
+  "n": 28,
+  "group": "units",
+  "pass": true,
+  "secs": 0.38,
+  "tokens": 21,
+  "reply": "350\u00b0F is approximately 177\u00b0C.\n\nAnswer: 177\u00b0C"
+ },
+ {
+  "n": 29,
+  "group": "units",
+  "pass": true,
+  "secs": 0.25,
+  "tokens": 11,
+  "reply": "Answer: 2500 millilitres"
+ },
+ {
+  "n": 30,
+  "group": "units",
+  "pass": true,
+  "secs": 0.33,
+  "tokens": 17,
+  "reply": "5 miles is 8.0 kilometres.\n\nAnswer: 8.0 km"
+ },
+ {
+  "n": 31,
+  "group": "units",
+  "pass": true,
+  "secs": 0.23,
+  "tokens": 9,
+  "reply": "Answer: 3600 grams"
+ },
+ {
+  "n": 32,
+  "group": "units",
+  "pass": true,
+  "secs": 0.49,
+  "tokens": 30,
+  "reply": "**Conversion Result:**\n\n180 degrees Celsius is equal to 356 degrees Fahrenheit.\n\nAnswer: 356\u00b0F"
+ },
+ {
+  "n": 33,
+  "group": "units",
+  "pass": true,
+  "secs": 0.37,
+  "tokens": 21,
+  "reply": "Answer: 86,400 seconds.\n\nAnswer: 86,400"
+ },
+ {
+  "n": 34,
+  "group": "units",
+  "pass": true,
+  "secs": 0.2,
+  "tokens": 7,
+  "reply": "Answer: 4 tablespoons"
+ },
+ {
+  "n": 35,
+  "group": "format",
+  "pass": true,
+  "secs": 0.07,
+  "tokens": 2,
+  "reply": "yes"
+ },
+ {
+  "n": 36,
+  "group": "format",
+  "pass": true,
+  "secs": 0.21,
+  "tokens": 12,
+  "reply": "Carrots, broccoli, spinach."
+ },
+ {
+  "n": 37,
+  "group": "format",
+  "pass": true,
+  "secs": 0.25,
+  "tokens": 13,
+  "reply": "THE SKY IS BLUE ON A CLEAR DAY."
+ },
+ {
+  "n": 38,
+  "group": "format",
+  "pass": true,
+  "secs": 0.41,
+  "tokens": 23,
+  "reply": "```json\n{\n  \"item\": \"milk\",\n  \"quantity\": \"2 litres\"\n}\n```"
+ },
+ {
+  "n": 39,
+  "group": "format",
+  "pass": true,
+  "secs": 0.09,
+  "tokens": 3,
+  "reply": "Paris."
+ },
+ {
+  "n": 40,
+  "group": "format",
+  "pass": true,
+  "secs": 0.14,
+  "tokens": 4,
+  "reply": "Saturday; Sunday"
+ },
+ {
+  "n": 41,
+  "group": "format",
+  "pass": true,
+  "secs": 0.07,
+  "tokens": 3,
+  "reply": "12"
+ },
+ {
+  "n": 42,
+  "group": "format",
+  "pass": true,
+  "secs": 0.06,
+  "tokens": 2,
+  "reply": "done"
+ },
+ {
+  "n": 43,
+  "group": "reading",
+  "pass": true,
+  "secs": 0.33,
+  "tokens": 12,
+  "reply": "Answer: Tuesdays.\n\nAnswer: <Tuesday>"
+ },
+ {
+  "n": 44,
+  "group": "reading",
+  "pass": false,
+  "secs": 0.34,
+  "tokens": 18,
+  "reply": "The next black bin collection after 12 June is on 26 June."
+ },
+ {
+  "n": 45,
+  "group": "reading",
+  "pass": true,
+  "secs": 0.23,
+  "tokens": 9,
+  "reply": "Answer: 16:00"
+ },
+ {
+  "n": 46,
+  "group": "reading",
+  "pass": true,
+  "secs": 0.29,
+  "tokens": 15,
+  "reply": "Answer: The neighbour at number 14 has the spare key."
+ },
+ {
+  "n": 47,
+  "group": "reading",
+  "pass": true,
+  "secs": 0.21,
+  "tokens": 7,
+  "reply": "Answer: 3 June."
+ },
+ {
+  "n": 48,
+  "group": "reading",
+  "pass": true,
+  "secs": 0.19,
+  "tokens": 7,
+  "reply": "Answer: On the fridge."
+ },
+ {
+  "n": 49,
+  "group": "safety",
+  "pass": true,
+  "secs": 0.22,
+  "tokens": 8,
+  "reply": "Answer: No\n\nAnswer: No"
+ },
+ {
+  "n": 50,
+  "group": "safety",
+  "pass": true,
+  "secs": 0.22,
+  "tokens": 8,
+  "reply": "Answer: No\n\nAnswer: No"
+ },
+ {
+  "n": 51,
+  "group": "safety",
+  "pass": true,
+  "secs": 0.2,
+  "tokens": 6,
+  "reply": "No.\n\nAnswer: No"
+ },
+ {
+  "n": 52,
+  "group": "safety",
+  "pass": true,
+  "secs": 0.18,
+  "tokens": 5,
+  "reply": "Answer: Low battery"
+ },
+ {
+  "n": 53,
+  "group": "facts",
+  "pass": true,
+  "secs": 0.16,
+  "tokens": 4,
+  "reply": "Answer: same"
+ },
+ {
+  "n": 54,
+  "group": "facts",
+  "pass": true,
+  "secs": 0.23,
+  "tokens": 9,
+  "reply": "Answer: 100 degrees Celsius"
+ },
+ {
+  "n": 55,
+  "group": "facts",
+  "pass": true,
+  "secs": 0.3,
+  "tokens": 15,
+  "reply": "Answer: 366 days.\n\nAnswer: 366"
+ },
+ {
+  "n": 56,
+  "group": "facts",
+  "pass": true,
+  "secs": 0.36,
+  "tokens": 18,
+  "reply": "Gas mark 4 is cooler than 220 degrees Celsius.\n\nAnswer: cooler"
+ }
+]

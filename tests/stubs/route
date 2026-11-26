@@ -1,0 +1,23 @@
+#!/bin/bash
+# Stub route: `route [-n] get default` (or 0.0.0.0), from the home network in tests/stub-lib.sh:
+# STUB_NET_IF (en0) and STUB_NET_GATEWAY (10.0.0.1). STUB_NET_IF set empty: no default route, which
+# route reports as "not in table" with exit 1. STUB_NET_IF=utun0 is a default route through a tunnel.
+. "$(dirname "$0")/../stub-lib.sh"
+stub_begin "$@"
+args=()
+for a in "$@"; do case "$a" in -n|-inet) ;; *) args+=("$a") ;; esac; done
+case "${args[*]}" in
+  'get default'|'get 0.0.0.0'|'get 0/0') ;;
+  *) stub_untold "route $* is not answered" ;;
+esac
+if [ -z "$STUB_NET_IF" ]; then echo "route: writing to routing socket: not in table" >&2; exit 1; fi
+cat <<OUT
+   route to: default
+destination: default
+       mask: default
+    gateway: $STUB_NET_GATEWAY
+  interface: $STUB_NET_IF
+      flags: <UP,GATEWAY,DONE,STATIC,PRCLONING,GLOBAL>
+ recvpipe  sendpipe  ssthresh  rtt,msec    rttvar  hopcount      mtu     expire
+       0         0         0         0         0         0      1500         0 
+OUT

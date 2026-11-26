@@ -1,0 +1,66 @@
+#!/bin/bash
+# Stub ps: `ps -p PID[,PID...] [-o FIELD=[,FIELD=...]]...`, the fields pid, ppid, lstart, etime,
+# command (or comm, args). It answers from a process table, so that a test can have a live, unrelated
+# process with a start time of its choosing:
+#   STUB_PS_TABLE   a file, one process a line: PID<TAB>LSTART<TAB>COMMAND. LSTART is as ps prints it
+#                   ("Thu Nov 26 09:00:00 2026"); "gone" makes a running process look gone.
+#   A process not in the table that is running (kill -0) has the start time STUB_PS_LSTART
+#   (Thu Nov 26 09:00:00 2026) and the command "?". Any other is not found: nothing printed, exit 1.
+. "$(dirname "$0")/../stub-lib.sh"
+stub_begin "$@"
+pids= fields=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -p) pids=$2; shift ;;
+    -p*) pids=${1#-p} ;;
+    -o) IFS=, read -r -a more <<< "$2"; fields+=("${more[@]}"); shift ;;
+    *) stub_untold "ps $1 is not answered" ;;
+  esac
+  shift
+done
+[ -n "$pids" ] || stub_untold "only ps -p is answered"
+cmdhead=COMMAND
+[ ${#fields[@]} -gt 0 ] || { fields=(pid tty time command); cmdhead=CMD; }
+header=0
+for f in "${fields[@]}"; do case "$f" in *=) ;; *) header=1 ;; esac; done
+lookup() { # pid -> sets lstart and comm, or returns 1
+  local line
+  if [ -n "${STUB_PS_TABLE:-}" ] && [ -f "$STUB_PS_TABLE" ]; then
+    while IFS= read -r line || [ -n "$line" ]; do
+      stub_split "$line"
+      if [ "${F[0]}" = "$1" ]; then
+        [ "${F[1]}" = gone ] && return 1
+        lstart=${F[1]}; comm=${F[2]:-?}; return 0
+      fi
+    done < "$STUB_PS_TABLE"
+  fi
+  stub_alive "$1" || return 1
+  lstart=${STUB_PS_LSTART:-Thu Nov 26 09:00:00 2026}; comm='?'
+}
+if [ "$header" = 1 ]; then
+  h=
+  for f in "${fields[@]}"; do
+    case "${f%%=*}" in pid) h+="  PID " ;; ppid) h+=" PPID " ;; lstart) h+="STARTED                      " ;; etime) h+="ELAPSED " ;; tty) h+="TTY      " ;; time) h+="     TIME " ;; comm) h+="COMM " ;; args) h+="ARGS " ;; *) h+="$cmdhead " ;; esac
+  done
+  echo "${h% }"
+fi
+rc=1
+IFS=, read -r -a list <<< "$pids"
+for p in "${list[@]}"; do
+  lookup "$p" || continue
+  rc=0; line=
+  for f in "${fields[@]}"; do
+    case "${f%%=*}" in
+      pid) line+=$(printf '%5s ' "$p") ;;
+      ppid) line+=$(printf '%5s ' 1) ;;
+      lstart) line+=$(printf '%-28s ' "$lstart") ;;
+      etime) line+=$(printf '%11s ' 00:00) ;;
+      tty) line+=$(printf "%-8s " "??") ;;
+      time) line+=$(printf "%9s " 0:00.00) ;;
+      command|comm|args) line+="$comm " ;;
+      *) stub_untold "ps field $f is not answered" ;;
+    esac
+  done
+  printf '%s\n' "${line% }"
+done
+exit "$rc"
