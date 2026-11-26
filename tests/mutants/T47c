@@ -1,0 +1,3 @@
+# file: tools/mint-id
+# the wrong kind letter
+s/^id=\$1$/id=b/

@@ -1,0 +1,7 @@
+#!/bin/bash
+# Stub: `openssl rand N` prints the bytes given in STUB_OPENSSL_RAND_HEX (pairs of hex digits) and logs
+# its arguments; any other use is refused, so that a test never reaches the real openssl by accident.
+printf '%s\n' "$*" >> "${STUB_LOG:-/dev/null}"
+[ "${1:-}" = rand ] || { echo "stub openssl: only rand" >&2; exit 1; }
+h=${STUB_OPENSSL_RAND_HEX:?}
+while [ -n "$h" ]; do printf "\\x${h:0:2}"; h=${h:2}; done

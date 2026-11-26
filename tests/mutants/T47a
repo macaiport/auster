@@ -1,0 +1,3 @@
+# file: tools/mint-id
+# hex instead of base32
+s/^alphabet=.*/alphabet=0123456789abcdef0123456789abcdef/

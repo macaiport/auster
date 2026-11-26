@@ -1,0 +1,3 @@
+# file: tools/mint-id
+# keep 59 bits
+s/^v=\$((16#\${hex:0:15}))$/v=$((16#${hex:0:15} >> 1))/

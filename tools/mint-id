@@ -1,0 +1,16 @@
+#!/bin/bash
+# Mints an Auster id (docs/plans/v0.1.md, A2): the kind's letter, then 12 characters of lowercase base32
+# made from 60 random bits. macOS ships no base32 command, so the encoding is done here.
+#
+#   tools/mint-id r|b|e|m|k      recipe, build, engine, model, device key
+set -u
+usage() { echo "usage: mint-id r|b|e|m|k" >&2; exit 2; }
+[ $# -eq 1 ] || usage
+case "$1" in r|b|e|m|k) ;; *) usage ;; esac
+hex=$(openssl rand 8 | od -An -tx1 | tr -d ' \n')
+[[ "$hex" =~ ^[0-9a-f]{16}$ ]] || { echo "mint-id: openssl rand gave no 8 bytes" >&2; exit 1; }
+v=$((16#${hex:0:15}))
+alphabet=abcdefghijklmnopqrstuvwxyz234567
+id=$1
+for ((i = 11; i >= 0; i--)); do id+=${alphabet:$(((v >> (5 * i)) & 31)):1}; done
+printf '%s\n' "$id"

@@ -15,13 +15,17 @@ The full concept, roadmap and open questions are in [docs/concept.md](docs/conce
   untracked `CLAUDE.local.md`; read it before running `gh` or pushing.
 
 ## Stack
-- Not decided yet. The engine for each recipe, the installer path and the registry format are open
-  questions 1, 3 and 4 in the concept. 1launcher, where the pattern began, uses bash installers
-  (a shared `common/install-core.sh` and a per-game `install.sh`) and Swift for its launcher window
-  and app builders.
+- Decided by the v0.1 plan (`docs/plans/v0.1.md`): llama.cpp's `llama-server` as the engine on macOS,
+  bash 3.2 for the installer and Auster's own commands, and JavaScript for Automation (`osascript -l
+  JavaScript`) for JSON, the registry, the recipe's test and the QR code (BD17). No Python, `jq` or `git`
+  on the household's Mac. `registry.tsv` is the registry (A3).
 
 ## How to run things
-- Nothing to run yet: no build, no tests.
+- **Tests:** `tests/run.sh` runs every test file under `/bin/bash` 3.2 with an empty environment and a
+  PATH of what macOS ships less `timeout`, `jq`, `git`, `brew`, `base32` and `python3` (T98).
+  `tests/run.sh 47` runs one test's file; `tests/run.sh --mutants` applies each mutant in
+  `tests/mutants/` to a copy of the source and requires its test to turn red.
+- **Phase 1 and 2 measurements by hand:** `scripts/phase-1/` (see `docs/phase-1.md`, `docs/phase-2.md`).
 
 ## Siblings
 - **1launcher** (`macgameport/1launcher`) is where the method came from: per-item folders, an installer
