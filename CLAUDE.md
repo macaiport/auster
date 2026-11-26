@@ -41,6 +41,12 @@ The full concept, roadmap and open questions are in [docs/concept.md](docs/conce
 - **The repo is public** (`macaiport/auster`, since 2026-11-26). Whatever is tracked is published the
   moment it is pushed, commit messages included: nothing internal goes into either.
 
+## Places outside the repo
+- **`~/Library/Developer/Auster/phase-1/`**, phase 1's workspace (since 2026-11-26): the engine build,
+  model files, keys made for tests, and run logs. Outside the repo because model files are 14 to 44 GB
+  and the repo is public. It is not the data root; section B of the v0.1 plan decides that. Remove it
+  when phase 1 is done.
+
 ## Deliberate deviations from sibling-repo practice
 - **No phases, no SPEC.md** (from 1launcher, declined 2026-11-25). The work here is phased, and
   SPEC.md holds the order (agreed 2026-11-26; it differs from the concept's roadmap).
