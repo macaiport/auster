@@ -18,7 +18,7 @@ and its numbers recorded.
 | 4 | The publisher still offers the pinned file | `Magistral-Small-2509-Q4_K_M.gguf` at commit `429b90d8…`: size 14,334,432,256 and hash `d3a024d2…a43434`, both equal to what was recorded | Pass |
 | 5 | The engine | llama.cpp 0.3.0 installed; 1.0.0 on offer | To be updated before the first measurement |
 | 6 | Port and jobs | Nothing listens on 8080; no Auster launch job exists | Pass |
-| 7 | Staying up | The Mac does not sleep when idle. Restart after a power cut is off. FileVault is on. SSH answers | Fine for phase 1's measurements. The restart question is the plan's AD15 |
+| 7 | Staying up | The Mac does not sleep when idle. Restart after a power cut is off. FileVault is on | Fine for phase 1's measurements. The restart question is the plan's AD15 |
 
 What this step showed about the check Auster needs:
 
@@ -272,6 +272,52 @@ Its two real mistakes: 10 days after a Wednesday is a Wednesday (it is a Saturda
 (13 April for 10 April). 926 tokens in **79 s**. The grader now reads the last "Answer:" and accepts a
 trailing full stop; the counts in this file were made before that change and are read again by hand here.
 
+## Step 7. The home network and an iPad (2026-11-26)
+
+Model B, with four slots sharing a 128K context, `--ui-config-file` setting the household system prompt,
+`--no-slots`, `--offline`, and `--cors-origins` set to its own address. The details of this Mac's
+network are kept out of this public file.
+
+**Where it listened.** The server was bound to the Mac's one home-network address, not to every
+interface: it answered there and not on `127.0.0.1`. A Mac usually has several network interfaces,
+tunnels among them. Whether the Mac's firewall would have asked or stopped anything depends on how the
+household has set it, so **binding to one address, and the keys, must be treated as the only barriers.**
+
+**From the network side,** checked from the Mac against that address: no key 401; the iPad's key 200;
+the second device's key 200; the chat page loads as a browser asks for it.
+
+**Getting the key onto the iPad, without it passing through anything but the two devices:**
+
+| Tried | Result |
+|---|---|
+| The Mac's clipboard, for Universal Clipboard | **Did not work** for the owner, twice. The server logged requests with a wrong key meanwhile |
+| A QR code of the key, made with Core Image on the Mac, shown in Preview, scanned with the iPad's Camera | **Worked.** The image was readable by the owner's account only, and was deleted after |
+
+The image file was deleted, but Preview kept showing it until the window was closed by hand. Closing it by
+AppleScript timed out (`-1712`), most likely on a permission prompt, and quitting Preview would have
+closed the owner's other documents. **Showing a key on screen needs a window Auster opens and closes
+itself.**
+
+**On the iPad: "it's working and quick"** (the owner). From the server's log:
+
+| | Prompt | Read in | Written |
+|---|---|---|---|
+| First question | 294 tokens | **5.4 s** (54 tok/s) | 14 tokens at 78 tok/s |
+| Second | 16 new tokens | 0.10 s | 12 tokens at 74 tok/s |
+| Third | 19 new tokens | 0.12 s | 36 tokens at 76 tok/s |
+
+**The first question after a start is slow to read:** 5.4 s for 294 tokens, against 0.1 s for each
+later one. That is most probably the model's weights still being read from disk on first use. The
+guide should say so, or Auster can warm the model up after a start.
+
+What the recipe needs from this step:
+
+- **A way to hand a device its key:** a QR code in a window Auster opens and closes, shown only on the
+  Mac, never sent anywhere.
+- **The address to listen on, chosen with care,** whatever the Mac's firewall setting.
+- **Plain HTTP for now.** The key crosses the home Wi-Fi unencrypted. HTTPS needs a certificate the
+  household's devices trust: a decision for section B.
+
 ## The three side by side (phase 1, as far as it has gone)
 
 | | A: Magistral Small 2509, Q4_K_M | B: Mistral Small 4, UD-IQ3_S | C: Apertus 70B, Q4_K_M |
@@ -304,7 +350,8 @@ What this says, for the choice of model (not yet made):
 
 - The one MLX measurement, of model A.
 - A larger graded set of questions, before the model is chosen.
-- Two devices on the home network, and an iPad. The server has so far listened on this Mac only.
+- Two devices at once on the home network, and revoking one while the other keeps working. The iPad
+  worked on its own key (step 7).
 - A cold start from disk, and what the Mac does after a restart (the plan's AD15).
 
 ## Sizes of the candidates
