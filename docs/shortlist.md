@@ -66,6 +66,35 @@ All are Apache 2.0 on Hugging Face. Sizes are the published files.
 - **Apertus asks its users for upkeep.** Its card advises re-checking every six months for a filter
   that removes personal data from output; none is published yet. Auster's update channel could carry it.
 
+## A nearby project: Osaurus (read 2026-11-26)
+
+`osaurus-ai/osaurus` is a native Swift app for Apple Silicon under the MIT licence (8,211 stars; release
+1.0.13 on 2026-11-25). From its README:
+
+- It runs local models through MLX inside the app, on its own Swift stack (`osaurus-ai/vmlx-swift`, MIT).
+  It serves OpenAI-, Anthropic- and Ollama-compatible APIs on `127.0.0.1:1337`, and can be exposed on
+  the network behind an access key.
+- It is an agent harness for one person: agents, memory, tools, channels such as Mail and Slack, and
+  sync between that person's own devices.
+- Cloud models are a first-class choice beside local ones, including its own paid router.
+- It publishes its own quantized builds on Hugging Face. The local families it lists are Gemma, Qwen,
+  GPT-OSS, Llama and LFM.
+- Anonymous usage analytics and crash reports are on by default and can each be switched off. Builds
+  from source have both off.
+
+What that means here:
+
+- **It already has the shape "fewest parts" points to:** the engine inside one native app. Before Auster
+  builds a native app or adds MLX (phases 4 and 6), `vmlx-swift` and Osaurus are read as possible parts
+  to build on, not only as neighbours.
+- **It is not built for what Auster is for:** a server for a household with a key for each person, models
+  from a short list pinned by checksum to their publishers, nothing sent anywhere by default, updates
+  only on a yes, and choices worked out on each Mac.
+- **For one person on one Mac, a local model is already a download.** The concept's "weekend of Terminal
+  work" describes the household server, not that case.
+- **Not checked:** whether Osaurus takes several per-person keys, how its updates are applied, and
+  whether it runs Mistral Small 4 or Apertus.
+
 ## Proposed order of measurement
 
 1. Model A on llama.cpp 1.0.0 with Mistral's GGUF: keys, a client, restart behaviour. Then the same
@@ -86,3 +115,5 @@ All are Apache 2.0 on Hugging Face. Sizes are the published files.
   both read 2026-11-26. Press coverage: <https://thehackernews.com/2026/05/ollama-out-of-bounds-read-vulnerability.html>
 - LM Studio: <https://lmstudio.ai/app-privacy>, <https://lmstudio.ai/app-terms>
 - The Devstral trial: `runbooks/devstral.md` in the private `metal-working` repo.
+- Osaurus: the README on the `main` branch of `osaurus-ai/osaurus` and the GitHub API, read 2026-11-26;
+  <https://techcrunch.com/2026/05/15/osaurus-brings-both-local-and-cloud-ai-models-to-your-mac/>
