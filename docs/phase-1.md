@@ -18,7 +18,7 @@ and its numbers recorded.
 | 4 | The publisher still offers the pinned file | `Magistral-Small-2509-Q4_K_M.gguf` at commit `429b90d8…`: size 14,334,432,256 and hash `d3a024d2…a43434`, both equal to what was recorded | Pass |
 | 5 | The engine | llama.cpp 0.3.0 installed; 1.0.0 on offer | To be updated before the first measurement |
 | 6 | Port and jobs | Nothing listens on 8080; no Auster launch job exists | Pass |
-| 7 | Staying up | The Mac does not sleep when idle. Restart after a power cut is off. FileVault is on | Fine for phase 1's measurements. The restart question is the plan's AD15 |
+| 7 | Staying up | Sleep, restart after a power cut and FileVault checked; this Mac's settings are kept out of the repo | Fine for phase 1's measurements. The restart question is the plan's AD15 |
 
 What this step showed about the check Auster needs:
 

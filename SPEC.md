@@ -145,9 +145,9 @@ run again before each download and each measurement.
    and the time to a first answer after a restart.
 3. Two people use it from two devices at the same time, each with their own key. Revoking one key
    stops that person only.
-4. The Mac restarts and the server is answering again without anyone touching it. **Not true of the
-   Studio as it is set up:** FileVault is on and restart after a power cut is off (measured
-   2026-11-26), so someone has to unlock the disk first. The plan's decision AD15 settles how.
+4. The Mac restarts and the server is answering again without anyone touching it. **Not true of a
+   Mac with FileVault on, or with restart after a power cut off:** someone has to start the Mac or
+   unlock its disk first. The plan's decision AD15 settles how.
 5. Every step done by hand is written down in order. Phase 2 turns that list into the installer.
 
 ### Test plan (draft)
