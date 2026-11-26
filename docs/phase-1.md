@@ -462,7 +462,8 @@ the workspace's `runs/` folder.
 **The engine offers no "busy" signal.** With `--no-slots`, as the plan serves, `/slots` answers 501, and
 `/health?fail_on_no_slot=1` answers 200 `{"status":"ok"}` while the only slot is writing an answer, as it
 does before and after. A probe that waits behind other people's questions cannot be told apart from one
-that hangs, except by waiting.
+that hangs, except by waiting. Measured again at 14:57 with every response kept in the run folder
+(`busy-curl.txt`, beside the server's options); the answer in flight was written at 36.6 tok/s.
 
 The full values the plan shortens:
 
