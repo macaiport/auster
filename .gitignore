@@ -1,0 +1,29 @@
+# secrets
+.env*
+!.env.example
+*.key
+*.pem
+credentials*
+
+# personal / private (same as macgameport/1launcher)
+# Claude Code's local-instructions file: GitHub-identity detail and this Mac's own notes.
+CLAUDE.local.md
+# Personal Claude Code rules, synced into every repo from ~/.claude on session start.
+# Private working conventions, not project documentation; they regenerate on their own.
+.claude/
+
+# dependencies / build output
+node_modules/
+dist/
+build/
+.next/
+__pycache__/
+.venv/
+
+# OS / logs
+.DS_Store
+*.log
+
+# Internal notes: funding, naming, the original concept note, the pre-public history.
+# Never tracked. They exist only on this Mac.
+private/
