@@ -8,8 +8,8 @@ A pasted line installs a recipe, and the result is something a household can lea
 research behind it. The first recipe, a household assistant, is being built by hand before it is
 packaged.
 
-Auster follows the pattern of [1launcher](https://github.com/macgameport/1launcher), which does the
-same for Windows games on the Mac. The name is Latin for the south wind.
+Auster began from the pattern of [1launcher](https://github.com/macgameport/1launcher), which does
+the same for Windows games on the Mac, and stands on its own from there. The name is Latin for the south wind.
 
 This is an independent project. It is not affiliated with, endorsed by or supported by Mistral AI, the
 Swiss AI Initiative, Apple, Hugging Face or the llama.cpp project, and their names and trademarks
@@ -24,7 +24,7 @@ belong to them.
 - **Models come from a short list.** A model that is not on it is unsupported by design.
 - **It looks at the Mac it is on and adapts.** What fits in memory, how a model is swapped and how many
   earlier builds stay on disk are worked out on that Mac.
-- **It updates itself the way 1launcher does:** one small check a day, a plain account of what changed,
+- **It updates itself, on your word:** one small check a day, a plain account of what changed,
   and nothing downloaded or installed without a yes.
 
 ## Principles

@@ -16,7 +16,7 @@ The full concept, roadmap and open questions are in [docs/concept.md](docs/conce
 
 ## Stack
 - Not decided yet. The engine for each recipe, the installer path and the registry format are open
-  questions 1, 3 and 4 in the concept. 1launcher, whose pattern this copies, uses bash installers
+  questions 1, 3 and 4 in the concept. 1launcher, where the pattern began, uses bash installers
   (a shared `common/install-core.sh` and a per-game `install.sh`) and Swift for its launcher window
   and app builders.
 
@@ -24,10 +24,11 @@ The full concept, roadmap and open questions are in [docs/concept.md](docs/conce
 - Nothing to run yet: no build, no tests.
 
 ## Siblings
-- **1launcher** (`macgameport/1launcher`) is the pattern: per-game folders, an installer that
-  fetches each piece from its publisher and checks it against a fixed sha256, double-clickable apps,
-  the 14unch3r window, and a daily update check. Read its `CLAUDE.md` before building an equivalent
-  here.
+- **1launcher** (`macgameport/1launcher`) is where the method came from: per-item folders, an installer
+  that fetches each piece from its publisher and checks it against a fixed sha256, a release branch
+  with tags, plans checked before building. **It is not the guide for Auster's design** (`SPEC.md`,
+  "Auster stands on its own"). Look there to see how something was done once, then decide from
+  Auster's own principles and measurements, and write the rule out here in full.
 
 ## Conventions
 - `.claude/`, `CLAUDE.local.md` and `private/` are never tracked. Personal rules sync into
@@ -36,7 +37,7 @@ The full concept, roadmap and open questions are in [docs/concept.md](docs/conce
   the history from before it was restarted. Nothing from there goes into a tracked file, and tracked
   files do not name the owner's other projects. `private/` exists only on the Studio.
 - Tracking: SPEC.md build-status table is the roadmap; discrete work items go in GitHub Issues on
-  `macaiport/auster`, as in 1launcher.
+  `macaiport/auster`.
 - **The repo is public** (`macaiport/auster`, since 2026-11-26). Whatever is tracked is published the
   moment it is pushed, commit messages included: nothing internal goes into either.
 

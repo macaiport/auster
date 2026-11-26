@@ -18,10 +18,15 @@ Product name Auster (decided 2026-11-25), repo `macaiport/auster`. Concept, road
 
 This order was agreed on 2026-11-26 (household first) and replaces the order of the concept's roadmap.
 
-**Required from the first release (owner, 2026-11-26):** the update process 1launcher has
-(`docs/plans/built-in-update.md` in that repo). Starting the model checks whether a newer Auster is
+**Required from the first release (owner, 2026-11-26):** a built-in update. Starting the model checks whether a newer Auster is
 out, and Auster can move a recipe to a newer model when one is available and appropriate. It is part
 of phase 2 and is designed in the v0.1 plan, so no version is ever installed without it.
+
+**Auster stands on its own (owner, 2026-11-26).** 1launcher is where the method came from: how
+releases are cut, plans are checked and findings are measured. That stays shared. It is not the guide
+for Auster's design, which has problems 1launcher never had: a server that is always on, several
+people, models that can be quietly worse, and rules worked out on each Mac. Auster's documents read
+without opening another repo, and its update code is its own.
 
 **Engine principle (owner, 2026-11-26):** each platform gets the engine that is best on it, decided by
 measurement. The Mac need not run what Windows and Linux run. A recipe therefore names its use and its
@@ -61,7 +66,7 @@ Side tracks, not phases: the name checks and funding. Their notes are kept priva
 
 ## Public since 2026-11-26
 
-The repo is public and run the way 1launcher is: transparency is part of the ethos, and the update
+The repo is public: transparency is part of the ethos, and the update
 check has to be able to read it. The project is kept apart from the owner's other projects, not hidden.
 
 What was done first:
@@ -71,9 +76,9 @@ What was done first:
 2. The GitHub repo was deleted and created again from a history of one commit, so no commit carries
    those notes. The earlier history is kept privately.
 3. An MIT licence, in the name of the contributors.
-4. README, CHANGELOG, CONTRIBUTING, SECURITY and CODE_OF_CONDUCT, on 1launcher's pattern.
+4. README, CHANGELOG, CONTRIBUTING, SECURITY and CODE_OF_CONDUCT.
 5. A scan of every commit and file for references to the owner's other projects: none.
-6. Repo settings as 1launcher: issues and discussions on, wiki off, private vulnerability reporting on.
+6. Repo settings: issues and discussions on, wiki off, private vulnerability reporting on.
 
 Still open:
 
