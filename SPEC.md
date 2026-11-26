@@ -125,7 +125,11 @@ Measured on the Mac Studio (M5 Max, 64 GB) unless a source is named.
 ## Phase 1 — the household assistant, by hand
 
 No product code. The aim is one working household server on the Studio, and the measurements the
-v0.1 plan needs.
+v0.1 plan needs. What is done by hand is written down in order in [docs/phase-1.md](docs/phase-1.md).
+
+**The checks Auster will make are made by hand first, and nobody's word is taken for them:** free
+disk, memory, what else is running, and whether the publisher still offers the pinned file. They are
+run again before each download and each measurement.
 
 ### Scope
 - Engine: llama.cpp (agreed). Choose the model from the three in the shortlist: about 55.7 GB is

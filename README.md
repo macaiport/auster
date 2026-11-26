@@ -41,7 +41,8 @@ belong to them.
 | [SPEC.md](SPEC.md) | The phases and where things stand |
 | [docs/concept.md](docs/concept.md) | The starting concept |
 | [docs/shortlist.md](docs/shortlist.md) | The engines and models considered, with sizes and sources |
-| [docs/plans/v0.1.md](docs/plans/v0.1.md) | The plan for the first release: a draft, not yet reviewed |
+| [docs/plans/v0.1.md](docs/plans/v0.1.md) | The plan for the first release: a draft, one section written and reviewed |
+| [docs/phase-1.md](docs/phase-1.md) | What has been done by hand so far, and what was measured |
 | [CHANGELOG.md](CHANGELOG.md) | What each release changed, once there is one |
 
 See also the [security policy](SECURITY.md), the [code of conduct](CODE_OF_CONDUCT.md) and
