@@ -9,7 +9,7 @@ Product name Auster (decided 2026-11-25), repo `macaiport/auster`. Concept, road
 |---|---|---|
 | 0 | Scaffold: CLAUDE.md, SPEC.md, memory/, docs/, concept captured | Done 2026-11-25 |
 | 1 | Household assistant built by hand on the Studio: engine, a model that fits, always-on server, one client, per-user keys, all measured | Current: under way. Models A, B and C measured and quizzed; MLX compared; keys, the chat page and an iPad on the home network tested ([docs/phase-1.md](docs/phase-1.md)). Left: the choice of model, a cold start, two devices with one key revoked, and the restart tests (AD15) |
-| 2 | v0.1: the `household-assistant` recipe. Recipe format, from-zero installer, capability rules, and the built-in update of Auster and of its models | Planning only. [`docs/plans/v0.1.md`](docs/plans/v0.1.md) is started: the update section is drafted, and was reviewed and reworked on 2026-11-26; three sections are not written; the plan as a whole is not checked |
+| 2 | v0.1: the `household-assistant` recipe. Recipe format, from-zero installer, capability rules, and the built-in update of Auster and of its models | Planning only. [`docs/plans/v0.1.md`](docs/plans/v0.1.md) is drafted in full (2026-11-26): the update section reviewed and reworked, the other three written from phase 1. Not checked as a whole |
 | 3 | `coders-companion`, the second recipe on the same format | Planning only |
 | 4 | Launcher window (concept v0.2) | Planning only |
 | 5 | `kids-homework-box`, `audit-tower`, trust-tier labels (concept v0.3) | Planning only |
@@ -50,17 +50,13 @@ MLX fits.
 
 Side tracks, not phases: the name checks and funding. Their notes are kept privately.
 
-**Current phase:** 1 (under way)
+**Current phase:** 1 (under way). The household recipe's model is chosen: Mistral Small 4, then Magistral Small (plan A6)
 
 **Next:**
-1. Phase 1: confirm the engine and the order of models in [docs/shortlist.md](docs/shortlist.md)
-   on llama.cpp, with one MLX measurement on the small model. Wait for disk space and for the other
-   project's tests first.
-2. Finish [`docs/plans/v0.1.md`](docs/plans/v0.1.md). Its update section was reviewed by seven lenses on
-   2026-11-26, found to need rework, and reworked. Fourteen of its 15 decisions are answered; the last, how the server
-   comes back after a restart, waits on phase 1 (D9, AD15). Still to write, from phase 1's measurements: recipe format and registry
-   (Q4), installer (Q3), capability rules. Licensing stance (Q5) is also open.
-3. Run `check it` on it; build only from a dated verdict.
+1. Phase 1's last items: the restart tests for AD15 (they need the owner at the Mac and an administrator),
+   and two devices at once with one key revoked.
+2. Run `check it` on the whole of [`docs/plans/v0.1.md`](docs/plans/v0.1.md); fold, re-check, and build
+   only from a dated verdict.
 
 ---
 
