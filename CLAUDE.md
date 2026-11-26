@@ -38,6 +38,9 @@ The full concept, roadmap and open questions are in [docs/concept.md](docs/conce
   files do not name the owner's other projects. `private/` exists only on the Studio.
 - Tracking: SPEC.md build-status table is the roadmap; discrete work items go in GitHub Issues on
   `macaiport/auster`.
+- **No details of the owner's machines or network in tracked files:** addresses, firewall state, VPNs,
+  open ports, host names. They go in `private/phase-1-local.md`. (A write-up was stopped for this on
+  2026-11-26.)
 - **The repo is public** (`macaiport/auster`, since 2026-11-26). Whatever is tracked is published the
   moment it is pushed, commit messages included: nothing internal goes into either.
 
