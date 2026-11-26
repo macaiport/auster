@@ -175,10 +175,69 @@ Two more things the page does:
   could avoid it.
 - **Hashing uses `openssl`,** four to five times faster than `shasum` here.
 
+## Step 4. Model B, Mistral Small 4 (2026-11-26, 04:35 to 05:25)
+
+**Fetched** with `scripts/phase-1/fetch-model.sh`: `Mistral-Small-4-119B-2603-UD-IQ3_S.gguf` from
+`unsloth/Mistral-Small-4-119B-2603-GGUF` at commit `bd93c721…`, the build Mistral's own card links to.
+The checks first: 379 GiB free, and the publisher's size and hash equal to its API's. 44,407,639,744
+bytes in 1,971 s (22.5 MB/s, sharing the line with model C's download). sha256 equal; hashing took
+**18.3 s** with `openssl`.
+
+**The file:** architecture `mistral4`, 36 layers, 128 experts with 4 used per token and one shared,
+compressed attention (a 256-wide latent). Context stated as 1,048,576. Licence field Apache-2.0. **It
+carries its own chat template** (14,121 characters, with tools, reasoning and a default system prompt).
+
+**Memory, from the engine's own report** (`-lv 4`; the process's resident size is not a reliable
+measure for this model: it read 3.0 GiB in one run and 44.3 GiB in another):
+
+| | Model A | Model B |
+|---|---|---|
+| Weights on the GPU | 13.3 GiB | 41.9 GiB |
+| Context cache per token | 160 KiB | **22.5 KiB** |
+| In all at 32K | about 18.6 GiB | about 42.8 GiB |
+| In all at 128K | not possible: 40K is the file's limit | **about 45.0 GiB** |
+
+So **model B fits this Mac at about 3 bits with a long context**, leaving about 7 GiB of the 51.8 GiB
+the GPU may use. The review's arithmetic ("a 119B model does not fit at 4 bits") stands; at 3 bits it
+does, with room.
+
+**Speed** (`llama-bench`):
+
+| | Empty context | At 16K of context |
+|---|---|---|
+| Reading a prompt of 512 / 4,096 tokens | 1,701 / 1,305 tok/s | 433 / 402 tok/s |
+| Writing 128 tokens | **81.2 tok/s** | **50.5 tok/s** |
+
+Through the server: one person wrote at 77.9 tok/s after a 1K prompt, 60.9 after 8K, 36.6 after 31K.
+**Two people at once got 59.6 tok/s each**, with four slots sharing a 128K context. Ready 2.4 to 2.6 s
+after a start with the file in memory; 19.4 s the first time, with most of it on disk. A short question's
+first token came 0.5 to 1.0 s after it was asked. Keys, the slot monitor and cross-site requests behave
+as for model A.
+
+B writes twice as fast as A when the context is short, because only 4 of its 128 experts are read for
+each token. Its advantage shrinks as the context grows.
+
+## Step 5. A small quiz: does B at 3 bits answer worse than A? (2026-11-26)
+
+`scripts/phase-1/quiz.py`: 15 household questions with exact answers (portions, oven times, a train
+journey, a bill split, a school-term date, two that test following an instruction), at temperature 0,
+with the same plain household system prompt, graded by the program.
+
+| | Correct | Written | Time | Wrong |
+|---|---|---|---|---|
+| A, Magistral Small, 4-bit | 13 of 15 | 716 tokens | 21 s | the oven time (16:30 for 16:45); the term date (13 April for 10 April) |
+| B, Mistral Small 4, about 3 bits | 13 of 15 | 228 tokens | 5 s | the term date: it asked for the year instead of answering; and "Carrots, broccoli, spinach." failed the grader on its full stop, which a person would accept |
+
+**Fifteen questions cannot rank two models this close, and this is not a benchmark.** What it shows is
+narrower: B at about 3 bits is not obviously worse than A at 4 bits on plain household questions, and it
+answers in a third of the words and a quarter of the time. A larger graded set is needed before the
+recipe's model is chosen.
+
 ## Not done yet in phase 1
 
 - The one MLX measurement, of model A.
-- Models B (Mistral Small 4 at about 3 bits, 44.4 GB) and C (Apertus 70B at 4 bits, 43.7 GB).
+- Model C (Apertus 70B at 4 bits, 43.7 GB): downloading.
+- A larger graded set of questions, before the model is chosen.
 - Two devices on the home network, and an iPad. The server has so far listened on this Mac only.
 - A cold start from disk, and what the Mac does after a restart (the plan's AD15).
 
@@ -192,4 +251,4 @@ Two more things the page does:
 | B | Mistral Small 4, IQ3_S | 44.4 GB |
 | C | Apertus 70B Instruct 2509, Q4_K_M | 43.7 GB |
 
-Model A at Q4_K_M has been downloaded (step 2). Nothing else has.
+Models A and B have been downloaded and verified (steps 2 and 4). C is downloading.
