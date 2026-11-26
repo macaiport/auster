@@ -95,10 +95,38 @@ What that means here:
 - **Not checked:** whether Osaurus takes several per-person keys, how its updates are applied, and
   whether it runs Mistral Small 4 or Apertus.
 
+### A closer look: what Auster could reuse (2026-11-26)
+
+Read from `osaurus-ai/vmlx-swift` and Osaurus's own docs. Nothing was run.
+
+- **`vmlx-swift` is a library, not a server.** MIT. It gathers the Swift MLX pieces: the tensor core, text
+  and vision model runtimes, tokenizers, Jinja chat templates, reasoning and tool-call parsing, and
+  several kinds of cache. The server, the keys and the app are in Osaurus itself.
+- **It has model code for both families of interest:** `Mistral3Text`, `Mistral4VLM`, `Apertus` and
+  `Apertus1p5`, the last with image and audio parts. Whether each runs well was not tried.
+- **It is young and moving.** Created 2026-05-12, no tagged release, 86 open issues, and a README that
+  describes a migration still under way. Anything built on it pins a commit.
+- **Its models are in MLX's format.** It does not load GGUF, so Mistral's own GGUF files do not apply.
+- **Osaurus updates through Sparkle,** and issues access keys that are scoped to an agent and can be
+  revoked. Whether those keys map well onto the people in a household was not tried.
+
+Ways to use it, from least to most:
+
+1. **Measure with it.** Phase 1's one MLX measurement is better taken through this Swift stack than
+   through Python's `mlx-lm`, since "fewest parts" rules Python out of anything Auster would ship.
+2. **Borrow parts under MIT when their time comes:** chat-template handling, the signing and release
+   scripts, the personal-data filter, and the distributed modules for a later `brain-cluster`.
+3. **Build Auster's native app on `vmlx-swift`** (phases 4 and 6), writing only the household front door.
+4. **Make Osaurus itself the engine of a recipe.** Against: analytics on by default in its releases, cloud
+   models in the same app, its own updater, and its own model builds.
+
+v0.1 stays on llama.cpp: it needs no server written, and it has model files made by the publisher.
+
 ## Proposed order of measurement
 
 1. Model A on llama.cpp 1.0.0 with Mistral's GGUF: keys, a client, restart behaviour. Then the same
-   model once on MLX with the 4-bit build, same questions and context size, to record the difference.
+   model once on MLX with a 4-bit build, same questions and context size, to record the difference.
+   Preferably through the Swift stack described above rather than Python's.
 2. Model B on llama.cpp: is the flagship at about 3 bits better than the small model at 8 bits? Run it
    on MLX too only if step 1 showed a large gap.
 3. Model C at 4 bits: is about 12 tok/s liveable, and what does the openness buy in practice?
@@ -115,5 +143,6 @@ What that means here:
   both read 2026-11-26. Press coverage: <https://thehackernews.com/2026/05/ollama-out-of-bounds-read-vulnerability.html>
 - LM Studio: <https://lmstudio.ai/app-privacy>, <https://lmstudio.ai/app-terms>
 - The Devstral trial: `runbooks/devstral.md` in the private `metal-working` repo.
-- Osaurus: the README on the `main` branch of `osaurus-ai/osaurus` and the GitHub API, read 2026-11-26;
+- Osaurus: the README and `docs/IDENTITY.md` on the `main` branch of `osaurus-ai/osaurus`, the README and
+  `Package.swift` of `osaurus-ai/vmlx-swift`, and GitHub's API and code search, read 2026-11-26;
   <https://techcrunch.com/2026/05/15/osaurus-brings-both-local-and-cloud-ai-models-to-your-mac/>

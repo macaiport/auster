@@ -128,6 +128,8 @@ v0.1 plan needs.
 - Engine: llama.cpp (agreed). Choose the model from the three in the shortlist: about 55.7 GB is
   usable by the GPU, and context and several users need room inside that.
 - Measure MLX once on the small model, same questions and context size, and record the difference.
+  Preferably through the Swift MLX stack Osaurus uses ([docs/shortlist.md](docs/shortlist.md)), since
+  Python is not something Auster would ship.
 - Run it as an always-on server that comes back after a restart and answers at a fixed name on the
   home network.
 - One client that works from an iPad, with a separate key for each person.
