@@ -433,6 +433,47 @@ no key is refused.
 **`/v1/models` also gives the model's full path on disk** as its id, to any key holder, as `/props`
 does (step 3): the account's name with it.
 
+## Step 13. What the plan's figures rest on, recorded (2026-11-26, 14:25)
+
+A re-check of the v0.1 plan found that its memory figures (plan A6 and C2) and its full hashes came from
+engine output that was read during phase 1 but not kept: the run logs above were written at the engine's
+default logging level, which leaves out its memory report. Both household builds were started again on
+`127.0.0.1` with `-lv 4` at the plan's settings, each stopped once it was listening. The logs are kept in
+the workspace's `runs/` folder.
+
+| | Order 1: Mistral Small 4, `UD-IQ3_S`, 4 people × 32,768 | Order 2: Magistral Small, `Q4_K_M`, 1 person × 40,960 |
+|---|---|---|
+| Weights on the GPU (`MTL0_Mapped`, two buffers) | 41,502.86 + 420.02 = **41,923 MiB** | 12,777.34 + 525.02 = **13,302 MiB** |
+| Working buffer on the GPU (`MTL0 compute`) | **333.42 MiB** | **272.01 MiB** |
+| Cache (`MTL0 KV`) | 2,880.00 MiB: 23,040 bytes per token | 6,400.00 MiB: 163,840 bytes per token |
+| The engine's projection for the GPU | **45,136 MiB**, leaving 7,947 of 53,083 | **19,974 MiB**, leaving 33,109 |
+| Model buffer in ordinary memory (`CPU_Mapped`) | 420.00 MiB | 360.00 MiB |
+| CPU working buffer (`CPU compute`) | **64.01 MiB** | **80.02 MiB** |
+| Layers on the GPU | 37 of 37 | 41 of 41 |
+| Slots | 4, each 32,768, not shared | 1, 40,960 |
+
+- **Two corrections to the plan follow.** Order 1's memory outside the GPU is 420 + 64 = **484 MiB**,
+  not the 580 MiB the plan had (a CPU working buffer of 160 MiB, read from a run at other settings).
+  Order 2's CPU working buffer, which the plan assumed at 80 MiB, is **measured at 80.02 MiB**.
+- The projection for order 1 is now 45,136 MiB, equal to the plan's sum; the run read earlier gave
+  45,135, with a working buffer of 332.53 MiB.
+- **The engine's programs need macOS 13.3 or later** (`otool -l llama-server`: `minos 13.3`).
+
+**The engine offers no "busy" signal.** With `--no-slots`, as the plan serves, `/slots` answers 501, and
+`/health?fail_on_no_slot=1` answers 200 `{"status":"ok"}` while the only slot is writing an answer, as it
+does before and after. A probe that waits behind other people's questions cannot be told apart from one
+that hangs, except by waiting.
+
+The full values the plan shortens:
+
+| What | Value |
+|---|---|
+| Order 1's model | `unsloth/Mistral-Small-4-119B-2603-GGUF` at commit `bd93c721735aa32c035c0f19e738cb3371fd56ff`, `Mistral-Small-4-119B-2603-UD-IQ3_S.gguf`, 44,407,639,744 bytes, sha256 `c56fdf063ad8c215c0e56c322383b3fb242189ce9047cdbb3e7dcad11380c1b8` |
+| Order 2's model | `mistralai/Magistral-Small-2509-GGUF` at commit `429b90d8a8f0037241db6fab46a20b0f90859b03`, `Magistral-Small-2509-Q4_K_M.gguf`, 14,334,432,256 bytes, sha256 `d3a024d29e0e8f35d9353f5d4f08fc3715406835c8ae1328ce2f3bd212a43434` |
+| Order 2's template | `mistralai-Ministral-3-14B-Reasoning-2512.jinja` from llama.cpp at `b12359`, sha256 `39f03c383413f531fd302c06c7e982ad98c83f0657a8339ae25478ccb81fdcda` |
+| The system prompt | 73 bytes, sha256 `c44bab6bddc7d9f48e834d2120bffeda2aa087b0bb4a2f1c74d17ab103d02e49` |
+| The engine archive | `llama-b12359-bin-macos-arm64.tar.gz`, 16,907,811 bytes, sha256 `82b00abc740160e1b9980e6cc79c117345fa34af058c80e6c0a69aa8ddccde75`; 42,419,750 bytes unpacked |
+
 ## The three side by side (phase 1, as far as it has gone)
 
 | | A: Magistral Small 2509, Q4_K_M | B: Mistral Small 4, UD-IQ3_S | C: Apertus 70B, Q4_K_M |
@@ -450,7 +491,7 @@ does (step 3): the account's name with it.
 | Quiz, time for all 15 / all 56 | 21 s / 65 s | **5 s / 16 s** | 79 s / 250 s |
 | Openness | open weights | open weights | **open weights, data and training** |
 
-What this says, for the choice of model (not yet made):
+What this says, for the choice of model (made on 2026-11-26: B first, A second; plan A6):
 
 - **For speed and context on a 64 GB Mac, B is clearly first,** even at about 3 bits. It fits with
   room, writes twice as fast as A, and answered the quiz as well.
@@ -464,7 +505,6 @@ What this says, for the choice of model (not yet made):
 
 ## Not done yet in phase 1
 
-- The choice of model, from steps 3 to 9.
 - Two devices at once on the home network, and revoking one while the other keeps working. The iPad
   worked on its own key (step 7).
 - What the Mac does after a restart (the plan's AD15).
