@@ -9,7 +9,7 @@ Product name Auster (decided 2026-11-25), repo `macaiport/auster`. Concept, road
 |---|---|---|
 | 0 | Scaffold: CLAUDE.md, SPEC.md, memory/, docs/, concept captured | Done 2026-11-25 |
 | 1 | Household assistant built by hand on the Studio: engine, a model that fits, always-on server, one client, per-user keys, all measured | Current: under way. Models A, B and C measured and quizzed; MLX compared; keys, the chat page and an iPad on the home network tested ([docs/phase-1.md](docs/phase-1.md)). Left: the choice of model, a cold start, two devices with one key revoked, and the restart tests (AD15) |
-| 2 | v0.1: the `household-assistant` recipe. Recipe format, from-zero installer, capability rules, and the built-in update of Auster and of its models | Planning only. [`docs/plans/v0.1.md`](docs/plans/v0.1.md) is drafted in full (2026-11-26): the update section reviewed and reworked, the other three written from phase 1. Not checked as a whole |
+| 2 | v0.1: the `household-assistant` recipe. Recipe format, from-zero installer, capability rules, and the built-in update of Auster and of its models | Planning only. [`docs/plans/v0.1.md`](docs/plans/v0.1.md) is drafted in full (2026-11-26). The whole plan was reviewed the same day (pass 2, seven lenses), found to need rework, and reworked; ten decisions for the owner are open (BD8 to BD17). No build-ready verdict yet |
 | 3 | `coders-companion`, the second recipe on the same format | Planning only |
 | 4 | Launcher window (concept v0.2) | Planning only |
 | 5 | `kids-homework-box`, `audit-tower`, trust-tier labels (concept v0.3) | Planning only |
@@ -55,8 +55,8 @@ Side tracks, not phases: the name checks and funding. Their notes are kept priva
 **Next:**
 1. Phase 1's last items: the restart tests for AD15 (they need the owner at the Mac and an administrator),
    and two devices at once with one key revoked.
-2. Run `check it` on the whole of [`docs/plans/v0.1.md`](docs/plans/v0.1.md); fold, re-check, and build
-   only from a dated verdict.
+2. A fitted re-check of the plan's pass-2 rework, then the owner's answers to BD8 to BD17. Build only
+   from a dated build-ready verdict.
 
 ---
 
