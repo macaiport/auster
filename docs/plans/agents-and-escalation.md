@@ -124,8 +124,8 @@ and never automatic for revenue (AE5); disclosed where the household picks a pro
 never anything about a household, from the provider to the project. Receiving money also needs a legal
 entity, which ties the project to a named person.
 
-**Looked for on 2026-11-26, and not found:** no provider publishes a program that pays a share of API
-spending by people it refers.
+**Looked for on 2026-11-26.** Among the large providers, none publishes a program that pays a share of
+API spending by people it refers:
 - Anthropic's [referral partner program](https://www.anthropic.com/legal/referral-partner-program-terms)
   pays a fee on an enterprise contract's first order only, not on renewals or usage.
 - For OpenAI, only secondhand reports, all saying there is no public API affiliate program.
@@ -138,8 +138,29 @@ spending by people it refers.
   them in public rankings ([app attribution](https://openrouter.ai/docs/app-attribution)). As a provider
   on the curated list it would be one more party that sees requests, judged like any other (E4).
 
-So a share would have to be negotiated with a provider, which needs households to show it first. Until
-then E3 stands as written: the household pays the provider directly and the project takes nothing (AE10).
+**One European provider does** (found by the owner, read the same day). Infomaniak's
+[affiliate programme](https://www.infomaniak.com/en/membership) covers its
+[AI Services](https://www.infomaniak.com/en/hosting/ai-tools): open models through an OpenAI-compatible
+API, run in its data centers in Switzerland, which it says neither records queries nor uses them for
+training. Its [terms](https://faq.infomaniak.com/2247):
+- 25% of every order and renewal by a new customer, for one year after the account is made, rising to
+  30%, 35% and 50% as the affiliate's total earnings pass CHF 50, 1,000 and 20,000;
+- only for a new account made after clicking the link (a tag on any page's address, kept 30 days), not
+  for an existing customer, and not after a refund in the first 30 days;
+- paid each month once CHF or EUR 50 is owed; open to anyone;
+- the affiliate sees only order numbers and commissions, nothing about the customer.
+
+The link leads to the ordinary sales page, so a referred household seems to pay what anyone pays; the
+terms do not say so outright. Against the four rules: the last is met as Infomaniak runs it, and the
+second and third are Auster's to keep. The first is not: no other provider offers anything, so "the same
+terms for every curated provider, or none" means none. A looser form would keep its purpose: the list is
+chosen and ordered by its criteria alone, settled before any referral is looked at, and a listed
+provider's link is used where it has one, with the list saying which. The share lasts a year for each
+household, so it is support while Auster is growing, not a lasting income.
+
+Infomaniak is worth judging for the curated list on its own terms (E4), money aside. Its list of models
+and its prices were not read (those pages need a browser's scripts). Until the owner decides AE10, E3
+stands as written: the household pays the provider directly and the project takes nothing.
 
 ### E4. Curation of providers
 
@@ -160,7 +181,7 @@ household can add its own endpoint, marked as not curated.
 | AE7 | Monthly money caps: their defaults, and whether each person has one |
 | AE8 | Whether a household can add its own endpoint, and how it is marked |
 | AE9 | When the data-center link comes: with the front door, or in phase 6 as the concept says |
-| AE10 | Whether to seek a referral share from providers (E3a): none is offered today; if one is negotiated, the four rules hold |
+| AE10 | Whether to use a provider's referral link where one exists (E3a: Infomaniak's covers its AI Services; the large providers offer none), and whether the first rule loosens to "the list is chosen by its criteria alone, before any referral is looked at" |
 
 ## Tests to plan
 
