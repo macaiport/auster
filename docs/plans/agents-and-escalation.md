@@ -2,7 +2,7 @@
 
 **Status: planning, for discussion (2026-11-26).** Not checked, not phased, and nothing is built from it.
 It stands on [`local-layer.md`](local-layer.md): Auster's own server in the request path (the front door),
-people's keys and scopes, memory's topics, budgets, and night work. Its open decisions are AE1 to AE9.
+people's keys and scopes, memory's topics, budgets, and night work. Its open decisions are AE1 to AE10.
 
 ## What the owner asked about
 
@@ -108,6 +108,39 @@ own and relays nothing: the household's Mac talks to the provider the household 
 - **Agents and money:** a step an agent sends to the data center counts against the run's money limit and
   its owner's allowance (A4).
 
+### E3a. A share for the project, at the household's price
+
+The owner asked (2026-11-26) whether the project could take a tiny share of what households spend with
+providers, while they pay the same price as going direct. **Only one shape keeps the principles:** the
+household signs up with the provider and pays it directly, at the provider's own price, through an Auster
+referral link, and the provider pays the project a share. Auster never holds the money or sees a request.
+A clearing house, where Auster buys access and resells it, would mean taking payments, keeping accounts
+for households, and billing data about them reaching the project; and provider terms often forbid
+reselling without a partner agreement. So it is out.
+
+The referral shape would hold to four rules: the same terms for every curated provider, or none, so that
+money never chooses the list (E4); never a reason to send more out, so escalation stays off by default
+and never automatic for revenue (AE5); disclosed where the household picks a provider; and only totals,
+never anything about a household, from the provider to the project. Receiving money also needs a legal
+entity, which ties the project to a named person.
+
+**Looked for on 2026-11-26, and not found:** no provider publishes a program that pays a share of API
+spending by people it refers.
+- Anthropic's [referral partner program](https://www.anthropic.com/legal/referral-partner-program-terms)
+  pays a fee on an enterprise contract's first order only, not on renewals or usage.
+- For OpenAI, only secondhand reports, all saying there is no public API affiliate program.
+- Google's Gemini API documents [partner integrations](https://ai.google.dev/gemini-api/docs/partner-integration)
+  as a technical matter, with no payment.
+- Mistral's [partner-served terms](https://legal.mistral.ai/terms/partner-served-deployment-terms) are for
+  resellers, who do the billing themselves: the clearing-house shape.
+- OpenRouter, an aggregator, passes providers' list prices through and charges a fee on credit purchases
+  ([its fee](https://openrouter.ai/blog/simplifying-our-platform-fee)). It pays apps nothing, but credits
+  them in public rankings ([app attribution](https://openrouter.ai/docs/app-attribution)). As a provider
+  on the curated list it would be one more party that sees requests, judged like any other (E4).
+
+So a share would have to be negotiated with a provider, which needs households to show it first. Until
+then E3 stands as written: the household pays the provider directly and the project takes nothing (AE10).
+
 ### E4. Curation of providers
 
 The list of providers is curated like models (`local-layer.md`, C2): what qualifies (no training on the
@@ -127,6 +160,7 @@ household can add its own endpoint, marked as not curated.
 | AE7 | Monthly money caps: their defaults, and whether each person has one |
 | AE8 | Whether a household can add its own endpoint, and how it is marked |
 | AE9 | When the data-center link comes: with the front door, or in phase 6 as the concept says |
+| AE10 | Whether to seek a referral share from providers (E3a): none is offered today; if one is negotiated, the four rules hold |
 
 ## Tests to plan
 
