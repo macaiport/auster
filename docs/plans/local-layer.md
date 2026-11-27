@@ -146,6 +146,38 @@ A periodic **"what Auster remembers"** review shows each person their own memori
 coldest, least confirmed and contradicted first, so that oddities are caught by a person rather than left
 to linger. "Forget everything about X" removes it from every stage, after one confirmation.
 
+### M4a. Night work: refining while nobody is using it
+
+The owner's expectation: the household uses the server for a small part of the day, so most of the time
+it is idle, and that time can go on refining memory, the way people consolidate memories in sleep. With
+that, the sets can be expected to stay well curated. How much of the day is idle is measured, not assumed
+(T's health history).
+
+- **What it does.**
+  - Makes topic summaries and the index again from the records (M3a).
+  - Works out heat again and moves memories between stages (M4).
+  - Finds duplicates, contradictions and facts replaced by newer ones.
+  - Proposes keywords and pointers for topics.
+  - Repeats the build's own measurements now and then: its speed against this Mac's baseline, its memory
+    budget (M10), so curation goes on locally (C).
+  - Later, the embeddings for documents.
+- **Derived things it may change; recorded things it may only propose.** Summaries, the index, keywords
+  and heat are derived and can always be made again, so night work replaces them freely. Anything that
+  would lose information (a merge, a deletion, a contradiction settled) goes into the review (M4) for a
+  person to decide. Nothing a person said is changed overnight.
+- **Checked, because light models make the summaries.** A derived summary is checked against its records
+  before it replaces the old one: every name, number and date in it must appear in the records. That
+  check needs no model, so it holds whatever the build. A summary that fails is kept out, and the old one
+  stays.
+- **A household request never waits.** Night work takes one of the engine's slots at most, and stops the
+  moment a household request arrives: two answers written at once share the memory bandwidth, and each
+  slows from about 35 to 20 tok/s (`docs/phase-2.md`, section 6). It resumes later from where it stopped.
+- **When.** Only after a quiet spell (no requests for some minutes), never during an update or with the
+  server stopped, never on battery, and within an energy limit the household sets: a Mac working its GPU
+  draws far more power than one idling (LD10).
+- **Seen, and switchable off.** `auster status` says what night work did and when, and one setting turns
+  it off.
+
 ### M5. Lighter models
 
 For the first years most households will run light builds. For them:
@@ -290,6 +322,7 @@ means anything, two more tests are needed:
 | LD7 | Memory's form on disk (plain files or SQLite) and its backup |
 | LD8 | Whether the three agnostic replacements go into phase 2 now |
 | LD9 | Whether the reminder pass (M3a) is on by default, given the time a second pass costs on a light build |
+| LD10 | Night work's limits: how long a quiet spell before it starts, how many hours a night, and on battery never |
 
 ## Tests to plan (outcome-based, as in v0.1)
 
@@ -300,6 +333,9 @@ means anything, two more tests are needed:
 - **Forgetting:** "forget X" leaves nothing of X in any stage or file.
 - **Telemetry holds no text:** no question, answer or memory content in any telemetry record.
 - **The distraction budget:** the quiz with irrelevant memories added, per build (M10).
+- **Night work (M4a):** a household request arriving mid-task gets the engine at once, and the task
+  resumes after; a derived summary naming anything absent from its records is refused and the old one
+  kept; nothing a person said is changed without the review; nothing runs on battery or during an update.
 - **Going deeper (M3a):** the needed fact only behind a pointer; the index alone, with the reminder, and
   fetched first, per build; and a summary made again from changed records never keeps a removed fact.
 - **The agnostic replacements:** speed, health and the GPU limit with a stub engine that has no `timings`
