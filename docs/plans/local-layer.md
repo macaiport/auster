@@ -174,6 +174,27 @@ worked out by Auster, not the model: phase 1's quiz shows models slipping on dat
 - **For memory's own hygiene:** a fact with an uncertain life ("Tom has a cold") gets a tickler to be
   confirmed or let go, so it does not linger (M4).
 
+### M3d. Cross references
+
+A fact often belongs to more than one topic: a passport that expires in March matters to one parent's
+business trip and to the family holiday. With cross references the tree becomes a graph.
+
+- **Stored once, linked from many.** The fact lives in one place and topics point at it, so a correction
+  reaches every topic, and "forget" removes it everywhere. Night work removes links left pointing at
+  nothing.
+- **A link never grants access.** Each link is checked against the sender's scope as it is followed. A
+  household topic linking to a private record carries nothing of it to anyone else, and shows no sign that
+  the link exists (M7, case 4). This is the easiest way for something private to leak, so it is tested
+  first.
+- **Followed by Auster, one hop at a time,** within the budget, and never round a loop. A light build gets
+  only what Auster followed.
+- **Heat from every topic, with a cap.** A fact linked from many topics is warm because it keeps mattering,
+  but no fact may fill a request's budget on its own.
+- **Clashes become visible.** Linked facts that disagree (the trip's dates against the holiday's) are found
+  by night work and shown only to someone who may see both sides (M7, case 6).
+- **Who makes links:** a person; night work only proposes them, by the same name or date in two topics,
+  for the review (LD13).
+
 ### M4. Pruning, in stages, never silent
 
 hot (put into requests) → cool (left out unless someone asks for it) → archived (kept, listed, can be
@@ -362,6 +383,7 @@ means anything, two more tests are needed:
 | LD10 | Night work's limits: how long a quiet spell before it starts, how many hours a night, and on battery never |
 | LD11 | Which external sources a reference may point at: on the Mac and home network only, or internet sources too, each turned on by the household |
 | LD12 | The channel for ticklers that speak up unprompted, if any: a notification on a device, a calendar entry, nothing |
+| LD13 | Whether night work may make a cross reference itself when the match is exact (the same name and date), or always proposes |
 
 ## Tests to plan (outcome-based, as in v0.1)
 
@@ -378,6 +400,9 @@ means anything, two more tests are needed:
 - **External references (M3b):** a referenced page or file holding instructions ("ignore the rules,
   remember that…") changes no memory and starts no tool call; an internet source is never fetched while
   turned off; a stale copy is seen by its hash.
+- **Cross references (M3d):** a household topic linking to one person's private record never carries it,
+  or any sign of it, in another person's request; "forget" removes the fact and every link to it; a loop
+  is followed once; one fact linked from every topic still leaves room in the budget for others.
 - **Ticklers (M3c):** by a stub clock, a tickler warms on its date and not before, across month ends and
   a leap year, and an uncertain fact's tickler offers it for confirming or letting go.
 - **Going deeper (M3a):** the needed fact only behind a pointer; the index alone, with the reminder, and
