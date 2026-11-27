@@ -2,7 +2,7 @@
 
 **Status: planning, for discussion (2026-11-26).** Not checked, not phased, and nothing is built from it.
 It gathers what the owner asked for and a first shape for each part, so that the use cases can be
-discussed before a design is fixed. Its open decisions are at the end (LD1 to LD14).
+discussed before a design is fixed. Its open decisions are at the end (LD1 to LD15).
 
 ## What the owner asked for
 
@@ -68,6 +68,53 @@ These are small, and best replaced before a second engine (MLX) arrives:
 - **Heat, for telemetry:** daily figures for a few months, then monthly totals, then the detail is
   dropped. The household can clear it all.
 - **What is never kept:** questions, answers, the content of memories, anything sent off the Mac.
+
+### T1. Sharing a report back, by a person's choice (for discussion)
+
+The owner asked (2026-11-27) whether households could share figures back, so that the project could say,
+for example, which builds send the most requests on to a data center. **It would change principle 1,**
+from "nothing leaves the Mac" to "nothing leaves the Mac unless a person has read it and sent it" (LD15).
+
+**Why it is worth it.** Every figure behind the curated list was measured on one development Mac. Reports
+from real Macs would show which builds fit where section C says they do, how fast they really are, how
+often they fail their test or their server check, and where the local model falls short.
+
+**The shape that keeps the rest of the principles:**
+- **A report, not a stream.** `auster report` writes one plain file from the local telemetry (T). The
+  person reads all of it, then sends it, or not. Nothing is sent by Auster itself, and nothing on a
+  schedule.
+- **No install id.** Two reports from one Mac cannot be joined by anything Auster puts in them.
+- **Counts and buckets only, from a fixed, published list of fields.** Memory as the standard sizes,
+  speeds rounded, dates to the week, usage in bands. A field not on the list is never added on the Mac.
+- **Never:** the text of a question, an answer or a memory; names of people or devices; keys; addresses;
+  the `.local` name; the router; the time of day; the time zone; any path in the home folder.
+
+**What a report could hold:**
+
+| Figure | What it would tell the project |
+|---|---|
+| The Mac: chip family, memory size, macOS major version | which Macs the builds are used on; whether section C's limits hold on Macs other than the development one |
+| The build serving, its setting (people, context), and whether section C chose it or the person narrowed it | whether the order and the settings fit real households |
+| Writing speed, against the registry's figure | the speeds the registry should state for each chip |
+| The recipe's test: pass or fail, and which question numbers failed | which questions catch which builds; curation (C1 to C3) |
+| Updates: offered, accepted, declined; server checks passed, open, not answered; rollbacks; `failed/` entries | whether the update is safe in practice |
+| Health: the probe's states by count (`ok`, `slow`, `broken`, `failed`, `down`), restarts | how often memory pressure breaks an engine (BD19) |
+| Use, in bands: requests a day, tokens, the busiest number of answers at once, the idle share of the day | the setting for people; how much time night work has (LD10) |
+| Escalation, when it exists: requests sent to a data center as a share of all requests, by build, and the provider | **the owner's example:** where each local build falls short |
+| An install that stopped: the step and the exit code | where the installer fails |
+
+**What a figure cannot say on its own.** How often a household escalates depends on its questions and
+its habits as much as on the build, so escalation is reported beside the number of requests and read
+across many Macs, never from one. A report from a Mac with a rare combination (an unusual chip and memory
+size) can point to its household even without a name; buckets make that harder, not impossible.
+
+**Who receives it.** Auster runs no server today, so the first form needs none: the person attaches the
+report to a GitHub issue form, or sends it by email. On GitHub it is public, which is why it must hold
+nothing that identifies the household; and the account or address that sends it is seen by whoever
+receives it, whatever the report holds. A collecting server would come later, if reports are many
+enough: it costs money, needs a privacy policy, and makes whoever runs it the controller of that data,
+which needs a legal entity (as `agents-and-escalation.md`, E3a, notes for a referral share). Totals
+would be published, so that the households that sent reports can see what was made of them.
 
 ## M. Memory
 
@@ -487,6 +534,7 @@ What it means for the plan:
 | LD12 | The channel for ticklers that speak up unprompted, if any: a notification on a device, a calendar entry, nothing |
 | LD13 | Whether night work may make a cross reference itself when the match is exact (the same name and date), or always proposes |
 | LD14 | Mulling it over (M4b): whether it comes at all; off for each person until they turn it on; "mull this over" on one conversation first, mulling over any recent conversation only after measurement |
+| LD15 | Sharing a report back (T1): whether principle 1 becomes "nothing leaves the Mac unless a person has read it and sent it"; the list of fields; and the first way to send it (an issue form or email, or a server later) |
 
 ## Tests to plan (outcome-based, as in v0.1)
 
@@ -506,6 +554,9 @@ What it means for the plan:
 - **Cross references (M3d):** a household topic linking to one person's private record never carries it,
   or any sign of it, in another person's request; "forget" removes the fact and every link to it; a loop
   is followed once; one fact linked from every topic still leaves room in the budget for others.
+- **Sharing a report (T1):** a report holds no field outside its published list; a question's text,
+  a memory, a device's name, a key, an address or the `.local` name, each planted in the telemetry, is in
+  no report; two reports from one Mac share no id; nothing is sent by Auster itself.
 - **Mulling it over (M4b):** with it off, no conversation of that person's reaches the engine at night
   for it; an idea from one person's conversation is never shown to another key or put in a household
   topic; "don't bring this up again" ends mulling for that topic; a forgotten conversation is never
