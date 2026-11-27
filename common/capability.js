@@ -47,11 +47,12 @@
 //             exit 3 only. reason: registry (detail unreadable or absent), figures (detail mac,newer when
 //             the `mac` record is of a newer format, whatever else is known; or gpu, memory or disk, a
 //             comma, then missing, or the measurement's code: not-list-devices, no-mtl0, mtl0-form,
-//             mtl0-twice, mtl0-figure, too-large, unreadable, df-form), people (the recipe's default is
-//             0), serving (--keep-build and the build served is not in the registry), fit (no build fits
-//             this Mac, whatever else rules it out: see `needs`), none (nothing appropriate, but not for
-//             fit alone; detail lists the codes, comma-separated), room (it fits in memory but there is
-//             no room on disk: see `room`)
+//             mtl0-twice, mtl0-figure, too-large, unreadable, df-form), people (kept in the vocabulary;
+//             not reached here, since the reader passes over a recipe line with no people and --people
+//             is at least 1), serving (--keep-build and the build served is not in the registry), fit
+//             (no build fits this Mac, whatever else rules it out: see `needs`), none (nothing
+//             appropriate, but not for fit alone; detail lists the codes, comma-separated), room (it
+//             fits in memory but there is no room on disk: see `room`)
 //   disk      <download bytes> <floor bytes> <free bytes> <bytes freed by the removals>
 //             when disk figures were given and the rule reached the disk
 //   remove    <recipe id> <kept|failed> <date> <build id> <yes|->

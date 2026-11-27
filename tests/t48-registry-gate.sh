@@ -2,8 +2,10 @@
 # one byte, a line with a field too few or too many, and a build, order or withdraw naming an undefined
 # id, and names each; on a Mac each such line is passed over and the others are used, except that a field
 # too many is kept and not read, and a file over 512 KiB is not read at all (A3, D3.9). Also D3.9's
-# --tag and --release questions, which U9's release gate (T39) asks through tools/check-registry.
-# Mutants: tests/mutants/T48a to T48c (the plan's), T48d and T48e (the --tag and --release questions).
+# --tag and --release questions, which U9's release gate (T39) asks through tools/check-registry, and a
+# recipe line with no people or a minimum context over its maximum (A3, settled at V2), which a Mac passes
+# over and the gate fails. Mutants: tests/mutants/T48a to T48c (the plan's), T48d and T48e (the --tag and
+# --release questions), T48f and T48g (the recipe line's two rules).
 . "$TESTS/lib.sh"
 . "$TESTS/helpers.sh"
 . "$TESTS/registry-helpers.sh"
@@ -60,6 +62,16 @@ same "$(kind "$o" build | cut -f2-5 | head -1)" "1${T}withdrawn${T}security${T}$
 same "$(taken "$o")" "$B2" "so order 2 is taken"
 extend "$REG/good-v0.1.0.tsv" "$W/order65.tsv" "$(rec order $HH $(for i in $(seq 32); do printf '%s %s ' $B2 $B1; done) $B2)"
 g=$(gate "$W/order65.tsv"); has "$g" "line 9: too many fields (67 of at most 66)" "an order of 65 builds: the gate fails it"
+
+# --- a recipe line with no people, or a minimum context over its maximum (A3, settled at V2)
+extend "$REG/good-v0.1.0.tsv" "$W/recipe-rules.tsv" "$(rec recipe $HH family-helper publisher 0 8192 16384)" \
+  "$(rec recipe $HH family-helper publisher 2 16385 16384)"
+g=$(gate "$W/recipe-rules.tsv"); same $? 1 "recipe lines with no people, or a minimum over the maximum: the gate fails"
+has "$g" "line 9: field 5 (people) is 0: a recipe has at least one person" "the gate names the recipe line with no people"
+has "$g" "line 10: field 6 (contextMin) is over field 7 (contextMax)" "and the one whose minimum context is over its maximum"
+o=$(reader "$W/recipe-rules.tsv" "$HH")
+same "$(passed_lines "$o")" 9,10 "a Mac passes both over"
+same "$(kind "$o" recipe | cut -f5-9 | tr '\t' ' ')" "household publisher,endorsed 4 8192 32768" "the recipe keeps its first line"
 
 # --- a build, order or withdraw naming an id no line defines
 g=$(gate "$REG/withdraw-unknown.tsv"); same $? 1 "withdraw-unknown: the gate fails"

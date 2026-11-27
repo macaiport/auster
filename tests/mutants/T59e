@@ -1,0 +1,3 @@
+# file: common/grade-lib.js
+# capitals without the wanted word
+s/ && reply\.indexOf(want) >= 0;$/;/

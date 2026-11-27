@@ -1,0 +1,3 @@
+# file: common/grade-lib.js
+# three items accepts three or more
+s/return items\.length === 3 &&/return items.length >= 3 \&\&/

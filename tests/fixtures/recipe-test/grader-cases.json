@@ -168,6 +168,12 @@
   "reply": "Carrots, 2 leeks, spinach"
  },
  {
+  "n": 36,
+  "pass": false,
+  "why": "four items: exactly three",
+  "reply": "Carrots, broccoli, spinach, peas"
+ },
+ {
   "n": 37,
   "pass": true,
   "why": "capitals, accented",
@@ -190,6 +196,12 @@
   "pass": false,
   "why": "a letter with no case is not a capital",
   "reply": "BLUE \u4e2d"
+ },
+ {
+  "n": 37,
+  "pass": false,
+  "why": "capitals, without the word wanted",
+  "reply": "THE SKY IS GREY"
  },
  {
   "n": 38,
@@ -292,6 +304,12 @@
   "pass": true,
   "why": "a word inside the answer",
   "reply": "Answer: The battery is low"
+ },
+ {
+  "n": 52,
+  "pass": false,
+  "why": "a word, not in the answer",
+  "reply": "Answer: a spider in it"
  },
  {
   "n": 49,

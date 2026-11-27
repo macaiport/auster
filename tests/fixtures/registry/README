@@ -81,14 +81,16 @@ comment lines of at most 1,000 bytes to an exact size. good-v0.1.0.tsv padded to
 within the cap; to 524,289 it is over, the gate fails it and a Mac does not read it
 at all (T48); to 1,048,577 it is an answer over 1 MiB (T3).
 
-boundary/            For every pattern of A2 and A3, values just inside and just outside (T49).
-                     MANIFEST lists each file, the file it differs from, the lines a correct reader
-                     passes over, and what it tests. in-upper.tsv holds every field at its largest or
-                     longest value, in-lower.tsv at its smallest or shortest; both are used whole, and
-                     their one build is chosen. Each out-*.tsv is in-upper.tsv (or in-withdraw.tsv)
-                     with one value changed, everywhere that value appears, so the lines it differs on
-                     are exactly the lines MANIFEST names; tests/t00-fixtures.sh checks that. Each line
-                     named fails a pattern itself. A line that names an id whose own line is passed
+boundary/            For every pattern of A2 and A3, and the recipe line's two rules (at least one
+                     person; the minimum context at most the maximum), values just inside and just
+                     outside (T49). MANIFEST lists each file, the file it differs from, the lines a
+                     correct reader passes over, and what it tests. in-upper.tsv holds every field at
+                     its largest or longest value, in-lower.tsv at its smallest or shortest (1 person,
+                     both contexts 0); both are used whole, and their one build is chosen. Each
+                     out-*.tsv is in-upper.tsv (or in-withdraw.tsv, or in-lower.tsv for the recipe
+                     line's two rules) with one value changed, everywhere that value appears, so the
+                     lines it differs on are exactly the lines MANIFEST names; tests/t00-fixtures.sh
+                     checks that. Each line named fails a pattern or one of those rules itself. A line that names an id whose own line is passed
                      over is passed over too (A3), so the build and order lines that name what a named
                      line defines go with it; MANIFEST names only the lines that fail a pattern
                      themselves. With the only build or its order gone, the recipe shows
@@ -110,3 +112,5 @@ What A3 settled after these fixtures were made (2026-11-26), and the files corre
   record is at most 593 bytes, an order line 19 + 14 bytes for each build); fields after the last
   known can make any line longer. The cap is tested with comment lines, and T48 adds an order line
   over it.
+- A recipe line has at least one person, and its minimum context is at most its maximum; a Mac passes
+  over one that has not, and the gate fails it. in-lower.tsv's recipe therefore has 1 person, not 0.

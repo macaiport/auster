@@ -1,0 +1,3 @@
+# file: common/registry-lib.js
+# a range widened by one at its bottom (a label of 1 character)
+/^  label: /s/{1,40}/{0,40}/

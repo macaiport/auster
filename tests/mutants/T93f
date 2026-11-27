@@ -1,0 +1,3 @@
+# file: common/capability-lib.js
+# drop a failed build the room does not need
+s/^  if (!room(set)) return null;$/& for (var j = set.length - 2; j >= 0; j--) if (set[j].kind === 'failed' \&\& room(set.slice(0, j).concat(set.slice(j + 1)))) set.splice(j, 1);/

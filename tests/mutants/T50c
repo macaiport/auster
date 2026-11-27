@@ -1,0 +1,4 @@
+# file: common/registry-lib.js
+# no overlong-UTF-8 check: lead bytes C0 and C1 taken, and no least code point
+s/c >= 0xc2 && c <= 0xdf/c >= 0xc0 \&\& c <= 0xdf/
+s/if (cp < min || cp > 0x10ffff/if (cp > 0x10ffff/

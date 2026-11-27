@@ -1,0 +1,3 @@
+# file: common/registry-lib.js
+# a range widened by one at its top (a sha256 of 65 hex digits)
+/^  sha256: /s/{64}/{64,}/

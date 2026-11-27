@@ -1,0 +1,3 @@
+# file: common/registry-lib.js
+# a range widened by one at its bottom (a licence of 1 character)
+/^  licence: /s/{2,30}/{1,30}/

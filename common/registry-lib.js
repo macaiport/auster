@@ -28,6 +28,9 @@
 //   auRegRecipeLine(reg, recipeId, servingId, judge) -> D3.7's rule against the build served (below)
 //   auRegReport(reg, recipeId)   -> the lines common/registry.js prints (its header describes them)
 //
+// A line is passed over when it fails a pattern or a ceiling, and a `recipe` line also when it has no
+// people or its minimum context is over its maximum (A3, settled at V2). The gate fails every such line.
+//
 // The object auRegParse returns. Every value in it has matched its pattern, except `raw`:
 //
 //   ok, reason      ok false: not read at all, and every recipe shows `passed over (cannot be read)`.
@@ -213,6 +216,10 @@ function auRegCheckLine(ln, last) { // the checks a line takes on its own; sets 
     var spec = i <= k.fields.length ? k.fields[i - 1] : k.each;
     bad = auRegCheckField(spec, f[i]);
     if (bad) return auRegPass(ln, 'field ' + (i + 1) + ' (' + spec[0] + ') ' + bad);
+  }
+  if (ln.kind === 'recipe') {   // A3, settled at V2: at least one person, and the minimum context at most the maximum
+    if (auRegNum(f[4]) < 1) return auRegPass(ln, 'field 5 (people) is 0: a recipe has at least one person');
+    if (auRegNum(f[5]) > auRegNum(f[6])) return auRegPass(ln, 'field 6 (contextMin) is over field 7 (contextMax)');
   }
   ln.extra = Math.max(0, f.length - count[1]);
   ln.accepted = true;

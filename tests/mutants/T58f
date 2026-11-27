@@ -1,0 +1,3 @@
+# file: common/recipe-test.js
+# no --max-time
+s/, '--max-time', String(maxTime),/,/

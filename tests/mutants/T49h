@@ -1,0 +1,3 @@
+# file: common/registry-lib.js
+# a range widened by one at its top (a repository name of 97 characters)
+/^  repository: /s/{0,95}\$\//{0,96}$\//

@@ -112,7 +112,8 @@
 //      On an update without room,
 //      auCapRemovals names earlier builds of this recipe: failed first, then kept, each oldest first, the
 //      newest kept last and only on the person's yes; the shortest run from the front of that order that
-//      makes room, less any build in it that room does not need. A file counts as freed only when no
+//      makes room, every build in it named, none dropped (a failed build is never a rollback target, so
+//      none is spared to save a count; C6, settled at V3). A file counts as freed only when no
 //      descriptor that stays, of any recipe, names it, and never when it is the build in use's or the
 //      chosen build's.
 //
@@ -138,8 +139,9 @@
 //   ok          true when a build was chosen; refused is then null
 //   refused     why not, a code: registry (detail: unreadable or absent), figures (detail: mac then newer,
 //               when the `mac` record is of a newer format, whatever else is known; or gpu, memory or
-//               disk, then why: missing, or the measurement's code), people (the recipe's
-//               default is 0), serving (keepBuild and the build served is not in the registry), fit (no
+//               disk, then why: missing, or the measurement's code), people (fewer than one: only
+//               when a caller passes o.people 0, since the reader passes over a recipe line with no
+//               people), serving (keepBuild and the build served is not in the registry), fit (no
 //               build has a context that fits, whatever else rules it out: needs is the smallest of those
 //               ruled out by fit alone), none (nothing appropriate for other
 //               reasons: detail lists the codes), room (fits in memory, no room on disk: room says how much)
@@ -369,14 +371,13 @@ function auCapFreed(holdings, removed, protect) { // bytes freed by removing the
 function auCapRemovals(recipeId, holdings, protect, free, floor, download) { // -> { names, freed } or null
   function byDate(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; }
   function of(kind) { return holdings.descs.filter(function (d) { return d.recipe === recipeId && d.kind === kind; }).sort(byDate); }
-  var failed = of('failed'), kept = of('kept'), order = failed.concat(kept), set = [], i, j;
+  var failed = of('failed'), kept = of('kept'), order = failed.concat(kept), set = [], i;
   var room = function (s) { return free + auCapFreed(holdings, s, protect) - download >= floor; };
-  for (i = 0; i < order.length && !room(set); i++) set.push(order[i]);
-  if (!room(set)) return null;
-  for (j = set.length - 2; j >= 0; j--) {   // the last one made room; drop any other that room does not need
-    var without = set.slice(0, j).concat(set.slice(j + 1));
-    if (room(without)) set = without;
+  for (i = 0; i < order.length && !room(set); i++) {   // in order, each build that frees space, none dropped;
+    var more = set.concat([order[i]]);                       // a build that frees nothing is never named
+    if (auCapFreed(holdings, more, protect) > auCapFreed(holdings, set, protect)) set = more;
   }
+  if (!room(set)) return null;
   var newest = kept.length ? kept[kept.length - 1] : null;
   return { names: set.map(function (d) { return { desc: d, yes: d === newest }; }), freed: auCapFreed(holdings, set, protect) };
 }

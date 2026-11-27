@@ -1,0 +1,3 @@
+# file: common/capability-lib.js
+# round the cache down
+s/^  var cacheMiB = auCapDivUp(/  var cacheMiB = auCapDivDown(/

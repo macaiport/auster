@@ -1,7 +1,8 @@
 # T54, the gate's half: a template, system prompt or test that a build names by sha256, missing from
 # assets/ or differing by one byte: the gate fails. Renaming those files changes nothing (A4, D3.9). That
 # a Mac's install stops at step 8 before any job exists is V5's and U2's half. Mutants: tests/mutants/T54a
-# and T54b.
+# (an asset looked up by a fixed name, which passes while the files keep their names and goes red when
+# they are renamed) and T54b.
 . "$TESTS/lib.sh"
 . "$TESTS/registry-helpers.sh"
 W=$(mktemp -d "${TMPDIR%/}/t54.XXXXXX")

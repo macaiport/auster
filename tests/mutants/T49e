@@ -1,0 +1,3 @@
+# file: common/registry-lib.js
+# a range widened at its bottom (a commit of 39 hex digits)
+/^  commit: /s/{40}/{1,40}/

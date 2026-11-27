@@ -1,6 +1,7 @@
-# T51: two `recipe` lines for one recipe: the later label, people and context range are used, and both
-# stay in the file. Two `order` lines: the later order is used. A build in no `order` line is never chosen
-# (A3, D3.7). Mutants: tests/mutants/T51a and T51b.
+# T51: two `recipe` lines for one recipe: the later label, people and context range are used. Two `order`
+# lines: the later order is used. A build in no `order` line is never chosen (A3, D3.7). That both lines
+# stay in the file is not the reader's to keep, since no Mac writes the registry: the gate's --release
+# check fails a released line removed (T48, mutant T48e). Mutants: tests/mutants/T51a and T51b.
 . "$TESTS/lib.sh"
 . "$TESTS/registry-helpers.sh"
 
@@ -8,7 +9,6 @@
 # 8,192 to 16,384) and a later order line (order 2, then order 1)
 o=$(reader "$REG/judgements.tsv" "$HH"); same $? 0 "judgements: read"
 same "$(passed_lines "$o")" "" "no line is passed over"
-same "$(grep -c '^recipe' "$REG/judgements.tsv") $(grep -c '^order' "$REG/judgements.tsv")" "2 2" "both recipe lines and both order lines are in the file"
 same "$(kind "$o" recipe | cut -f5-9 | tr '\t' ' ')" "family-helper publisher,endorsed 2 8192 16384" "the later recipe line is used"
 same "$(kind "$o" build | cut -f2,5 | tr '\t\n' ' ')" "1 $B2 2 $B1 " "the later order is used, and lists only its two builds"
 same "$(taken "$o")" "$B2" "order 2 is taken"

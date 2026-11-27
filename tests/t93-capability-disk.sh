@@ -1,8 +1,10 @@
 # T93: the disk rule (C6). Room at 5% of the volume and at 20 GiB, one byte either side; free disk read
-# from `df -k` in KiB and counted in bytes; the fewest builds that make room are named, failed first; a
-# file named by another recipe's descriptor is not counted free, nor one the build in use names. The
-# update's own use of the names (asking, removing, cleanup) is U6's (T17). Mutants: tests/mutants/T93a
-# and T93b, the plan's; T93c to T93e, the other three clauses.
+# from `df -k` in KiB and counted in bytes; the shortest run of builds from the front that makes room is
+# named whole, failed first and then the oldest kept, with no build in it dropped (C6, settled at V3: no
+# failed build is spared to save a count); a file named by another recipe's descriptor is not counted
+# free, nor one the build in use names. The update's own use of the names (asking, removing, cleanup) is
+# U6's (T17). Mutants: tests/mutants/T93a and T93b, the plan's; T93c to T93e, the other three clauses;
+# T93f, a failed build the room does not need dropped from the run.
 . "$TESTS/lib.sh"
 . "$TESTS/capability-helpers.sh"
 W=$(mktemp -d "${TMPDIR%/}/t93.XXXXXX")
@@ -73,7 +75,8 @@ same "$(viadf "$W/df-two")" "refused figures disk,df-form" "df naming two volume
 # fits: D3.7). Order 1 downloads its model, 44,407,639,744 bytes; the engine is on disk already. On the
 # small volume (floor 21,474,836,480) room needs 65,882,476,224 free, less what removal frees.
 # On disk: kept K1 (oldest, model X1, 30 GB), K2 (X2, 10 GB), K3 (newest, X3, 5 GB); failed F1 (Y1, 8 GB)
-# and F2 (every file shared with the build served: it frees nothing); and recipe R2's serving names X1.
+# and F2 (every file shared with the build served: it frees nothing); and recipe R2's serving names X1, so
+# K1 frees nothing either. The order is F1, F2, K1, K2, K3, freeing 8, 0, 0, 10 and 5 GB.
 { echo 'auster-disk 1'
   file store/$E 16907811; file engines/$E 42000000; file store/$M2 14334432256; file store/$P2 2048
   file store/$S 73; file store/$Q 4096
@@ -97,10 +100,15 @@ removals() { # FREE [HOLDINGS] -> the builds named, in order, each with its yes,
 same "$(removals $NEED)" "$B1 room " "exactly enough free: room as it is, nothing named"
 same "$(removals $((NEED - 1)))" "$B1 remove failed:$F1:- " "one byte short: the oldest failed build is enough"
 same "$(removals $((NEED - 8000000000)))" "$B1 remove failed:$F1:- " "8 GB short: F1 alone, which frees exactly that"
+# 10 GB short, K2's model exactly: F1 then K2, F1 kept in though K2 alone would do (a failed build is never
+# a rollback target). F2 and K1 free nothing (F2's files are the served build's, K1's model is another
+# recipe's), so neither is named: removing them would cost a rollback target for no room
+same "$(removals $((NEED - 10000000000)))" "$B1 remove failed:$F1:- kept:$K2:- " \
+  "10 GB short: F1 then K2, F1 not dropped, F2 and K1 (freeing nothing) not named"
 same "$(removals $((NEED - 18000000000)))" "$B1 remove failed:$F1:- kept:$K2:- " \
-  "18 GB short: F1 and K2; F2 frees nothing, and K1's model is another recipe's, so neither is named"
+  "18 GB short: F1 and K2; F2 and K1 free nothing and are not named"
 same "$(removals $((NEED - 23000000000)))" "$B1 remove failed:$F1:- kept:$K2:- kept:$K3:yes " \
-  "23 GB short: F1, K2, then K3, the one before the one in use, on the person's yes"
+  "23 GB short: the run to K3, the one before the one in use, on the person's yes"
 o=$(AU_DISK_FREE_BYTES=$((NEED - 23000000000)) AU_DISK_TOTAL_BYTES=245107195904 on $GB64 53084 "$HREG" $HH --serving $B2 --disk "$W/many")
 same "$(kind "$o" disk)" "disk${T}44407639744${T}21474836480${T}$((NEED - 23000000000))${T}23000000000" "the disk line: download, floor, free, and the 23 GB freed"
 same "$(kind "$o" remove | head -1)" "remove${T}$HH${T}failed${T}2026-02-15T00:00:00Z${T}$F1${T}-" "a remove line in full"
@@ -108,9 +116,10 @@ o=$(AU_DISK_FREE_BYTES=$((NEED - 23000000001)) AU_DISK_TOTAL_BYTES=245107195904 
 same "$(verdict "$o"):$(kind "$o" room)" "refused room:room${T}$B1${T}44407639744${T}$NEED" "one byte more short than every removal frees: refused, saying the space needed"
 
 # The build in use is never counted free, even with no descriptor of its own listed: without the
-# serving line, F2's model (the one in use) must still not count, so 14,334,432,256 short needs F1 and K2
+# serving line, F2's model (the one in use) must still not count, so 14,334,432,256 short needs the run to K2
 grep -v "^desc${T}$HH${T}serving" "$W/many" > "$W/no-serving"
-same "$(removals $((NEED - 14334432256)) "$W/no-serving")" "$B1 remove failed:$F1:- kept:$K2:- " "the build in use's files never count, listed or not"
+same "$(removals $((NEED - 14334432256)) "$W/no-serving")" "$B1 remove failed:$F1:- kept:$K2:- " \
+  "the build in use's files never count, listed or not"
 
 # The holdings are Auster's own: a line out of form is a usage error, never half read
 { cat "$W/many"; printf 'file\tstore/../x\t1\n'; } > "$W/bad"

@@ -1,0 +1,3 @@
+# file: common/registry-lib.js
+# a recipe line whose minimum context is over its maximum read
+/is over field 7 (contextMax)/d

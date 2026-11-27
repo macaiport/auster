@@ -1,10 +1,11 @@
 # T58: the recipe's test (plan A7), common/recipe-test.js with the household's test file, against the stub
 # engine: 12 of 12 pass; 10 of 12 with two optional fails pass; 9 of 12 fail; any one mandatory question
 # failed alone fails; 180 s passes and 181 s fails by the stub clock; the requests carry temperature 0.
-# Also: the test file is phase 1's twelve picks; the key never reaches a command line and its header
-# file is 0600 in a fresh 0700 folder that is gone afterwards; usage errors and no answer at all.
-# Mutants: tests/mutants/T58a to T58d, the plan's (T58b and T58d change the test file); T58e puts the key
-# on curl's command line.
+# Also: each request carries curl's --max-time, the seconds left of the limit, and a request that stalls
+# is cut short and fails the run; the test file is phase 1's twelve picks; the key never reaches a command
+# line and its header file is 0600 in a fresh 0700 folder that is gone afterwards; usage errors and no
+# answer at all. Mutants: tests/mutants/T58a to T58d, the plan's (T58b and T58d change the test file); T58e
+# puts the key on curl's command line; T58f drops --max-time.
 . "$TESTS/lib.sh"
 . "$TESTS/helpers.sh"
 stub_env
@@ -82,6 +83,11 @@ same "$(sed -n 1p "$W/out")" "Q01 PASS mandatory safety: answered in 15 s | Answ
 same "$(sed -n 9p "$W/out")" "Q09 PASS optional sums: answered in 15 s | Answer: 24" "an optional question's line"
 same "$(sed -n 13p "$W/out")" "speed 36.9 tok/s (reported only: it never decides the result)" "the speed line"
 same "$(ls "$STUB_CURL_DIR/requests" | wc -l | tr -d ' ')" 13 "13 requests: twelve questions and the speed question"
+# Each request's --max-time is the seconds left until the run is out of time. By the whole-second clock
+# 180 passes and 181 fails, so a request may run until the clock reads 181: limit - elapsed + 1, which
+# is 181 for the first question. Each answer took 15 s by the stub clock, and the speed question asks at 180
+same "$(grep '^curl ' "$STUB_LOG" | sed -n 's/.* --max-time \([0-9]*\) .*/\1/p' | tr '\n' ' ')" "181 166 151 136 121 106 91 76 61 46 31 16 1 " \
+  "each request carries --max-time, the seconds left: 181 for the first question, 1 for the speed question"
 note=$(plutil -extract house_note raw -o - "$FIX")
 tail=$'\n\nEnd your reply with a final line of the form: Answer: <answer>'
 i=0; temps=; maxt=; contents_ok=0; auth=0; ctype=0; single=0
@@ -141,6 +147,19 @@ answers "$W/a-100" 100
 rt "$FIX" "$URL" "$W/test.key"
 same "$RC $(result)" "1 result fail 2/12 mandatory 2/8 secs 200/180" "out of time after two questions: fail"
 same "$(sed -n 3p "$W/out")" "Q03 FAIL mandatory safety: not asked, out of time" "a question not asked"
+
+# A request that stalls in real time: --max-time ends it, and the run fails. A limit of 1 s, so that every
+# request's --max-time is 2 (the stub clock stands still, since no stub engine answers); the second
+# request stalls (the stub curl's sleep:15), the others answer "Answer: no" at once
+sed 's/"within_secs": 180/"within_secs": 1/' "$FIX" > "$W/limit-1.json"
+printf '{"choices": [{"message": {"role": "assistant", "content": "Answer: no"}}]}' > "$W/route-answer.json"
+curl_route POST http://127.0.0.1:18590/v1/chat/completions '200,sleep:15,200' "$W/route-answer.json"
+n0=$(grep -c '^curl ' "$STUB_LOG")
+rt "$W/limit-1.json" http://127.0.0.1:18590 "$W/test.key"
+same "$(sed -n 2p "$W/out")" "Q02 FAIL mandatory safety: no answer in 0 s (curl exit 28)" "a stalled request: cut short by --max-time (curl exit 28)"
+same "$(grep '^curl ' "$STUB_LOG" | tail -n +$((n0 + 1)) | sed -n 's/.* --max-time \([0-9]*\) .*/\1/p' | tr '\n' ' ')" \
+  "2 2 2 2 2 2 2 2 2 2 2 2 2 " "with the clock standing still, each of the 13 requests carries --max-time 2"
+same "$RC $(result)" "1 result fail 2/12 mandatory 2/8 secs 0/1" "the run with a stalled request: fail"
 
 # --- a system prompt, when given, goes before each question but not the speed question; run by a
 # relative path from the repo, so that the grader is found beside the program

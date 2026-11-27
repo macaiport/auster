@@ -1,7 +1,8 @@
 # T89: boundaries (C3, C4). One MiB either side of the GPU rule's limit, and of the 12 GiB rule, moves the
 # context by exactly one step of 1,024; 12 GiB is 12,288 MiB. Order 2 for four people throughout (0.625 MiB
-# of cache a token of context); order 1 never fits in these figures. Mutants: tests/mutants/T89a to T89c,
-# the plan's three, and T89d, the GPU rule's slip made in the memory rule.
+# of cache a token of context); order 1 never fits in these figures. Then the cache's rounding: order 1 for
+# one person at 9,216, where the cache is half a MiB over a whole one. Mutants: tests/mutants/T89a to T89c,
+# the plan's three; T89d, the GPU rule's slip made in the memory rule; T89e, the cache rounded down.
 . "$TESTS/lib.sh"
 . "$TESTS/capability-helpers.sh"
 
@@ -31,4 +32,18 @@ same "$(context_of "$(on $GB36 27648 "$HREG" $HH)")" 15360 "36 GB: the tighter r
 # The minimum itself: order 2 at 8,192 for four needs 19,087 on the GPU and 19,519 in all
 same "$(pick "$(on $GB128 20111 "$HREG" $HH)")" "$B2 4 8192 0" "GPU limit 20,111 MiB: order 2 at the recipe's minimum, 8,192"
 same "$(pick "$(on $GB128 20110 "$HREG" $HH)")" "refused fit 3" "GPU limit 20,110 MiB: below the minimum, refused"
+
+# The cache rounded up to whole MiB. Order 1 for one person, its model file limited to 9,216 (as T90 does):
+# at 9,216 the cache is 23,040 x 9,216 = 212,336,640 bytes, 202.5 MiB, rounded up to 203, so 41,923 + 333 +
+# 203 = 42,459 MiB on the GPU and 43,483 with the margin. At 8,192 it is 188,743,680 bytes, 180 MiB exactly:
+# 42,436, and 43,460 with the margin. Memory to spare (128 GB)
+W=$(mktemp -d "${TMPDIR%/}/t89.XXXXXX")
+sed "3s/${T}262144\$/${T}9216/" "$HREG" > "$W/l9216.tsv"
+same "$(sed -n 3p "$W/l9216.tsv" | cut -f2,10)" "mjhs5h65av6o4${T}9216" "the fixture: Mistral's model line, limit 9,216"
+same "$((23040 * 9216)) $((202 * MIB + MIB / 2)) $((23040 * 8192)) $((180 * MIB))" "212336640 212336640 188743680 188743680" \
+  "the cache by hand: 202.5 MiB at 9,216 and 180 MiB at 8,192, one person"
+o=$(on $GB128 43483 "$W/l9216.tsv" $HH --people 1)
+same "$(pick "$o")" "$B1 1 9216 0" "GPU limit 43,483 MiB, the need with the cache rounded up plus 1,024: order 1 at 9,216"
+same "$(kind "$o" choice | cut -f5,6)" "42459${T}42943" "at 9,216: 42,459 MiB on the GPU (203 MiB of cache), 42,943 in all"
+same "$(pick "$(on $GB128 43482 "$W/l9216.tsv" $HH --people 1)")" "$B1 1 8192 0" "GPU limit 43,482 MiB: 202.5 MiB is not 202, one step down, 8,192"
 done_

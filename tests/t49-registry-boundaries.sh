@@ -1,9 +1,11 @@
 # T49: for every pattern of A3, one value just inside and one just outside: only the outside value's line
 # is passed over, and its recipe shows `passed over (cannot be read)`. Numbers with a leading zero, and
-# 08, are outside. The files and what each tests: tests/fixtures/registry/boundary/MANIFEST, which names
-# the lines that fail a pattern themselves; the lines that name what they define are passed over after
-# them (A3). The first line's own fields (format, version) are here too. Mutants: tests/mutants/T49a to
-# T49c.
+# 08, are outside. A bounded range is tested at both ends where it has two. The recipe line's two rules
+# (A3, settled at V2) too: 1 person inside, 0 outside; a minimum context equal to the maximum inside, one
+# over it outside. The files and what each tests: tests/fixtures/registry/boundary/MANIFEST, which names
+# the lines that fail a pattern or a rule themselves; the lines that name what they define are passed
+# over after them (A3). The first line's own fields (format, version) are here too. Mutants:
+# tests/mutants/T49a to T49c (the plan's), T49d to T49h (ranges widened at the end T49a does not test).
 . "$TESTS/lib.sh"
 . "$TESTS/registry-helpers.sh"
 W=$(mktemp -d "${TMPDIR%/}/t49.XXXXXX")

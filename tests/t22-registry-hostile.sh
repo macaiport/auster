@@ -1,5 +1,8 @@
 # T22: a registry line with ../, a leading -, $(...), a non-hex sha256 or letters in a size is passed
 # over, the other lines are used, and no file is made by it (plan A3, D3.3). Mutant: tests/mutants/T22a.
+# The last clause cannot fail at V2: the reader builds no path and runs no command, so no file f could
+# be made here whatever it read. The checks for f below stay as a guard; the clause is made real by V5,
+# which runs the install against hostile.tsv.
 . "$TESTS/lib.sh"
 . "$TESTS/registry-helpers.sh"
 W=$(mktemp -d "${TMPDIR%/}/t22.XXXXXX")

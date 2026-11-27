@@ -12,6 +12,7 @@ Fails, naming each failure on its own line, when:
     UTF-8, is empty, or is of a kind format 1 does not have;
   - a line has a field too few or too many for its kind (an order: a recipe and 1 to 64 builds), an empty
     field, or a field that fails its pattern or is over its ceiling;
+  - a recipe line has no people, or a minimum context over its maximum;
   - an id is defined twice, by lines of the same kind or of two kinds;
   - a build, order or withdraw names an id no line defines, or one whose own line fails (so every order
     names builds whose engine and model exist); an order names a build twice, or a build already in

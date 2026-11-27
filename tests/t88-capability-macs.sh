@@ -3,9 +3,12 @@
 # 27,648 MiB gives order 2 at 15,360, and at two people 31,744; 64 GB with 53,084 MiB gives order 1 at
 # 32,768; 128 GB gives order 1 at 32,768 (the recipe's maximum binds). Also: each build's needs as C2 works
 # them out, the figures said with where they came from, and a test variable that fails its pattern not
-# used. Every figure below is worked out by hand in the comments. Mutants: tests/mutants/T88a to T88c.
+# used; a recipe line the reader passes over (A3's two rules for it) refused as `registry`. Every figure
+# below is worked out by hand in the comments. Mutants: tests/mutants/T88a to T88c (the plan's), T88d and
+# T88e (the recipe line's two rules).
 . "$TESTS/lib.sh"
 . "$TESTS/capability-helpers.sh"
+W=$(mktemp -d "${TMPDIR%/}/t88.XXXXXX")
 
 # 16 GB (12,288 MiB, an assumed limit). Order 2 at the minimum, 4 x 8,192: the cache is 163,840 x 32,768
 # bytes = 5,120 MiB, so 13,302 + 665 + 5,120 = 19,087 MiB on the GPU and 19,519 in all; it needs a GPU
@@ -55,4 +58,18 @@ same "$(kind "$o" refused)" "refused${T}figures${T}gpu,missing" "a leading zero 
 same "$(pick "$(on $GB64 53084 "$CAPF/no-such.tsv" $HH)")" "refused registry unreadable 3" "no registry: refused, unreadable"
 same "$(pick "$(on $GB64 53084 "$HREG" rsvh4l2c3prht)")" "refused registry absent 3" "a recipe the registry does not name: refused, absent"
 same "$(kind "$(on $GB64 53084 "$HREG" not-an-id 2>/dev/null)" exit | cut -f2)" 2 "a recipe id that fails its pattern: a usage error"
+
+# A recipe line with no people, or a minimum context over its maximum, is passed over (A3, settled at
+# V2). The household's only recipe line passed over, the recipe cannot be read: refused as `registry`,
+# never as `people`. With the reader passing such a line over and --people at least 1, capability.js can
+# no longer reach `refused people`
+rule() { # NAME PEOPLE MIN MAX -> a copy of the household registry with its recipe line so
+  sed "7s/${T}4${T}8192${T}32768\$/${T}$2${T}$3${T}$4/" "$HREG" > "$W/$1.tsv"
+  printf '%s\n' "$W/$1.tsv"
+}
+same "$(sed -n 7p "$(rule people0 0 8192 32768)" | cut -f5-7 | tr '\t' ' ') $(sed -n 7p "$(rule minmax 4 32769 32768)" | cut -f5-7 | tr '\t' ' ')" \
+  "0 8192 32768 4 32769 32768" "the fixtures: the recipe line with 0 people, and with 32,769 to 32,768"
+same "$(pick "$(on $GB64 53084 "$W/people0.tsv" $HH)")" "refused registry unreadable 3" "a recipe line with 0 people: passed over, the recipe cannot be read"
+same "$(pick "$(on $GB64 53084 "$W/people0.tsv" $HH --people 2)")" "refused registry unreadable 3" "and so with people carried over"
+same "$(pick "$(on $GB64 53084 "$W/minmax.tsv" $HH)")" "refused registry unreadable 3" "a minimum context over the maximum: passed over, the recipe cannot be read"
 done_

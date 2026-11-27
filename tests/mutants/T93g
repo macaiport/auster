@@ -1,0 +1,3 @@
+# file: common/capability-lib.js
+# name a build that frees nothing, losing a kept build for no room
+s/^    if (auCapFreed(holdings, more, protect) > auCapFreed(holdings, set, protect)) set = more;$/    set = more;/

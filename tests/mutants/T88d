@@ -1,0 +1,3 @@
+# file: common/registry-lib.js
+# a recipe line with no people read
+/is 0: a recipe has at least one person/d
