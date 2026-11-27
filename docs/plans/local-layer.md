@@ -104,6 +104,39 @@ budget:
 
 A light build might get a few hundred tokens of its best-confirmed facts; a large one a few thousand.
 
+### M3a. Layers, with pointers to go deeper
+
+From the owner's use of early models, whose context windows were small: paint with broad strokes and point
+to the details, to be fetched when needed. The models after them often forgot to follow those pointers,
+and produced good work when reminded. So memory is layered, and going deeper is not left to the model
+alone.
+
+- **The layers.**
+  1. **The index:** one line for each topic the sender may see, with a short pointer.
+  2. **A topic's summary:** a paragraph.
+  3. **The details:** the memory records and documents themselves.
+- **What a request carries.** The index always (it is small), the summaries of matching topics, and
+  details only where needed, all within the build's budget (M3).
+- **Who goes deeper, in three ways:**
+  1. **Auster fetches what plainly matches** (the topic, its keywords) before the request. Deterministic,
+     and the only way for light builds.
+  2. **The model may ask for a pointer** with a tool call ("open" a topic or detail), which Auster serves.
+     Both household builds already make well-formed tool calls (`docs/phase-2.md`, section 2).
+  3. **The reminder is built in, not hoped for.** When an answer touches a topic whose details were not
+     opened, Auster asks once more: "these details exist for this topic; check them before you answer". It
+     costs a second pass, and its worth is measured per build (below).
+- **Summaries are derived, never the record.** A model writes a topic's summary from the records, so a
+  light model's summary can drift or invent. Summaries are always made again from the records, never
+  edited from the previous summary, so errors cannot build on each other. They are marked as derived, and
+  shown in the review (M4).
+- **To measure:** questions whose needed fact sits only in a detail behind a pointer, answered with:
+  - the index alone;
+  - the index and the reminder pass;
+  - Auster fetching first.
+
+  The right answers, and the time each takes, per build. It decides how deep each build goes by default
+  (LD9).
+
 ### M4. Pruning, in stages, never silent
 
 hot (put into requests) → cool (left out unless someone asks for it) → archived (kept, listed, can be
@@ -256,6 +289,7 @@ means anything, two more tests are needed:
 | LD6 | How long usage figures are kept, and whether the household can see each other's |
 | LD7 | Memory's form on disk (plain files or SQLite) and its backup |
 | LD8 | Whether the three agnostic replacements go into phase 2 now |
+| LD9 | Whether the reminder pass (M3a) is on by default, given the time a second pass costs on a light build |
 
 ## Tests to plan (outcome-based, as in v0.1)
 
@@ -266,5 +300,7 @@ means anything, two more tests are needed:
 - **Forgetting:** "forget X" leaves nothing of X in any stage or file.
 - **Telemetry holds no text:** no question, answer or memory content in any telemetry record.
 - **The distraction budget:** the quiz with irrelevant memories added, per build (M10).
+- **Going deeper (M3a):** the needed fact only behind a pointer; the index alone, with the reminder, and
+  fetched first, per build; and a summary made again from changed records never keeps a removed fact.
 - **The agnostic replacements:** speed, health and the GPU limit with a stub engine that has no `timings`
   and no `/health`.
