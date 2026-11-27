@@ -89,8 +89,13 @@ Worked out by Auster, never by the model. A first shape, to be tuned by measurem
   cold") over days; a dated plan (a trip) stays warm until its date and then cools quickly.
 - **Use and confirmation warm it.** A memory that keeps being relevant stays warm; one never matched
   cools.
-- **A newer memory on the same subject replaces the older one,** rather than sitting beside it. The older
-  one is archived, not deleted.
+- **A newer memory on the same subject replaces the older one at once,** rather than sitting beside it:
+  the older one leaves the requests the moment the newer is written, and is archived, not deleted. This is
+  the measured weakness: with both in front of them, both household builds gave the out-of-date fact in
+  about a third of answers, choosing by its place in the list, not by its date (M10).
+- **Knowing that two memories are on the same subject** is settled when the newer one is written, with
+  the person who says it: "this replaces 'the green bin goes out on Thursdays', right?". A person's yes is
+  cheaper and surer than any model's guess. Night work may only propose such pairs for the review.
 
 ### M3. The budget, and what goes into a request
 
@@ -123,14 +128,17 @@ alone.
   for a model to forget. A practical limit on depth (perhaps four or five) keeps the review legible.
 - **What a request carries.** The index always (it is small), the summaries of matching topics, and
   details only where needed, all within the build's budget (M3).
-- **Who goes deeper, in three ways:**
-  1. **Auster fetches what plainly matches** (the topic, its keywords) before the request. Deterministic,
-     and the only way for light builds.
-  2. **The model may ask for a pointer** with a tool call ("open" a topic or detail), which Auster serves.
-     Both household builds already make well-formed tool calls (`docs/phase-2.md`, section 2).
-  3. **The reminder is built in, not hoped for.** When an answer touches a topic whose details were not
-     opened, Auster asks once more: "these details exist for this topic; check them before you answer". It
-     costs a second pass, and its worth is measured per build (below).
+- **Who goes deeper, in three ways** (measured in M10: the first is the default for every build):
+  1. **Auster fetches what plainly matches** (the topic, its keywords) before the request. Deterministic.
+     With the right notes in front of them, both household builds answered all 36 questions right, in the
+     least time; with the index alone they invented an answer two times in three.
+  2. **The model may ask for a pointer** with a tool call ("open" a topic or detail), which Auster serves,
+     for what Auster's matching missed. Both builds called the tool every time, but the larger opened the
+     wrong topic 7 times in 36, so a build's tool use is measured before it is offered.
+  3. **A reminder pass,** asking once more when an answer touched a topic whose details were not opened.
+     **Measured, it does not earn its cost:** to remind, Auster must already know the right topic, and then
+     fetching first does at least as well in about a third of the time. Off, unless a later build measures
+     otherwise (LD9).
 - **Summaries are derived, never the record.** A model writes a topic's summary from the records, so a
   light model's summary can drift or invent. Summaries are always made again from the records, never
   edited from the previous summary, so errors cannot build on each other. A higher layer's summary is
@@ -221,8 +229,8 @@ that, the sets can be expected to stay well curated. How much of the day is idle
   - Later, the embeddings for documents.
 - **Derived things it may change; recorded things it may only propose.** Summaries, the index, keywords
   and heat are derived and can always be made again, so night work replaces them freely. Anything that
-  would lose information (a merge, a deletion, a contradiction settled) goes into the review (M4) for a
-  person to decide. Nothing a person said is changed overnight.
+  would lose information (a merge, a deletion) goes into the review (M4) for a person to decide. A newer
+  memory replacing an older one confirmed by its writer is not a loss: the older is archived at once (M2). Nothing a person said is changed overnight.
 - **Checked, because light models make the summaries.** A derived summary is checked against its records
   before it replaces the old one: every name, number and date in it must appear in the records. That
   check needs no model, so it holds whatever the build. A summary that fails is kept out, and the old one
@@ -238,7 +246,9 @@ that, the sets can be expected to stay well curated. How much of the day is idle
 
 ### M5. Lighter models
 
-For the first years most households will run light builds. For them:
+For the first years most households will run light builds. "Lighter" is measured, not read from the size:
+the 24-billion-parameter build matched or beat the 119-billion one in every memory test (M10). For the
+builds that measure weaker:
 
 - smaller budgets, from measurement;
 - no memory written from the model's own inferences; only what a person says, or confirms;
@@ -356,6 +366,65 @@ means anything, two more tests are needed:
    Latching on to the wrong fact, rather than ignoring an unrelated one, is what M2 and M4 must prevent,
    and the measurement should show how much of it each build does.
 
+### Measured again: wrong memories, and notes behind pointers
+
+Measured on 2026-11-26 (`docs/phase-2.md`, section 10): test 2 above, and M3a's three ways of going
+deeper. Temperature 0, three runs of each condition with the memories or the index shuffled. Test 1, the
+irrelevant-fact quiz repeated, is still to do.
+
+**Wrong memories**, 20 questions answered only from remembered facts, correct of 60, and in brackets how
+often the reply gave the distractor's value:
+
+| | Clean | Replaced (older and newer) | Wrong person | Near miss |
+|---|---|---|---|---|
+| Order 2, Magistral Small (24B) | 60 | 39 (20, and 1 naming both) | 60 (0) | 60 (0) |
+| Order 1, Mistral Small 4 (119B, 3-bit) | 59 | 37 (19, and 4 naming both) | 58 (1, and 1 naming both) | 59 (0) |
+
+With the newer fact listed after the older one, the builds were right 31 and 26 times of 34; with it
+listed first, 8 and 11 times of 26.
+
+**Notes behind pointers**, 12 questions answered only in one topic's notes, correct of 36:
+
+| | Index only | Tool (`open_detail`) | Reminder pass | Auster fetches first |
+|---|---|---|---|---|
+| Order 2 | 0 (25 invented an answer) | 34, in 0.94 s | 36, in 1.92 s | 36, in 0.60 s |
+| Order 1 | 0 (23 invented an answer) | 25, in 0.68 s | 27, in 0.83 s | 36, in 0.30 s |
+
+What it means for the plan:
+
+- **M2: the out-of-date fact is the one these builds latch on to,** not the wrong person or a nearby
+  fact (58 to 60 of 60 on both). With an older and a newer fact on the same subject both in the prompt,
+  each build gave the older one in about a third of answers, and chose by position in the list, not by
+  the date written in each. A date in a memory's text does not make a model prefer it. So "a newer memory
+  on the same subject replaces the older one" carries the weight, and so does knowing that two memories
+  are on the same subject, which the plan does not yet say how Auster decides.
+- **This argues against M4a as written.** There, settling a contradiction goes to the review for a
+  person, and nothing says the older fact leaves the requests meanwhile. If both stay in, the measured
+  cost is about a third of answers on that subject until someone reviews. The older fact should leave the
+  requests as soon as the newer one is written: archived, so nothing is lost, with the review afterwards.
+  Where both must be carried, the newer goes last.
+- **M3a: Auster fetching first should be the default for every build, not only light ones.** With the
+  right notes in front of them both builds were right in all 36, in the least time. An index alone drew
+  an invented answer two times in three, so the index is never enough on its own.
+- **Against relying on the model to follow pointers.** "Both household builds already make well-formed
+  tool calls" is true and not enough: order 1 called the tool every time, opened the wrong topic in 7 of
+  36 (5 of them when the right topic was the index's last line) and answered from the wrong notes. Order 2
+  opened the right one in 34 of 36. Model-driven descent can only be offered build by build, after
+  measurement.
+- **Against the reminder pass, and so against LD9's premise.** To remind, Auster must already know the
+  right topic; knowing it, it can fetch first, which was as accurate or more so in about a third of the
+  time (0.60 s against 1.92 s; 0.30 s against 0.83 s). On order 1 the reminder did not undo a wrong
+  first answer: 5 of 36 kept the invented one with the right notes in front of them. Its only remaining
+  use would be a topic that the answer reveals and the question did not, which was not measured.
+- **M5: "lighter" is not a size.** The 24B build matched or beat the 119B build in every condition. The
+  build that needs Auster's fetching alone is the larger one, so M5's limits belong to a build by its
+  measurements, not by its parameter count. The memory test that gates the "remember this" tool should
+  include an out-of-date fact and its position; both builds would fail it, so the defence there is
+  Auster's replacement, not the choice of build.
+- **Not yet measured:** Auster's own matching (here the script named the right topic), several
+  out-of-date versions of one fact, pronouns and nicknames, long lists, and repeated runs of the
+  irrelevant-fact quiz.
+
 ## Proposed placing (for the owner)
 
 | Part | Proposed phase |
@@ -379,7 +448,7 @@ means anything, two more tests are needed:
 | LD6 | How long usage figures are kept, and whether the household can see each other's |
 | LD7 | Memory's form on disk (plain files or SQLite) and its backup |
 | LD8 | Whether the three agnostic replacements go into phase 2 now |
-| LD9 | Whether the reminder pass (M3a) is on by default, given the time a second pass costs on a light build |
+| LD9 | Whether the reminder pass (M3a) is on by default. Measured (M10): it does not earn its cost; fetching first is the default |
 | LD10 | Night work's limits: how long a quiet spell before it starts, how many hours a night, and on battery never |
 | LD11 | Which external sources a reference may point at: on the Mac and home network only, or internet sources too, each turned on by the household |
 | LD12 | The channel for ticklers that speak up unprompted, if any: a notification on a device, a calendar entry, nothing |

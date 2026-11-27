@@ -138,6 +138,158 @@ answers without the requested `Answer:` line (questions 3, 4, 7, 52), a JSON lis
 same questions (section 3) on questions 9, 22 and 23: one run is not enough to compare builds closely.
 The facts, the system prompts, the replies and the word list are in the workspace's `runs/p2-memory/`.
 
+### 10. Wrong memories, and notes behind pointers (for the local-layer plan)
+
+Two measurements the local-layer plan asked for after section 9 (its M10 and M3a), run the same way:
+each build served at four people × 32K with fitting off, the household's system prompt, temperature 0,
+one question at a time. Every condition ran three times, with the remembered facts or the index shuffled
+differently each time, and the same shuffles for both builds. The questions, facts and topics are
+invented and kept beside the scripts in `scripts/phase-2/` (`memory-wrong.json`, `memory-layers.json`).
+`memory-run.py` serves a build and runs `memory-wrong.py` (A) and `memory-layers.py` (B) against it; both
+grade with `quiz.py`, imported unchanged.
+
+**A. Memories that matter but are wrong.** Twenty household questions ("Which day does our green bin go
+out?") whose answer is only in the remembered facts, which follow "Today is 26 November 2026." Each
+question was asked in four conditions, its correct fact worded the same, date included, in all four:
+
+- **clean:** the correct fact ("From 1 October: the green bin goes out on Tuesdays.") among 20 filler
+  facts from section 9's set, taken from subjects no question asks about;
+- **replaced:** an older fact on the same subject beside it ("From 1 March: the green bin goes out on
+  Thursdays.");
+- **wrong person:** the same attribute for someone else ("Aunt Dorothea drives a red hatchback" beside
+  "Uncle Godfrey drives a blue estate", asked about Aunt Dorothea);
+- **near miss:** the same person or thing with a neighbouring fact that does not answer ("Mum takes two
+  sugars in her tea" beside "three sugars in her coffee", asked about her tea). Another person's sugars
+  would have been the wrong-person case again.
+
+Each distractor carries the pattern of its own value, so a reply that gives it ("gave the wrong fact") is
+told apart from a plain miss. The facts' dates are taken out of a reply before grading, so that the 1 of
+"1 October" is never read as an answer.
+
+| Correct of 60 (three runs of 20) | Clean | Replaced | Wrong person | Near miss |
+|---|---|---|---|---|
+| Order 2, Magistral Small | 60 (20, 20, 20) | 39 (13, 14, 12) | 60 (20, 20, 20) | 60 (20, 20, 20) |
+| Order 1, Mistral Small 4 | 59 (20, 19, 20) | 37 (11, 11, 15) | 58 (20, 19, 19) | 59 (20, 20, 19) |
+
+| Gave the wrong fact, of 60 | Replaced | Wrong person | Near miss |
+|---|---|---|---|
+| Order 2 | 20 (7, 5, 8), and 1 naming both | 0 | 0 |
+| Order 1 | 19 (8, 7, 4), and 4 naming both | 1 (0, 0, 1), and 1 naming both | 0 |
+
+Order 1's two other misses: the right fact without the `Answer:` line (clean), and "One sugar", which is
+neither fact (near miss).
+
+**Which of the two dated facts a build gave followed where they sat in the list, not their dates.** The
+replaced condition again, split by position:
+
+| Where the newer fact sat | Answers | Order 2: newer, older, both | Order 1: newer, older, both |
+|---|---|---|---|
+| After the older one | 34 | 31, 2, 1 | 26, 5, 3 |
+| Before the older one | 26 | 8, 18, 0 | 11, 14, 1 |
+
+Order 2 sometimes said so in words: "Today is 26 November 2026, which is after 1 March 2026. Therefore,
+the green bin goes out on Thursdays." Order 1's answers naming both merge the two facts ("Mondays and
+Wednesdays", "Red and silver").
+
+**B. Notes behind pointers.** An index of 15 topics in the system prompt, one line each with an opaque
+pointer ("- [r8kd] The car: tyres, servicing and the MOT"), after a line saying that only the index is
+shown and each topic's notes are kept separately under its pointer. The notes, three or four facts a
+topic, are held by the script. Twelve questions, each answered only in one topic's notes ("What pressure
+do the car's front tyres need?": 39 psi). The index was shuffled for each question and run, the same way
+in every condition:
+
+1. **index only:** a right answer is impossible;
+2. **tool:** an `open_detail(pointer)` tool is offered; the script answers each call with that topic's
+   notes (or "No topic has the pointer …") and asks again, for up to four rounds;
+3. **reminder:** no tool; after the first answer, the same request as in condition 1, the script asks
+   once more: "These details exist for topic X: <notes>. Check them before you answer.", with the
+   question's `Answer:` tail;
+4. **fetched first:** the right topic's notes are added to the system prompt before the question.
+
+In conditions 3 and 4 the script names the right topic itself. They measure what a build does with the
+right notes, not whether Auster's matching would find them.
+
+| Correct of 36 (three runs of 12) | Index only | Tool | Reminder | Fetched first |
+|---|---|---|---|---|
+| Order 2 | 0 | 34 (11, 12, 11) | 36 (12, 12, 12) | 36 (12, 12, 12) |
+| Order 1 | 0 | 25 (9, 9, 7) | 27 (9, 9, 9) | 36 (12, 12, 12) |
+
+With the index only, what each build said instead. The reminder's first pass gave the same reply, byte
+for byte, in all 36 for both builds.
+
+| Of 36 | Invented an answer | Said it lacked the notes, or pointed to them | No answer (the literal `<answer>`) |
+|---|---|---|---|
+| Order 2 | 25 | 11 | 0 |
+| Order 1 | 23 | 11 | 2 |
+
+The invented answers are ordinary guesses stated as facts: 32 psi, "every three months", "the study",
+"Grandma Hester does not eat nuts". A reply counts as pointing when its `Answer:` line holds only a
+pointer or a topic's index line. Order 1 often put the pointer in front of an invented value ("[m3vq] The
+ferry leaves at 9:30 AM"), which counts as invented. The classes come from
+`memory-layers.py --reclassify`, and all 72 were checked by eye.
+
+The tool condition:
+
+| Of 36 | Called the tool | Opened the right topic | Then right | Right, but no `Answer:` line |
+|---|---|---|---|---|
+| Order 2 | 36 | 34 | 34 | 0 |
+| Order 1 | 36 | 29 | 25 | 4 |
+
+- Both builds called the tool for every question, nearly always once. Order 2's two wrong opens were the
+  allotment for "On which day are the tomatoes fed?", which the topics leave plausible.
+- **Order 1 opened a wrong topic seven times and then answered from it** ("Grandma Hester does not eat
+  meat", from the dog's notes). Two were the same allotment. Five came when the right topic was the last
+  line of the index: it was last in 7 of the 36 questions, and order 1 opened it in 2 of those, against
+  27 of the other 29. One question went four rounds without an answer, the pointer sent as a whole index
+  line.
+
+The reminder: order 2 was right in all 36. Of order 1's nine misses, **five kept the invented first
+answer** with the right notes in front of it ("1 to 1.5 bar", after quoting the notes' heating times
+back), three took the wrong line from the notes or left it out (the vet's name, asked how often the dog
+is wormed), and one had the right content and `Answer: <answer>`.
+
+Time per question, mean, every request included:
+
+| Wall clock, tokens written | Index only | Tool | Reminder | Fetched first |
+|---|---|---|---|---|
+| Order 2 | 1.33 s, 35 | 0.94 s, 24 | 1.92 s, 61 | 0.60 s, 17 |
+| Order 1 | 0.55 s, 25 | 0.68 s, 29 | 0.83 s, 45 | 0.30 s, 12 |
+
+The prompts were short, 360 to 490 tokens, so the time is mostly writing. A tool question took two
+requests (order 1, 2.1 on average); a reminder always takes two. Index only is slower than fetched first
+because invented answers run longer.
+
+What the figures show:
+
+- **Both builds latch on to an out-of-date fact, and on nothing else measured here.** Given an older and
+  a newer fact on the same subject, each gave the older one in about a third of answers, choosing by
+  position in the list rather than by the date written in each. The wrong person and the near miss cost
+  almost nothing on either build.
+- **An index alone draws an invented answer more often than "I don't know"**: two times in three, on
+  both builds.
+- **With the right notes put in front of it, each build was right every time,** and fastest.
+- **Following pointers, and being reminded, worked on order 2 and not reliably on order 1,** the larger
+  build. As in section 9, which build suffers is not predicted by its size.
+
+What they do not show:
+
+- Facts here are one line each, every question names its person exactly, a request carries at most one
+  distractor, and the list is 22 facts long. Not tested: pronouns and nicknames, "Mum" as seen by
+  different people, several out-of-date versions of one fact, long lists, facts a model inferred.
+- Whether Auster's own matching finds the right topic: the reminder and fetched conditions were given it.
+- Small counts behind some findings: order 1's wrong opens are 7 cases and its last-line pattern rests on
+  7 questions. The position effect in A is large but comes from 26 and 34 answers.
+- Noise: one run moves by about three questions in 56 (section 9). Here the replaced condition's three
+  runs spread from 12 to 14 of 20 (order 2) and 11 to 15 (order 1), and A's other conditions moved by
+  at most one. In B, order 1's tool runs spread from 7 to 9 of 12, the rest by at most one. The
+  irrelevant-fact quiz of section 9 has still not been repeated.
+- Everything ran at temperature 0 only.
+
+The replies, with the facts or index order each request carried, the server logs and the counts are in
+the workspace's `runs/p2-memory-2/` (`order1-*`, `order2-*`). The index-only classes in the run logs
+(`order*-run.txt`) come from a first, cruder classifier that counted a pointer in front of an invented
+value as pointing; `reclassify.txt` and the summary files hold the final ones.
+
 ### Still open, and why
 
 These need the owner, another device or another Mac, or a lasting change to this Mac:
