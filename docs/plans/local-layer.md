@@ -108,6 +108,10 @@ its habits as much as on the build, so escalation is reported beside the number 
 across many Macs, never from one. A report from a Mac with a rare combination (an unusual chip and memory
 size) can point to its household even without a name; buckets make that harder, not impossible.
 
+**Off until a person sends one.** Proton, for comparison, shares its apps' figures by default and lets
+people switch them off (`agents-and-escalation.md`, E5). Auster's are never sent unless a person sends a
+report, and a test proves that nothing goes while that is so.
+
 **Who receives it.** Auster runs no server today, so the first form needs none: the person attaches the
 report to a GitHub issue form, or sends it by email. On GitHub it is public, which is why it must hold
 nothing that identifies the household; and the account or address that sends it is seen by whoever

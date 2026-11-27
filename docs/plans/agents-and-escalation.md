@@ -2,7 +2,7 @@
 
 **Status: planning, for discussion (2026-11-26).** Not checked, not phased, and nothing is built from it.
 It stands on [`local-layer.md`](local-layer.md): Auster's own server in the request path (the front door),
-people's keys and scopes, memory's topics, budgets, and night work. Its open decisions are AE1 to AE10.
+people's keys and scopes, memory's topics, budgets, and night work. Its open decisions are AE1 to AE11.
 
 ## What the owner asked about
 
@@ -168,6 +168,63 @@ The list of providers is curated like models (`local-layer.md`, C2): what qualif
 data, a stated retention, an OpenAI-style API), how often it is reviewed, and when one is removed. A
 household can add its own endpoint, marked as not curated.
 
+### E5. A central service, if there is ever one
+
+The owner, thinking aloud (2026-11-27): hybrid models exist, where a central party carries messages and
+collects anonymous figures to make things better without harming privacy, and **transparency is the
+key,** for figures shared back and for a way through to data centers alike. No firm view either way.
+
+**The test any central part must pass: Auster works without it.** If the central service vanished
+tomorrow, every household's Mac would go on exactly as before, less the extras it chose. A central part
+that passes this, is off until a person turns it on, and shows what it sends is a help, not a dependency.
+
+**Two roles, not equally hard:**
+- **A collector of figures** (`local-layer.md`, T1) can be built so that the centre learns little: a
+  published list of fields, the exact bytes shown on the Mac first, the collector's code and the totals
+  published, a relay that hides the sender's address from the collector (Oblivious HTTP, RFC 9458), and
+  perhaps aggregation in which no one server sees one household's figures (the IETF's Distributed
+  Aggregation Protocol; its state to be checked before relying on it). Low risk, and worth much: every
+  figure in the registry was measured on one Mac.
+- **A way through to data centers** (one account, one bill, switching providers, and traffic pooled so
+  that a provider cannot tell which household asked) necessarily sees every request, since the provider
+  must read it. "No logs" cannot be proven from outside. It also brings back what E3a found: money, a
+  provider's terms on reselling, a legal entity, a service to keep up.
+
+**Proton, which the owner names among the concept's inspirations (read 2026-11-27):**
+- **Lumo**, its AI assistant, is the nearest example of a central AI service built for privacy. Proton
+  [says](https://proton.me/support/lumo-privacy) it runs open-weight models on servers it controls in
+  Europe, keeps no logs and no metadata (times, addresses), encrypts saved chats so that only the
+  person's device can read them, and erases guest chats at the end of a session; requests travel by TLS,
+  so the server reads them while it answers, as any relay would. One exception to "never used for
+  training": feedback on Apertus, anonymised and only with explicit consent, goes to the university teams
+  behind that model. Lumo's app code is published; its server code is not, and no independent audit of
+  it was found. A [forum thread](https://discuss.privacyguides.net/t/proton-markets-lumo-as-open-source-but-support-calls-it-a-long-term-intention-not-the-instantaneous-state/30004?page=2)
+  quotes Proton's support calling Lumo's open source "a long-term intention, not the instantaneous state".
+- **Its own figures** are [on by default](https://proton.me/support/share-usage-statistics) in most of
+  its apps, said to be anonymous and deleted after 30 days, with one switch in the account to turn them
+  off.
+- **How it earns trust:** published app code, independent audits with [published
+  reports](https://proton.me/blog/security-audit), a [transparency
+  report](https://proton.me/blog/transparency-report) counting the legal orders it receives, complies
+  with and contests each year, Swiss law, and since 2024 a [non-profit
+  foundation](https://proton.me/foundation) as majority owner, without whose consent the company cannot
+  change hands.
+- **How trust is spent:** in 2026 an internal memo on staff use of AI drew a backlash from its users;
+  Proton [apologised](https://cybernews.com/ai-news/proton-apology-ai/) and promised to publish more of
+  its code, including how it was made.
+
+**What Auster would take from it:** published code for anything central; independent audits with their
+reports published; a yearly transparency report; a structure that cannot be sold out from under the
+households; and claims that never run ahead of what can be checked. **What it would not take:** figures
+shared by default. Auster's are off until a person sends a report (T1), and a test proves nothing is
+sent while they are off.
+
+**A simpler path for the second role:** Proton's Lumo and Infomaniak's AI Services (E3a) are already
+central services of this kind, run by companies whose business is privacy, in Switzerland or the EU, on
+open-weight models. Auster may not need to be the way through at all: it can curate such providers (E4)
+and let the household choose one. Whether either offers an API a Mac can use was not looked at for
+Lumo; Infomaniak's is OpenAI-compatible.
+
 ## Decisions for the owner
 
 | | Question |
@@ -182,6 +239,7 @@ household can add its own endpoint, marked as not curated.
 | AE8 | Whether a household can add its own endpoint, and how it is marked |
 | AE9 | When the data-center link comes: with the front door, or in phase 6 as the concept says |
 | AE10 | Whether to use a provider's referral link where one exists (E3a: Infomaniak's covers its AI Services; the large providers offer none), and whether the first rule loosens to "the list is chosen by its criteria alone, before any referral is looked at" |
+| AE11 | Whether Auster ever runs a central service (E5), and which role first: a collector of figures, a way through to data centers, or neither while privacy-minded providers fill the second; the test either must pass is that Auster works without it |
 
 ## Tests to plan
 
