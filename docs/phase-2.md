@@ -290,6 +290,42 @@ the workspace's `runs/p2-memory-2/` (`order1-*`, `order2-*`). The index-only cla
 (`order*-run.txt`) come from a first, cruder classifier that counted a pointer in front of an invented
 value as pointing; `reclassify.txt` and the summary files hold the final ones.
 
+### 11. Order 1's chat template, and the dates it fails on (plan BD20)
+
+**Taken out of the model file.** `scripts/phase-2/gguf-template.py` read
+`Mistral-Small-4-119B-2603-UD-IQ3_S.gguf`'s metadata, which ends at byte 7,875,520 of the 44 GB file, and
+wrote its `tokenizer.chat_template` byte for byte: 14,121 bytes, sha256 `d579fedf…298f954`. It read no
+tensors. The same run gave each file's own context limit, 1,048,576 for Mistral Small 4 and 40,960 for
+Magistral, as phase 1 found, and confirmed that Magistral's file carries no template.
+
+**What fails.** The template works out yesterday's date from the Mac's clock (`strftime_now`) on every
+rendering, for the default system prompt it inserts when a request has none. It does this before reading
+any message, and its arithmetic knows only some years: on 1 March of a year other than 2024, 2028 and
+2032 it raises an error, and on 1 January of any year after 2032.
+
+**Through the engine.** `scripts/phase-2/template-dates.sh` starts b12359's `llama-server` with a copy of
+a template whose three `strftime_now` calls are replaced by a fixed date, asks `/apply-template` for one
+user message with no system message, and reads the two dates from the default prompt. The model loaded
+is Magistral's file, on the CPU, with a 2,048-token context; it only carries the template here.
+
+| Date | The model file's own template | Auster's date block |
+|---|---|---|
+| 2026-11-26 | starts; 2026-11-26, yesterday 2026-11-25 | the same |
+| 2027-03-01 | **the engine does not start:** `common_chat_verify_template: failed to apply template` | 2027-02-28 |
+| 2028-03-01 | starts; yesterday 2028-02-29 | 2028-02-29 |
+| 2033-01-01 | **does not start** | 2032-12-31 |
+| 2000-03-01, 2100-03-01 | (not run) | 2000-02-29, 2100-02-28 |
+| the 1st of every month of 2027, 2026-11-01, 2026-12-01, 2027-01-10, 2027-03-10 | (not run) | the day before, each right |
+
+So with the model file's own template an engine started on such a day never serves (measured, with the
+date fixed in the template), and one already running would fail at its first rendering after midnight
+(read from the template, not measured). With Auster's block
+all 21 dates gave the right today and yesterday. On 2026-11-26 the two templates' renderings were
+byte for byte the same, for one user message and for a conversation with a system prompt, so the block
+changes nothing else. The engine's Jinja did the integer arithmetic (`| int`, `%`, `| string`) the block
+uses. Auster's template is `assets/unsloth-Mistral-Small-4-119B-2603-dates-fixed.jinja`, 9,732 bytes,
+sha256 `f29aa080…e291f4`; T56 checks that it differs from the model file's own only in the date block.
+
 ### Still open, and why
 
 These need the owner, another device or another Mac, or a lasting change to this Mac:

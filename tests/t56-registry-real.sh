@@ -1,12 +1,16 @@
 # T56: the repo's own registry.tsv passes the gate with the repo's own assets/, and its household lines
 # equal A6: sizes, hashes, the 73-byte system prompt c44bab6b...d02e49, the templates (39f03c38...81fdcda
-# for order 2; for order 1 the model file's own, d579fedf...298f954, taken out by
-# scripts/phase-2/gguf-template.py), the test, the figures, the tiers, the temperatures, the recipe and
-# its order. One newline added to the system prompt turns the gate red. Also: the lines are the capability
+# for order 2; for order 1 f29aa080...e291f4, the model file's own, d579fedf...298f954, taken out by
+# scripts/phase-2/gguf-template.py and kept in tests/fixtures/templates/, with its date block replaced
+# (BD20)), the test, the figures, the tiers, the temperatures, the recipe and its order. One newline added
+# to the system prompt turns the gate red. Order 1's template differs from the model file's own only in its
+# date block, which raises nothing and names no year (scripts/phase-2/template-dates.sh renders it
+# through the engine; this suite has none). Also: the lines are the capability
 # fixture's (tests/fixtures/capability/household.tsv, the same ids and figures) but for the values listed
 # below; assets/ holds only files a build names; the install tests' copy of the test file is the one that
 # ships. Mutants: tests/mutants/T56a (the gate checks the format but not the asset hashes), T56b (it
-# accepts an editor's added newline), T56c (a figure in registry.tsv that is not A6's).
+# accepts an editor's added newline), T56c (a figure in registry.tsv that is not A6's), T56d (the date
+# block raises again, as Unsloth's did).
 . "$TESTS/lib.sh"
 . "$TESTS/registry-helpers.sh"
 W=$(mktemp -d "${TMPDIR%/}/t56.XXXXXX")
@@ -21,7 +25,8 @@ g=$(gate "$REAL" --assets "$A" --tag v0.1.0); same "$?:$g" 0: "registry.tsv with
 ENG=82b00abc740160e1b9980e6cc79c117345fa34af058c80e6c0a69aa8ddccde75
 MS4=c56fdf063ad8c215c0e56c322383b3fb242189ce9047cdbb3e7dcad11380c1b8
 MAG=d3a024d29e0e8f35d9353f5d4f08fc3715406835c8ae1328ce2f3bd212a43434
-TPL1=d579fedfe0a78b11376089da957bbd4299ffb3f95cf827ab00c9cdc77298f954
+TPL1=f29aa0803a2d0346a20a384690cf1eb8eef71cdffd90b178751592bfa3e291f4
+TPL1_OWN=d579fedfe0a78b11376089da957bbd4299ffb3f95cf827ab00c9cdc77298f954
 TPL2=39f03c383413f531fd302c06c7e982ad98c83f0657a8339ae25478ccb81fdcda
 SYS=c44bab6bddc7d9f48e834d2120bffeda2aa087b0bb4a2f1c74d17ab103d02e49
 TST=$(sha "$A/household-test.json")
@@ -55,8 +60,19 @@ same "$(wc -c < "$A/household-system.txt" | tr -d ' ') $(sha "$A/household-syste
 printf 'You are the household assistant for a family. Answer briefly and plainly.' > "$W/sentence"
 cmp -s "$W/sentence" "$A/household-system.txt" && ok "the system prompt is A6's sentence, with no newline" || bad "the system prompt is not A6's sentence"
 same "$(sha "$A/mistralai-Ministral-3-14B-Reasoning-2512.jinja")" $TPL2 "order 2's template, by its name: 39f03c38...81fdcda"
-same "$(sha "$A/unsloth-Mistral-Small-4-119B-2603.jinja") $(wc -c < "$A/unsloth-Mistral-Small-4-119B-2603.jinja" | tr -d ' ')" "$TPL1 14121" \
-  "order 1's template, by its name: the model file's own, 14,121 bytes"
+P1=$A/unsloth-Mistral-Small-4-119B-2603-dates-fixed.jinja
+O1=$TESTS/fixtures/templates/unsloth-Mistral-Small-4-119B-2603.jinja
+same "$(sha "$P1") $(wc -c < "$P1" | tr -d ' ')" "$TPL1 9732" "order 1's template, by its name: f29aa080...e291f4, 9,732 bytes"
+same "$(sha "$O1") $(wc -c < "$O1" | tr -d ' ')" "$TPL1_OWN 14121" "the model file's own template, kept as a fixture: d579fedf...298f954, 14,121 bytes"
+same "$(head -n 1 "$P1")" "$(head -n 1 "$O1")" "order 1's template: its first line is the model file's own"
+tail -n +39 "$P1" > "$W/p1-rest"; tail -n +144 "$O1" > "$W/o1-rest"
+cmp -s "$W/p1-rest" "$W/o1-rest" && ok "order 1's template: everything after its date block is the model file's own, byte for byte" \
+  || bad "order 1's template differs from the model file's own outside its date block"
+sed -n '2,38p' "$P1" > "$W/p1-block"
+same "$(head -n 1 "$W/p1-block" | cut -c1-14) $(tail -n 1 "$W/p1-block" | cut -c1-27)" "{#- Auster: th {%- set yesterday_date = (y" \
+  "order 1's template: lines 2 to 38 are Auster's date block"
+same "$(grep -c -e raise_exception -e "'20[0-9][0-9]'" -e "'19[0-9][0-9]'" "$W/p1-block")" 0 \
+  "the date block raises nothing and names no year"
 named=$(grep '^build' "$REAL" | cut -f5-7 | tr '\t' '\n' | sort -u)
 n=0
 for f in "$A"/*; do

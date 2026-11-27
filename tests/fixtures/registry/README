@@ -20,7 +20,7 @@ system prompt c44bab6b...d02e49 and order 2's template 39f03c38...81fdcda. Two v
 written before the files existed and kept, since each test makes the assets it needs: order 1's template
 (d54dd73b...) and the recipe's test (41bb822f...). The model context limits (262,144 and 131,072), order
 1's top-p (0.95), the Mac label dev-mac-64gb and the recipe label household are fixture values. The
-repo's own registry.tsv holds the real ones (T56): order 1's template d579fedf...298f954 and the test
+repo's own registry.tsv holds the real ones (T56): order 1's template f29aa080...e291f4 and the test
 c2a1f9ba...fd0f2b, the files' own limits 1,048,576 and 40,960, m5-max-64gb and household-assistant;
 its top-p for order 1 is 0.95 too.
 

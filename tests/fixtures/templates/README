@@ -1,0 +1,9 @@
+The chat template that Mistral-Small-4-119B-2603-UD-IQ3_S.gguf carries (unsloth/Mistral-Small-4-119B-2603-GGUF
+at commit bd93c721735aa32c035c0f19e738cb3371fd56ff), taken out byte for byte by
+scripts/phase-2/gguf-template.py: 14,121 bytes, sha256
+d579fedfe0a78b11376089da957bbd4299ffb3f95cf827ab00c9cdc77298f954. Apache-2.0, with the model; credit Unsloth
+and Mistral AI.
+
+It does not ship: its date block raises an error on 1 March of most years and on 1 January after 2032
+(docs/plans/v0.1.md, BD20). assets/unsloth-Mistral-Small-4-119B-2603-dates-fixed.jinja is this file with
+lines 2 to 143 replaced by Auster's date block (lines 2 to 38), and T56 checks that nothing else differs.

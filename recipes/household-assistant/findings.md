@@ -9,8 +9,11 @@ unless a log says otherwise. The logs are [`docs/phase-1.md`](../../docs/phase-1
 Every build pins its template as a file in `assets/`, so that the Jinja the engine runs on every request
 has been read (plan A4).
 
-**Order 1, `assets/unsloth-Mistral-Small-4-119B-2603.jinja`** (14,121 bytes, sha256
-`d579fedfe0a78b11376089da957bbd4299ffb3f95cf827ab00c9cdc77298f954`). The `tokenizer.chat_template` that
+**Order 1, `assets/unsloth-Mistral-Small-4-119B-2603-dates-fixed.jinja`** (9,732 bytes, sha256
+`f29aa0803a2d0346a20a384690cf1eb8eef71cdffd90b178751592bfa3e291f4`): the model file's own template with
+its date block (lines 2 to 143) replaced by Auster's (lines 2 to 38), and every other byte as it was
+(T56 checks this). The original is kept as `tests/fixtures/templates/unsloth-Mistral-Small-4-119B-2603.jinja`
+(14,121 bytes, sha256 `d579fedfe0a78b11376089da957bbd4299ffb3f95cf827ab00c9cdc77298f954`): the `tokenizer.chat_template` that
 `Mistral-Small-4-119B-2603-UD-IQ3_S.gguf` carries, from `unsloth/Mistral-Small-4-119B-2603-GGUF` at
 commit `bd93c721735aa32c035c0f19e738cb3371fd56ff`, taken out byte for byte on 2026-11-26 by
 `scripts/phase-2/gguf-template.py`, which reads only the file's metadata. Its own comments mark
@@ -31,12 +34,17 @@ licence. ([phase 1, step 3](../../docs/phase-1.md))
   chat page gets it from the server. ([phase 1, step 3](../../docs/phase-1.md))
 - **Order 1's** inserts its own default system prompt when none is given, and asks for no reasoning
   (`reasoning_effort` "none") unless a request says "high".
-- **Order 1's fails on two days of some years** (read 2026-11-26, not yet fixed or decided). It reads the
-  Mac's date at every request to work out yesterday's, and on **1 March of a year other than 2024, 2028 or
-  2032**, and on **1 January of a year after 2032**, it raises an error instead of rendering, whatever the
-  conversation. Rendered with Python's jinja2 3.1.6 at five dates: 2027-03-01 and 2033-01-01 failed;
-  2026-11-26, 2027-01-01 and 2028-03-01 rendered. Not yet tried through the engine. The next such day is
-  **1 March 2027**.
+- **The model file's own order-1 template fails on two days of some years, so Auster's replaces its date
+  block** (plan BD20). The original reads the Mac's date to work out yesterday's for its default system
+  prompt, and its arithmetic knows only some years: on **1 March of a year other than 2024, 2028 or
+  2032**, and on **1 January of a year after 2032**, it raises an error. Through the engine (b12359) the
+  engine then **does not start at all**: its start-up check of the template fails
+  (`common_chat_verify_template: failed to apply template`). Measured at 2026-11-26 and 2028-03-01 (it
+  starts) and 2027-03-01 and 2033-01-01 (it does not). Auster's block uses the leap-year rule and the year
+  before, and raises nothing: through the engine it gave the right today and yesterday at 21 dates,
+  including 2027-03-01, 2028-03-01, 2000-03-01, 2100-03-01, 2033-01-01 and the first of every month, and
+  its rendering on 2026-11-26 was byte for byte the original's, with and without a system prompt
+  ([phase 2, section 11](../../docs/phase-2.md)).
 
 ## Memory, at the recipe's largest setting (four people at 32,768 each)
 

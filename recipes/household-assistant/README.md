@@ -24,7 +24,7 @@ would get order 2 by the plan's arithmetic; that has not been measured.
 | File | What | Used by |
 |---|---|---|
 | `household-system.txt` | the system prompt, 73 bytes | both |
-| `unsloth-Mistral-Small-4-119B-2603.jinja` | the chat template the model file carries, taken out | order 1 |
+| `unsloth-Mistral-Small-4-119B-2603-dates-fixed.jinja` | the chat template the model file carries, taken out, with its date arithmetic fixed | order 1 |
 | `mistralai-Ministral-3-14B-Reasoning-2512.jinja` | a chat template from llama.cpp | order 2 |
 | `household-test.json` | the recipe's test: twelve household questions and the speed question | both |
 
