@@ -109,7 +109,7 @@ across many Macs, never from one. A report from a Mac with a rare combination (a
 size) can point to its household even without a name; buckets make that harder, not impossible.
 
 **Off until a person sends one.** Proton, for comparison, shares its apps' figures by default and lets
-people switch them off (`agents-and-escalation.md`, E5). Auster's are never sent unless a person sends a
+people switch them off (`docs/concepts/central-services.md`, section 6). Auster's are never sent unless a person sends a
 report, and a test proves that nothing goes while that is so.
 
 **Who receives it.** Auster runs no server today, so the first form needs none: the person attaches the

@@ -60,6 +60,11 @@ Side tracks, not phases: the name checks and funding. Their notes are kept priva
 3. Build the rest of the update, U3 to U9; U5 builds the server check's callers first, against their tests, before the rest of
    the switch.
 
+**Parked, for later discussion** (not phased, not in any plan): [docs/concepts/](docs/concepts/).
+- [central-services.md](docs/concepts/central-services.md): a central service that Auster works
+  without: a collector of figures shared back, and a relay to data centers that pools households and
+  keeps nothing (2026-11-27).
+
 ---
 
 ## Public since 2026-11-26
