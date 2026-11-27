@@ -1,9 +1,9 @@
 # T44, the registry's half: D3.7's "which build a recipe takes", against the build served
 # (auRegRecipeLine). A registry listing builds 1 to 3: serving the first gives `same`; serving the
 # second with the first held gives `same`; serving the second with the first free gives `waiting`;
-# serving a withdrawn first gives the second as `waiting`. The Mac's word `current` (D3.2) is U1's and
-# U3's; `hold` is U6's, and section C's fit V3's: a judge function stands in for both here, through the
-# hook registry-lib.js describes. Mutant: tests/mutants/T44a.
+# serving a withdrawn first gives the second as `waiting`. The Mac's word `current` (D3.2), and these
+# cases through the rule file, are t44-update-recipes.sh (U3); `hold` is U6's, and section C's fit V3's:
+# a judge function stands in for both here, through the hook registry-lib.js describes. Mutant: tests/mutants/T44a.
 . "$TESTS/lib.sh"
 . "$TESTS/registry-helpers.sh"
 W=$(mktemp -d "${TMPDIR%/}/t44.XXXXXX")

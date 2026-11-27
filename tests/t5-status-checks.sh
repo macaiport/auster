@@ -2,8 +2,9 @@
 # the deployed rule file (_update/updates.sh, with no option: nothing is fetched; only its first line is read). Off,
 # when _update/off exists, when there is no _update folder (moved to the Trash: D3.1), no updates.sh in it, or no
 # stamp; not offered, on a stamp of a checkout or of a named version (`manual`); not yet made (`unknown`); and the
-# offered version for `current` and `ready` (what would change is U3's). A rule file that answers `manual` for a
-# checkout on its first line, whatever follows, is what status says: it asks the rule file, never the stamp.
+# offered version for `current` and `ready` (what would change: t35-status-waiting.sh). A rule file that answers
+# `manual` for a checkout on its first line, whatever follows, is what status says: it asks the rule file,
+# never the stamp.
 # Mutant: tests/mutants/T5b (T5a is the rule file's).
 . "$TESTS/lib.sh"
 . "$TESTS/helpers.sh"
