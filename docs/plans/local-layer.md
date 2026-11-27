@@ -2,7 +2,7 @@
 
 **Status: planning, for discussion (2026-11-26).** Not checked, not phased, and nothing is built from it.
 It gathers what the owner asked for and a first shape for each part, so that the use cases can be
-discussed before a design is fixed. Its open decisions are at the end (LD1 to LD8).
+discussed before a design is fixed. Its open decisions are at the end (LD1 to LD14).
 
 ## What the owner asked for
 
@@ -244,6 +244,39 @@ that, the sets can be expected to stay well curated. How much of the day is idle
 - **Seen, and switchable off.** `auster status` says what night work did and when, and one setting turns
   it off.
 
+### M4b. Mulling it over: night work that brings an idea back
+
+The owner's idea (2026-11-26): in quiet time, look back at a person's recent conversations and come back
+with a thought: "about the gift for your sister, here is another idea". Assistants today answer and
+forget until asked again. Auster has the idle time to do this, and it never leaves the Mac.
+
+**Reading is not the new part. Speaking first is.** Night work already reads conversations, locally, to
+curate memory (M4a). Bringing something up unasked is what can feel invasive, so that is the part that
+needs a person's yes, a scope and a plain voice.
+
+- **Each person's own choice, off until they turn it on.** Not a household switch that one adult flips
+  for another. For a child's topics the household decides (LD5).
+- **Asked for first, automatic later.** The first form is "mull this over" on one conversation: the
+  person asks, and gets the idea at their next chat. Mulling over any recent conversation comes after it,
+  once builds are measured doing it well (below).
+- **Inside the scope it came from.** An idea from one person's conversation is shown only to that person,
+  at their next chat, never to another key and never in a household topic. A surprise gift is the
+  test case: the sister, if she lives there too, must see no sign of it (M6, M7).
+- **Held, never pushed.** It waits for the person's next chat, at most one at a time, unless the household
+  has chosen a channel for things that speak up (LD12). Unshown ideas expire after a few days.
+- **Plain about where it came from:** which conversation, and that Auster looked back at it overnight,
+  not "I was thinking about you". With it: "not now", "don't bring this up again" (that conversation's
+  topic is never mulled again), and "stop doing this".
+- **Never from what was forgotten:** nothing from a conversation the person deleted or asked Auster to
+  forget, and nothing from a topic they marked not to mull.
+- **Rare, and only when good.** A light model that latches on an odd fact (M5) does the most harm here, so
+  the bar is high and measured: a small suite of past conversations with good and bad follow-ups, run by
+  the evaluation tool (C1). A build that fails it does not mull; it can still chat. Health, money and
+  relationships are where an unasked thought can hurt; a light model cannot be trusted to tell them
+  apart, so the person's own controls are the guard, and "mull this over" is the safe first form.
+- **Within night work's limits** (LD10), and its ideas are cold memory until the person accepts one
+  (as agents' results are, `agents-and-escalation.md`, A5).
+
 ### M5. Lighter models
 
 For the first years most households will run light builds. "Lighter" is measured, not read from the size:
@@ -453,6 +486,7 @@ What it means for the plan:
 | LD11 | Which external sources a reference may point at: on the Mac and home network only, or internet sources too, each turned on by the household |
 | LD12 | The channel for ticklers that speak up unprompted, if any: a notification on a device, a calendar entry, nothing |
 | LD13 | Whether night work may make a cross reference itself when the match is exact (the same name and date), or always proposes |
+| LD14 | Mulling it over (M4b): whether it comes at all; off for each person until they turn it on; "mull this over" on one conversation first, mulling over any recent conversation only after measurement |
 
 ## Tests to plan (outcome-based, as in v0.1)
 
@@ -472,6 +506,10 @@ What it means for the plan:
 - **Cross references (M3d):** a household topic linking to one person's private record never carries it,
   or any sign of it, in another person's request; "forget" removes the fact and every link to it; a loop
   is followed once; one fact linked from every topic still leaves room in the budget for others.
+- **Mulling it over (M4b):** with it off, no conversation of that person's reaches the engine at night
+  for it; an idea from one person's conversation is never shown to another key or put in a household
+  topic; "don't bring this up again" ends mulling for that topic; a forgotten conversation is never
+  mulled; an unshown idea expires by a stub clock.
 - **Ticklers (M3c):** by a stub clock, a tickler warms on its date and not before, across month ends and
   a leap year, and an uncertain fact's tickler offers it for confirming or letting go.
 - **Going deeper (M3a):** the needed fact only behind a pointer; the index alone, with the reminder, and
