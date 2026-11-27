@@ -1,0 +1,3 @@
+# file: common/auster
+# take lines out of ~/.zprofile by a pattern, not the exact line
+s/^  grep -vxF -- "\$AU_ZPROFILE_LINE" "\$z" > "\$t"$/  grep -v Auster "$z" > "$t"/

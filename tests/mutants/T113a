@@ -1,0 +1,3 @@
+# file: common/auster-check
+# probe while builds/stopped exists, and notify down
+s/^if \[ -e "\$DATA\/builds\/stopped" \] || \[ -L "\$DATA\/builds\/stopped" \]; then$/if false; then/

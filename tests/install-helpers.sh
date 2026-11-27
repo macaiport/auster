@@ -71,6 +71,7 @@ install_env() { # -> W, a work folder; H, a home from make_home (a space, an apo
   engine_set '*' answers "$FX/answers-good"
   launchd_hook
   export STUB_OPENSSL_RAND_COUNTER="$W/rand"
+  export AU_SCREEN="$W/screen"   # V7: the terminal the QR code is drawn on (common/auster), never the test's own
   export AU_DISK_FREE_BYTES=500000000000 AU_DISK_TOTAL_BYTES=1000000000000
 }
 

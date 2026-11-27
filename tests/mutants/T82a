@@ -1,0 +1,4 @@
+# file: common/auster
+# delete the key's files, but leave the engine's key file as it was and skip the restart
+/^au_cmd_key_revoke()/,/^}/s/^  au_keys_write "\$id" || .*$/  :/
+/^au_cmd_key_revoke()/,/^}/s/^  au_engine_restart || return 4$/  AU_T0=$(date +%s)/

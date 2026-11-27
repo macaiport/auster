@@ -1,0 +1,3 @@
+# file: common/auster
+# erase the screen and the scrollback before the person says they are done
+s/^  au_ask "Press Return when \$1 has read it, and this screen is erased." >> "\$scr"$/  au_qr_leave; AU_QR_ON=0; &/

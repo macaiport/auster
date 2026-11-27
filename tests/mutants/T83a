@@ -1,0 +1,3 @@
+# file: common/auster
+# the key in the drawing program's source (a comment ahead of it), as well as on its input
+s/^  qr=\$(osascript -l JavaScript -e "\$AU_QR_JS" </  qr=$(osascript -l JavaScript -e "\/* $(cat "$AU_DATA\/keys\/$2") *\/ $AU_QR_JS" </

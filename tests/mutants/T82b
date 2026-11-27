@@ -1,0 +1,4 @@
+# file: common/auster
+# use the name as a path: no pattern, no lookup by name, the name joined to keys/
+/^au_cmd_key_revoke()/,/^}/s/^  au_name_ok "\$name" || return 2$/  :/
+/^au_cmd_key_revoke()/,/^}/s/^  au_key_find "\$name" || .*$/  au_key_list; AU_KEY_ID=$name/

@@ -1,0 +1,3 @@
+# file: common/auster
+# status ignores launchctl print-disabled
+/^au_status()/,/^}/s/^  pd=\$(launchctl print-disabled "gui\/\$AU_UID" 2>\/dev\/null)$/  pd=/

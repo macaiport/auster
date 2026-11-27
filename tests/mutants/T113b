@@ -1,0 +1,4 @@
+# file: common/auster
+# leave builds/stopped after a start whose check failed: deleted only when it passes
+/^au_cmd_start()/,/^}/s/^  rm -rf "\$AU_DATA\/builds\/stopped"$/  :/
+/^au_cmd_start()/,/^}/s/^  au_checked$/  au_checked \&\& rm -rf "$AU_DATA\/builds\/stopped"/

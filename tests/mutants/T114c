@@ -1,0 +1,3 @@
+# file: common/auster
+# exit 0 after a failed server check
+/^au_checked()/,/^}/s/return 4/return 0/

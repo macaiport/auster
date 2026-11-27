@@ -1,0 +1,3 @@
+# file: common/auster
+# the second question defaults to yes: only the answer no keeps the files
+s/^  if ! au_yes "Delete all of it, the models included?"; then$/  if au_ask "Delete all of it, the models included? [YES\/no]" \&\& [ "$AU_REPLY" = no ]; then/

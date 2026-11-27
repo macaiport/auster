@@ -1,0 +1,4 @@
+# file: common/auster
+# start deletes builds/stopped only when the check passes, so that a failed check leaves it stale
+/^au_cmd_start()/,/^}/s/^  rm -rf "\$AU_DATA\/builds\/stopped"$/  :/
+/^au_cmd_start()/,/^}/s/^  au_checked$/  au_checked \&\& rm -rf "$AU_DATA\/builds\/stopped"/

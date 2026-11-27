@@ -1,0 +1,3 @@
+# file: common/auster
+# send the key as a header on a command line, in the server check's keyed question
+s/-w '%{http_code}' -H @"\$w\/key" \\$/-w '%{http_code}' -H "Authorization: Bearer $key" \\/

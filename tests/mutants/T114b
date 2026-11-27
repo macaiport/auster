@@ -1,0 +1,4 @@
+# file: common/auster
+# key add shows the new key before the server check
+/^au_cmd_key_add()/,/^}/s/^  if ! au_checked "\$AU_DATA\/keys\/\$id"; then$/  au_qr_show "$name" "$id"\
+&/

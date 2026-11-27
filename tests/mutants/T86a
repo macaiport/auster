@@ -1,0 +1,3 @@
+# file: common/auster
+# rm -rf on an unchecked path: the deletion checks nothing (the test replaces rm where the path could be /)
+/^au_root_delete()/,/^}/s/^  local d=\$1 p$/  local d=$1 p; rm -rf -- "$d"; return 0/

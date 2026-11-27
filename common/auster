@@ -5,16 +5,60 @@
 # runs auster_main.
 #
 # Built by V5 (2026-11-26): the shared functions (the data root and its ownership, the lock, questions
-# from the terminal, the job verbs, the server check) and the least of the command that a first install
-# needs: `remove` (B8), because B3 step 3 says it works from then on, and `status`, which only reports.
-# Still to come, each marked TODO below:
-#   V7  every other subcommand of B6, the keys' commands and the QR code (B7), the line in ~/.zprofile,
-#       and the tests of `remove` (T85, T86, T108);
-#   U5  the server check's other callers (start, restart, key add and revoke, rollback, people) and its
-#       tests (T107 to T114). The check here is B3 step 13's definition, used by a first install.
+# from the terminal, the job verbs, the server check), `remove` and the start of `status`. V6 made the
+# server check fail closed. V7 (2026-11-26): every subcommand of B6 that needs no update, the keys and the
+# QR code (B7), the line in ~/.zprofile (B6), and removal whole (B8); tests T72 (its revoke clause), T81 to
+# T87, T106, T108, T113 and T114. Still to come, each marked TODO below:
+#   U4  `update`;  U5  `people`'s change of setting, and T107's rows for these commands;
+#   U6  `rollback`, `unhold` and `cleanup`;  U3  each recipe's line in `status`;
+#   U2  the readers' own tests, and the `.local` name in `status` (no record holds the name the Mac had
+#       when the household's devices were given the address).
+#
+# The commands (B6). Exit codes: 0 done; 1 refused; 2 usage; 3 not in this version (each a TODO); 4 the
+# server is down. `start`, `restart`, `key add` and `key revoke` exit 0 when the server check passes and 4
+# otherwise, naming `auster start` after open and `auster status` after not answered.
+#   status                       what serves, the engine job's last start, the check job's last probe, why
+#                                the engine is stopped, a job macOS has switched off, the devices, the sleep
+#                                setting
+#   stop                         launchctl disable, then bootout; builds/stopped says `household`
+#   start                        enable, then bootstrap (kickstart -k if it is loaded); builds/stopped
+#                                deleted, whatever the check then gives; the server check
+#   restart                      kickstart -k; the server check
+#   network                      the router the Mac's connection goes through now, into builds/mac (BD9)
+#   verify                       every file serving names, against its sha256 (AD13)
+#   people <n>                   the number checked, then TODO(U5)
+#   key add|revoke|show <name>   B7, below
+#   remove                       B8, and `install.sh remove`'s through the driver
+#   update, rollback, unhold, cleanup   TODO(U4, U6)
+# Each that stops or starts the engine or writes a record takes the lock. While builds/stopped exists,
+# whatever it holds and whether or not it can be read, `update`, `people`, `restart`, `key add` and `key
+# revoke` refuse and name `auster start`; `start`, `rollback`, `status`, `key show`, `verify`, `network`
+# and `remove` work. A `stopped` of a newer format is left as it is: `start` and `stop` then refuse.
+#
+# Records written here (D3.1): the lock `builds/updating` (one line: `auster-record 1`, the process, the
+# boot session, the process's start time); `builds/stopped` (one line: `auster-record 1`, `household` or
+# `open`, and the time, `date -u +%Y-%m-%dT%H:%M:%SZ`); the speed in serving's launch line; the router in
+# builds/mac (`auster network`, in capability-lib.js's form). And what the engine reads, which carries no
+# format number (B7): each device's key in keys/<id> (32 hex characters and a newline, mode 0600), its name
+# in keys/<id>.name (one line, AU_RE_DEVICE), Auster's own probe key in keys/probe, and keys/engine.keys:
+# every named device's key in the order of their ids, then the probe key, one a line, mode 0600, written to
+# a temporary file and renamed, and never written without a device key.
+#
+# The QR code (B7). AU_QR_JS, run by JavaScript for Automation, reads the key on its standard input (never
+# its command line) and draws it with Core Image's CIQRCodeGenerator, correction level M, in half-block
+# characters, black on white whatever the terminal's colours, with a quiet zone of four modules. It is drawn
+# on the terminal's alternate screen (AU_SCREEN), never on standard output, which may be a log; the screen
+# and the scrollback are erased once the person says the device has read it, or on an interrupt.
+#
+# The line in ~/.zprofile (B6): AU_ZPROFILE_LINE, a constant that names no path but $HOME's, added at the
+# end on the household's yes and removed by `remove` where it is equal byte for byte, every other line as
+# it was. A ~/.zprofile that is a link is never rewritten: the line is printed instead.
 #
 # Everything runs under /bin/bash 3.2 with what macOS ships (T98). Test variables: AU_TTY names a file
-# that stands for the terminal the questions are read from (a test's answers, one a line).
+# that stands for the terminal the questions are read from (a test's answers, one a line); AU_SCREEN, the
+# file that stands for the terminal the QR code is drawn on (/dev/tty otherwise); AU_SERVER_CHECK_SECS, a
+# whole number of seconds from 1 to 999, replaces the server check's 180; AU_MINT, the id minter
+# (tools/mint-id in the tree, which the driver names; jobs/mint-id in the data root, which step 3 copies).
 
 AU_LABEL_ENGINE=local.auster.engine
 AU_LABEL_CHECK=local.auster.check
@@ -30,7 +74,41 @@ AU_RE_BOOT='^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-F
 AU_RE_LSTART='^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [ 123][0-9] [0-2][0-9]:[0-5][0-9]:[0-5][0-9] [0-9]{4}$'
 AU_RE_SPEED='^(0|[1-9][0-9]{0,5})(\.[0-9]{1,3})?$'
 AU_RE_IPV4='^(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})$'
+AU_RE_DEVICE='^[a-z][a-z0-9-]{0,39}$'   # a device's name (B7): what the household calls it, never a path
+AU_RE_UTC='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
 AU_T=$'\t'
+if [[ ${AU_SERVER_CHECK_SECS:-} =~ ^[1-9][0-9]{0,2}$ ]]; then AU_CHECK_SECS=$AU_SERVER_CHECK_SECS; fi   # a test's limit
+
+# B6: the line the installer adds to ~/.zprofile on a yes, so that Terminal finds `auster`. Quoted, marked as
+# Auster's, and the same on every Mac, so that `remove` takes out exactly it and nothing that resembles it.
+AU_ZPROFILE_LINE='export PATH="$HOME/Library/Application Support/Auster/bin:$PATH"   # added by Auster; auster remove removes this line'
+
+# B7: the QR code of the key on standard input (32 hex characters and a newline, nothing else), as lines of
+# half-block characters, black on white, with a quiet zone of four modules (Core Image adds one). Pure ASCII.
+AU_QR_JS='ObjC.import("AppKit");
+ObjC.import("CoreImage");
+function run() {
+  var d = $.NSFileHandle.fileHandleWithStandardInput.readDataOfLength(34);
+  var s = ObjC.unwrap($.NSString.alloc.initWithDataEncoding(d, $.NSASCIIStringEncoding));
+  if (typeof s !== "string" || !/^[0-9a-f]{32}\n$/.test(s)) return "";
+  var f = $.CIFilter.filterWithName("CIQRCodeGenerator");
+  f.setValueForKey($(s.slice(0, 32)).dataUsingEncoding($.NSASCIIStringEncoding), "inputMessage");
+  f.setValueForKey($("M"), "inputCorrectionLevel");
+  var rep = $.NSBitmapImageRep.alloc.initWithCIImage(f.outputImage);
+  var n = Number(rep.pixelsWide), g = $.NSColorSpace.genericGrayColorSpace, q = 3, m = [], out = [], x, y, r, l;
+  if (!(n >= 21 && n <= 200) || n !== Number(rep.pixelsHigh)) return "";
+  for (y = -q; y < n + q + 1; y++) {
+    r = [];
+    for (x = -q; x < n + q; x++) r.push(y >= 0 && y < n && x >= 0 && x < n && rep.colorAtXY(x, y).colorUsingColorSpace(g).whiteComponent < 0.5);
+    m.push(r);
+  }
+  for (y = 0; y + 1 < m.length; y += 2) {
+    l = "\u001b[38;5;16;48;5;231m";
+    for (x = 0; x < m[y].length; x++) l += m[y][x] ? (m[y + 1][x] ? "\u2588" : "\u2580") : (m[y + 1][x] ? "\u2584" : " ");
+    out.push(l + "\u001b[0m");
+  }
+  return out.join("\n");
+}'
 
 au_say() { printf '%s\n' "$*"; }
 
@@ -273,8 +351,14 @@ au_serving_read() { # RECIPE -> AU_SV_* from builds/<recipe>/serving (A5), or 1 
   while IFS= read -r l; do AU_SV_LINES+=("$l"); n=$((n + 1)); done < "$f"
   [ "$n" -eq 5 ] && [ "${AU_SV_LINES[0]}" = 'auster-descriptor 1' ] || return 1
   au_split "${AU_SV_LINES[1]}"; [ "${AU_F[0]}" = build ] && [ "${#AU_F[@]}" -ge 14 ] || return 1
-  AU_SV_BUILD=${AU_F[1]} AU_SV_TEST=${AU_F[6]}
+  AU_SV_BUILD=${AU_F[1]} AU_SV_TEST=${AU_F[6]} AU_SV_TEMPLATE=${AU_F[4]} AU_SV_SYSTEM=${AU_F[5]}
   [[ $AU_SV_BUILD =~ $AU_RE_BUILD ]] && [[ $AU_SV_TEST =~ $AU_RE_SHA ]] || return 1
+  [[ $AU_SV_TEMPLATE =~ $AU_RE_SHA ]] && [[ $AU_SV_SYSTEM =~ $AU_RE_SHA ]] || return 1
+  au_split "${AU_SV_LINES[2]}"; [ "${AU_F[0]}" = engine ] && [ "${#AU_F[@]}" -ge 8 ] || return 1
+  AU_SV_ENGINE=${AU_F[6]}
+  au_split "${AU_SV_LINES[3]}"; [ "${AU_F[0]}" = model ] && [ "${#AU_F[@]}" -ge 10 ] || return 1
+  AU_SV_MODEL=${AU_F[6]} AU_SV_MODEL_FILE=${AU_F[4]}
+  [[ $AU_SV_ENGINE =~ $AU_RE_SHA ]] && [[ $AU_SV_MODEL =~ $AU_RE_SHA ]] || return 1
   au_split "${AU_SV_LINES[4]}"
   [ "${#AU_F[@]}" -eq 6 ] && [ "${AU_F[0]}" = launch ] || return 1
   AU_SV_PEOPLE=${AU_F[1]} AU_SV_CONTEXT=${AU_F[2]} AU_SV_PORT=${AU_F[3]} AU_SV_LIST=${AU_F[4]} AU_SV_SPEED=${AU_F[5]}
@@ -344,18 +428,19 @@ au_rate() { # ANSWER-FILE -> the writing rate it reports (timings.predicted_per_
   printf '%s' "$r"
 }
 
-au_server_check() { # RECIPE T0 -> AU_CHECK: passed, open or unanswered (B3 step 13). Never exits.
+au_server_check() { # RECIPE T0 [KEYFILE] -> AU_CHECK: passed, open or unanswered (B3 step 13). Never exits.
   # From this Mac to its home address, within 180 s of T0 (this run's start of the engine), the speed
-  # question with a household key must be answered; only then must a request with no key be refused.
+  # question with a household key (KEYFILE's, when given: `auster key add` asks with the new one) must be
+  # answered; only then must a request with no key be refused.
   # Refused is HTTP 401 or 403 and nothing else: that request asks for one token, so that an open server
   # answers it at once, and any other code, a time-out or no answer is open (it fails closed; V6). Its
   # limit is what is left of the 180 s, at least 5 s and at most 30 s.
   # passed writes the speed into serving when it holds 0; open stops the engine (disable, then bootout)
   # and writes builds/stopped with the reason open; unanswered does nothing. AU_CHECK_WHY says why.
-  local r=$1 t0=$2 w key kf now i=0 code left
+  local r=$1 t0=$2 w key= kf now i=0 code left
   AU_CHECK=unanswered AU_CHECK_WHY= AU_CHECK_SPEED=
   au_serving_read "$r" || { AU_CHECK_WHY="its descriptor cannot be read"; return 0; }
-  for kf in "$AU_DATA"/keys/k*; do
+  for kf in ${3:+"$3"} "$AU_DATA"/keys/k*; do
     case "${kf##*/}" in *.*) continue ;; esac
     [ -f "$kf" ] && [ ! -L "$kf" ] || continue
     IFS= read -r key < "$kf" && [[ $key =~ $AU_RE_KEY ]] && break
@@ -405,6 +490,456 @@ au_server_check() { # RECIPE T0 -> AU_CHECK: passed, open or unanswered (B3 step
   AU_CHECK=passed
 }
 
+
+# --- the engine's list of files (B3 step 9), shared with the driver -------------------------------------
+
+au_list() { # ROOT -> the engine's file list (B3 step 9): `path TAB size TAB sha256` for each file and
+  # `path TAB link TAB target` for each link, sorted by path; the engine job makes it again at each start
+  (cd "$1" && find . \( -type f -o -type l \) -print | sed 's|^\./||' | LC_ALL=C sort | while IFS= read -r p; do
+    if [ -L "$p" ]; then printf '%s\tlink\t%s\n' "$p" "$(readlink "$p")"
+    else printf '%s\t%s\t%s\n' "$p" "$(stat -f %z "$p")" "$(au_sha "$p")"; fi
+  done)
+}
+
+# --- what serves, `stopped`, and the engine's starts (B6) ------------------------------------------------
+
+au_ready() { # -> 0 when Auster is installed here and serves, with AU_RECIPE the recipe it serves (BD14: one);
+  # otherwise says why and returns 1
+  local s r
+  au_root_check "$AU_DATA" || return 1
+  if [ "$AU_ROOT_NEW" = 1 ]; then au_say "Auster is not installed on this Mac."; return 1; fi
+  AU_RECIPE=
+  for s in "$AU_DATA"/builds/r*/serving; do
+    r=${s%/serving}; r=${r##*/}
+    if [[ $r =~ $AU_RE_RECIPE ]] && [ -f "$s" ] && [ ! -L "$s" ]; then AU_RECIPE=$r; break; fi
+  done
+  [ -n "$AU_RECIPE" ] && return 0
+  au_say "Nothing serves on this Mac yet: its install stopped before its server. Paste the installer line again to go on, or remove it with: \"$AU_DATA/bin/auster\" remove"
+  return 1
+}
+
+au_say_newer() { # FILE -> how to update or remove, for a record of a newer format, which is left as it is (D3.1, T95)
+  au_say "$1 was written by a newer version of Auster, so this one leaves it as it is."
+  au_say "Paste the installer line from the guide to update, or remove Auster with: \"$AU_DATA/bin/auster\" remove"
+}
+
+au_stopped_read() { # -> AU_STOPPED: no, yes or newer, from builds/stopped (D3.1), with AU_STOPPED_WHY (household, open
+  # or unknown) and AU_STOPPED_AT. One line of at most 4,096 bytes: `auster-record 1`, the reason, the time. A
+  # stopped that exists but cannot be read, a link or a folder among them, means stopped for a reason unknown;
+  # it is never taken as absent
+  local f="$AU_DATA/builds/stopped" line
+  AU_STOPPED=no AU_STOPPED_WHY= AU_STOPPED_AT=
+  [ -e "$f" ] || [ -L "$f" ] || return 0
+  AU_STOPPED=yes AU_STOPPED_WHY=unknown
+  if au_newer "$f"; then AU_STOPPED=newer; return 0; fi
+  [ -f "$f" ] && [ ! -L "$f" ] && [ "$(au_record_first "$f")" = 'auster-record 1' ] || return 0
+  [ "$(au_size "$f")" -le 4096 ] && [ "$(wc -l < "$f" | tr -d ' ')" = 1 ] &&
+    [ "$(tail -c 1 "$f" | od -An -tx1 | tr -d ' \n')" = 0a ] || return 0
+  IFS= read -r line < "$f" || return 0
+  au_split "$line"
+  [ "${#AU_F[@]}" -eq 3 ] && [[ ${AU_F[1]} =~ ^(household|open)$ ]] && [[ ${AU_F[2]} =~ $AU_RE_UTC ]] || return 0
+  AU_STOPPED_WHY=${AU_F[1]} AU_STOPPED_AT=${AU_F[2]}
+}
+
+au_refuse_stopped() { # -> 0 when builds/stopped does not exist; otherwise says so, names `auster start`, and returns 1
+  # (B6: whatever it holds, and whether or not it can be read)
+  au_stopped_read
+  [ "$AU_STOPPED" = no ] && return 0
+  case "$AU_STOPPED_WHY" in
+    household) au_say "Auster's server is stopped: the household stopped it (auster stop)." ;;
+    open) au_say "Auster's server is stopped: Auster stopped it, because it answered a request that carried no key." ;;
+    *) au_say "Auster's server is stopped." ;;
+  esac
+  au_say "Nothing is done while it is stopped. \`auster start\` starts it, and checks it."
+  return 1
+}
+
+au_engine_start() { # -> AU_T0, then the engine's job enabled and loaded (B6: enable, then bootstrap; kickstart -k
+  # when it is loaded already, so that the server check sees a start of this run); 1 when launchd did not
+  AU_T0=$(date +%s)
+  launchctl enable "gui/$AU_UID/$AU_LABEL_ENGINE" > /dev/null 2>&1 || return 1
+  if au_job_loaded "$AU_LABEL_ENGINE"; then
+    launchctl kickstart -k "gui/$AU_UID/$AU_LABEL_ENGINE" > /dev/null 2>&1
+  else
+    launchctl bootstrap "gui/$AU_UID" "$(au_job_file "$AU_LABEL_ENGINE")" > /dev/null 2>&1
+  fi
+}
+
+au_engine_restart() { # -> AU_T0, then kickstart -k (B6); says why and returns 1 when the engine's job is not loaded
+  AU_T0=$(date +%s)
+  if au_job_loaded "$AU_LABEL_ENGINE" && launchctl kickstart -k "gui/$AU_UID/$AU_LABEL_ENGINE" > /dev/null 2>&1; then
+    return 0
+  fi
+  au_say "launchd has not loaded Auster's engine job, so it was not restarted. \`auster status\` says why."
+  return 1
+}
+
+au_checked() { # [KEYFILE] -> the server check (B3 step 13) after this run's start of the engine, said in plain
+  # words: 0 when it passed; 4 after open (Auster has stopped the engine) and after not answered (B6)
+  au_server_check "$AU_RECIPE" "$AU_T0" ${1:+"$1"}
+  case "$AU_CHECK" in
+    passed)
+      au_say "The server answered, at $AU_CHECK_SPEED tokens a second, and refused a request with no key."
+      return 0 ;;
+    open)
+      au_say "The server did not refuse a request that carried no key, so Auster stopped it: $AU_CHECK_WHY."
+      au_say "It stays stopped until \`auster start\`, which starts it and checks it again."
+      return 4 ;;
+  esac
+  au_say "The server did not answer its check within $AU_CHECK_SECS s: $AU_CHECK_WHY."
+  au_say "\`auster status\` says how the engine's last start went."
+  return 4
+}
+
+# --- stop, start, restart, network, verify, people (B6) --------------------------------------------------
+
+au_cmd_stop() { # -> the engine stopped so that it stays stopped across logins (disable, then bootout), and
+  # builds/stopped saying `household`; a stop already recorded keeps its reason
+  au_ready || return 1
+  au_lock_take || return 1
+  au_stopped_read
+  if [ "$AU_STOPPED" = newer ]; then au_say_newer "$AU_DATA/builds/stopped"; return 1; fi
+  au_engine_stop
+  if [ "$AU_STOPPED" = no ] && ! au_stopped_write household; then
+    au_say "The engine is stopped, but builds/stopped could not be written."
+    return 1
+  fi
+  au_say "Auster's server is stopped, and stays stopped across logins and restarts until \`auster start\`."
+}
+
+au_cmd_start() { # -> the engine's job enabled and loaded, builds/stopped deleted whatever the check then gives, and
+  # the server check, which writes builds/stopped again if the server is open: 0 or 4
+  au_ready || return 1
+  au_lock_take || return 1
+  au_stopped_read
+  if [ "$AU_STOPPED" = newer ]; then au_say_newer "$AU_DATA/builds/stopped"; return 1; fi
+  if ! au_engine_start; then
+    au_say "launchd did not start Auster's engine job, so it stays as it was. \`auster status\` says why."
+    return 4
+  fi
+  rm -rf "$AU_DATA/builds/stopped"
+  au_say "Auster's server is starting. Checking it on the home network..."
+  au_checked
+}
+
+au_cmd_restart() { # -> kickstart -k, then the server check: 0 or 4
+  au_ready || return 1
+  au_lock_take || return 1
+  au_refuse_stopped || return 1
+  au_engine_restart || return 4
+  au_say "Auster's server is restarting. Checking it on the home network..."
+  au_checked
+}
+
+au_router_now() { # -> AU_NET_ROUTER and AU_NET_ADDR: the router and the address of the network this Mac is on now,
+  # when it is one Auster serves on (BD9, B4 step 5: a hardware port, a private address); otherwise AU_NET_WHY
+  # says why, and 1
+  local r if_ gw hw p parts=()
+  AU_NET_ROUTER= AU_NET_ADDR= AU_NET_WHY=
+  r=$(route -n get default 2>/dev/null) || { AU_NET_WHY="This Mac has no network connection now, so no home network was recorded."; return 1; }
+  if_=$(printf '%s\n' "$r" | awk '$1 == "interface:" { print $2; exit }')
+  gw=$(printf '%s\n' "$r" | awk '$1 == "gateway:" { print $2; exit }')
+  if ! [[ $if_ =~ ^[a-z][a-z0-9]{0,15}$ ]] || ! [[ $gw =~ $AU_RE_IPV4 ]]; then
+    AU_NET_WHY="This Mac's connection does not go through a router Auster can see, so nothing was recorded."; return 1
+  fi
+  if ! networksetup -listallhardwareports 2>/dev/null | grep -qxF "Device: $if_"; then
+    AU_NET_WHY="This Mac's connection goes through $if_, which is not a Wi-Fi or wired port (a VPN?), so nothing was recorded."; return 1
+  fi
+  AU_NET_ADDR=$(ipconfig getifaddr "$if_" 2>/dev/null)
+  case "$AU_NET_ADDR" in
+    10.*|192.168.*|172.1[6-9].*|172.2[0-9].*|172.3[01].*) [[ $AU_NET_ADDR =~ $AU_RE_IPV4 ]] || AU_NET_ADDR= ;;
+    *) AU_NET_ADDR= ;;
+  esac
+  [ -n "$AU_NET_ADDR" ] || { AU_NET_WHY="This Mac's address on $if_ is not a home network's (a private address), so nothing was recorded."; return 1; }
+  hw=$(arp -n "$gw" 2>/dev/null | awk '{ for (i = 1; i < NF; i++) if ($i == "at") { print $(i + 1); exit } }')
+  IFS=: read -r -a parts <<< "$hw"
+  AU_NET_WHY="This Mac cannot see its router's hardware address, so nothing was recorded."
+  [ "${#parts[@]}" -eq 6 ] || return 1
+  for p in "${parts[@]}"; do
+    [[ $p =~ ^[0-9a-fA-F]{1,2}$ ]] || { AU_NET_ROUTER=; return 1; }
+    p=0$p
+    AU_NET_ROUTER+=${AU_NET_ROUTER:+:}$(printf '%s' "${p: -2}" | tr 'A-F' 'a-f')
+  done
+  AU_NET_WHY=
+}
+
+au_cmd_network() { # -> BD9: the router this Mac's connection goes through now, recorded in builds/mac as the home
+  # network, every other line of the record as it was, by rename. The engine job reads it at its next start
+  local f="$AU_DATA/builds/mac" t="$AU_DATA/builds/.mac.new.$$" l n=0 lines=()
+  au_ready || return 1
+  au_lock_take || return 1
+  if au_newer "$f"; then au_say_newer "$f"; return 1; fi
+  au_router_now || { au_say "$AU_NET_WHY"; return 1; }
+  if [ -f "$f" ] && [ ! -L "$f" ] && [ "$(au_size "$f")" -le 1024 ] && [ "$(tail -c 1 "$f" | od -An -tx1 | tr -d ' \n')" = 0a ]; then
+    while IFS= read -r l; do lines+=("$l"); n=$((n + 1)); done < "$f"
+  fi
+  if [ "$n" != 7 ] || [ "${lines[0]}" != 'auster-record 1' ] || [ "${lines[5]%%"$AU_T"*}" != router ]; then
+    au_say "This Mac's figures (builds/mac) cannot be read, so the home network was not recorded. Paste the installer line again."
+    return 1
+  fi
+  lines[5]="router$AU_T$AU_NET_ROUTER"
+  rm -f "$t"
+  { printf '%s\n' "${lines[@]}"; } > "$t" && chmod 600 "$t" && mv -f "$t" "$f" ||
+    { rm -f "$t"; au_say "builds/mac could not be written, so the home network was not recorded."; return 1; }
+  au_say "The home network is now the one whose router is $AU_NET_ROUTER, where this Mac is $AU_NET_ADDR."
+  au_say "The engine listens on it from its next start: \`auster restart\` moves it there now."
+}
+
+au_cmd_verify() { # -> AD13: every file serving names, against its sha256: the model, the engine's archive and its
+  # unpacked files (against their list, whose sha256 the launch line holds), the template, the system prompt and
+  # the recipe's test. 0 when all match; 1, naming each one that does not, otherwise
+  local bad=0 what sha f out
+  au_ready || return 1
+  au_serving_read "$AU_RECIPE" || { au_say "The record of what serves cannot be read, so nothing was checked."; return 1; }
+  au_say "Checking every file the server uses against its sha256..."
+  for what in "model:$AU_SV_MODEL" "engine archive:$AU_SV_ENGINE" "template:$AU_SV_TEMPLATE" \
+      "system prompt:$AU_SV_SYSTEM" "recipe's test:$AU_SV_TEST"; do
+    sha=${what##*:} f="$AU_DATA/store/${what##*:}"
+    if [ -f "$f" ] && [ ! -L "$f" ] && [ "$(au_sha "$f")" = "$sha" ]; then au_say "  same      the ${what%:*}"
+    else au_say "  CHANGED   the ${what%:*} (store/$sha)"; bad=1; fi
+  done
+  f="$AU_DATA/engines/$AU_SV_ENGINE/root"
+  out=
+  if [ -d "$f" ] && [ ! -L "$f" ]; then out=$(au_list "$f" | openssl dgst -sha256 2>/dev/null); out=${out##*= }; fi
+  if [ "$out" = "$AU_SV_LIST" ]; then au_say "  same      the engine's unpacked files"
+  else au_say "  CHANGED   the engine's unpacked files (engines/$AU_SV_ENGINE)"; bad=1; fi
+  if [ "$bad" = 0 ]; then au_say "Every file is the one the registry names."; return 0; fi
+  au_say "A file has changed since it was checked. Paste the installer line again to fetch it again."
+  return 1
+}
+
+au_cmd_people() { # N -> C4, B6: refused while stopped. TODO(U5): the change of setting itself, the update's procedure
+  # for the build served with the recipe's limits from the fetched tree (1 to its default), then the check
+  au_ready || return 1
+  au_lock_take || return 1
+  au_refuse_stopped || return 1
+  au_say "Changing the number of people comes with a later version of Auster (U5); nothing was changed."
+  return 3
+}
+
+au_cmd_later() { # COMMAND -> 3: a command of B6 that comes with a later version; `update` refuses while stopped first
+  if [ "$1" = update ]; then
+    au_ready || return 1
+    au_refuse_stopped || return 1
+    au_say "auster update comes with a later version of Auster (U4); nothing was changed."   # TODO(U4)
+    return 3
+  fi
+  au_say "auster $1 comes with a later version of Auster (U6); nothing was changed."   # TODO(U6): rollback, unhold, cleanup
+  return 3
+}
+
+# --- keys and the QR code (B7) ---------------------------------------------------------------------------
+
+au_name_ok() { # NAME -> 0 when it is a name Auster gives a device (AU_RE_DEVICE); otherwise says so, without echoing
+  # it. A name is never part of a path: a device's files are found by reading every keys/<id>.name
+  [[ $1 =~ $AU_RE_DEVICE ]] && return 0
+  au_say "That is not a name Auster gives a device: lower-case letters, digits and -, starting with a letter, at most 40 (such as ipad)."
+  return 1
+}
+
+au_key_list() { # -> AU_KEY_IDS and AU_KEY_NAMES: every device, in the order of their ids. A device is keys/<id>, a
+  # regular file holding one key and its newline, with its name in keys/<id>.name; a key with no name is no device's
+  local f id n k
+  AU_KEY_IDS=() AU_KEY_NAMES=()
+  for f in "$AU_DATA"/keys/k*.name; do
+    id=${f##*/}; id=${id%.name}
+    [[ $id =~ $AU_RE_KEYID ]] && [ -f "$f" ] && [ ! -L "$f" ] && [ -f "$AU_DATA/keys/$id" ] && [ ! -L "$AU_DATA/keys/$id" ] || continue
+    [ "$(au_size "$f")" -le 64 ] && [ "$(au_size "$AU_DATA/keys/$id")" = 33 ] || continue
+    IFS= read -r n < "$f" && [[ $n =~ $AU_RE_DEVICE ]] || continue
+    IFS= read -r k < "$AU_DATA/keys/$id" && [[ $k =~ $AU_RE_KEY ]] || continue
+    AU_KEY_IDS+=("$id")
+    AU_KEY_NAMES+=("$n")
+  done
+}
+
+au_key_find() { # NAME -> AU_KEY_ID, the device of that name (and AU_KEY_IDS, AU_KEY_NAMES); 1 when none has it
+  local i
+  AU_KEY_ID=
+  au_key_list
+  for ((i = 0; i < ${#AU_KEY_IDS[@]}; i++)); do
+    if [ "${AU_KEY_NAMES[$i]}" = "$1" ]; then AU_KEY_ID=${AU_KEY_IDS[$i]}; return 0; fi
+  done
+  return 1
+}
+
+au_key_new() { # FILE -> a new key in FILE: 32 hex characters from `openssl rand -hex 16` and a newline, mode 0600, by
+  # rename (B7). The key passes through no command line and no file but its own
+  local k t="${1%/*}/.${1##*/}.new.$$"
+  k=$(openssl rand -hex 16 2>/dev/null)
+  [[ $k =~ $AU_RE_KEY ]] || return 1
+  rm -f "$t"
+  ( umask 077; printf '%s\n' "$k" > "$t" ) && mv -f "$t" "$1"
+}
+
+au_key_unique() { # FILE -> 0 when its key equals no other key in keys/ (B7: two keys are never equal)
+  local f k mine
+  IFS= read -r mine < "$1" || return 1
+  for f in "$AU_DATA"/keys/k* "$AU_DATA/keys/probe"; do
+    case "${f##*/}" in *.*) continue ;; esac
+    [ "$f" != "$1" ] && [ -f "$f" ] && [ ! -L "$f" ] || continue
+    if IFS= read -r k < "$f" && [ "$k" = "$mine" ]; then return 1; fi
+  done
+}
+
+au_key_mint() { # NAME -> AU_KEY_ID: a new device, its key in keys/<id> and its name in keys/<id>.name, each mode 0600
+  # and written by rename; the id minted (A2), the key never derived from the name. 1, leaving nothing, otherwise
+  local id t
+  AU_KEY_ID=
+  id=$(/bin/bash "${AU_MINT:-$AU_DATA/jobs/mint-id}" k 2>/dev/null)
+  [[ $id =~ $AU_RE_KEYID ]] && [ ! -e "$AU_DATA/keys/$id" ] && [ ! -e "$AU_DATA/keys/$id.name" ] || return 1
+  au_key_new "$AU_DATA/keys/$id" && au_key_unique "$AU_DATA/keys/$id" || { rm -f "$AU_DATA/keys/$id"; return 1; }
+  t="$AU_DATA/keys/.$id.name.new.$$"
+  rm -f "$t"
+  ( umask 077; printf '%s\n' "$1" > "$t" ) && mv -f "$t" "$AU_DATA/keys/$id.name" || { rm -f "$t" "$AU_DATA/keys/$id"; return 1; }
+  AU_KEY_ID=$id
+}
+
+au_keys_write() { # [EXCEPT-ID] -> keys/engine.keys (B7): every device's key but EXCEPT's, in the order of their ids,
+  # then Auster's own probe key, one a line; written to a temporary file and renamed, never in place, then checked
+  # as the engine job checks it (B4 step 3). 1, leaving the file as it was, when no device's key would be in it:
+  # the engine reads a key file with no key in it as no key required (docs/phase-1.md, step 12)
+  local f="$AU_DATA/keys/engine.keys" t="$AU_DATA/keys/.engine.keys.new.$$" i k n=0
+  au_key_list
+  rm -f "$t"
+  ( umask 077; : > "$t" ) || return 1
+  for ((i = 0; i < ${#AU_KEY_IDS[@]}; i++)); do
+    [ "${AU_KEY_IDS[$i]}" != "${1:-}" ] || continue
+    IFS= read -r k < "$AU_DATA/keys/${AU_KEY_IDS[$i]}" && printf '%s\n' "$k" >> "$t" && n=$((n + 1))
+  done
+  if [ "$n" -lt 1 ] || [ "$n" -gt 63 ] || [ ! -f "$AU_DATA/keys/probe" ] || [ -L "$AU_DATA/keys/probe" ] ||
+     ! { IFS= read -r k < "$AU_DATA/keys/probe" && [[ $k =~ $AU_RE_KEY ]] && printf '%s\n' "$k" >> "$t"; }; then
+    rm -f "$t"
+    return 1
+  fi
+  n=$((n + 1))
+  mv -f "$t" "$f" || { rm -f "$t"; return 1; }
+  [ -f "$f" ] && [ ! -L "$f" ] && [ "$(stat -f '%u %Lp' "$f" 2>/dev/null)" = "$AU_UID 600" ] &&
+    [ "$(au_size "$f")" = $((n * 33)) ] && [ "$(grep -c -v -E "$AU_RE_KEY" "$f")" = 0 ]
+}
+
+au_qr_leave() { # -> the QR code's screen erased and left, then the scrollback erased (B7); once
+  [ "${AU_QR_ON:-0}" = 1 ] || return 0
+  AU_QR_ON=0
+  printf '\033[H\033[2J\033[?1049l\033[3J' >> "${AU_SCREEN:-/dev/tty}" 2>/dev/null
+}
+
+au_qr_show() { # NAME ID -> keys/<id>'s key as a QR code on the terminal's alternate screen, until the person says
+  # that NAME has read it (B7). The key reaches the drawing program on its standard input, never its command
+  # line; the drawing goes to the terminal (AU_SCREEN) and nowhere else. 1, showing nothing, when there is no
+  # terminal or the code cannot be drawn
+  local scr=${AU_SCREEN:-/dev/tty} qr
+  if ! { : >> "$scr"; } 2>/dev/null; then
+    au_say "There is no terminal here to show the key for $1 on. In Terminal, \`auster key show $1\` shows it."
+    return 1
+  fi
+  qr=$(osascript -l JavaScript -e "$AU_QR_JS" < "$AU_DATA/keys/$2" 2>/dev/null)
+  if [ -z "$qr" ]; then au_say "The QR code for $1 could not be drawn. \`auster key show $1\` tries again."; return 1; fi
+  AU_QR_ON=1   # from here an exit erases it too (the EXIT traps of bin/auster and the driver call au_qr_leave)
+  { printf '\033[?1049h\033[H\033[2J'
+    printf '%s\n' "The key for $1. Open the camera on $1, point it at this code, and copy the text it reads into" \
+      "the chat page's settings, as its API key." "" "$qr" ""; } >> "$scr"
+  au_ask "Press Return when $1 has read it, and this screen is erased." >> "$scr"
+  au_qr_leave
+  au_say "The key for $1 was shown, and the screen it was on is erased."
+}
+
+au_cmd_key_add() { # NAME -> a new device's key, the engine's key file written again, the engine restarted and the
+  # server check made with the new key; the key shown only after a passed check (`key show` gives it later): 0 or 4
+  local name=$1 id
+  au_name_ok "$name" || return 2
+  au_ready || return 1
+  au_lock_take || return 1
+  au_refuse_stopped || return 1
+  if au_key_find "$name"; then au_say "A device named $name already has a key: \`auster key show $name\` shows it."; return 1; fi
+  if [ "${#AU_KEY_IDS[@]}" -ge 63 ]; then au_say "63 devices have keys, as many as the engine takes beside Auster's own."; return 1; fi
+  au_key_mint "$name" || { au_say "A key for $name could not be made, so nothing was changed."; return 1; }
+  id=$AU_KEY_ID
+  if ! au_keys_write; then
+    rm -f "$AU_DATA/keys/$id" "$AU_DATA/keys/$id.name"
+    au_say "The engine's key file could not be written, so no key was added."
+    return 1
+  fi
+  au_say "A key is made for $name. Restarting the server, which reads its keys only when it starts (an answer in progress is cut)..."
+  au_engine_restart || { au_say "The key for $name is made but not shown: \`auster key show $name\` shows it."; return 4; }
+  if ! au_checked "$AU_DATA/keys/$id"; then
+    au_say "The key for $name is made but not shown, since the server did not pass its check. \`auster key show $name\` shows it."
+    return 4
+  fi
+  au_lock_release
+  au_qr_show "$name" "$id" || true
+  return 0
+}
+
+au_cmd_key_revoke() { # NAME -> the device's key taken out of the engine's key file, then its files deleted, the engine
+  # restarted and the server check made: 0 or 4. Auster's own key is no device's; the last device's key stays
+  local name=$1 id
+  au_name_ok "$name" || return 2
+  au_ready || return 1
+  au_lock_take || return 1
+  au_refuse_stopped || return 1
+  au_key_find "$name" || { au_say "No device named $name has a key. \`auster status\` lists the devices."; return 1; }
+  id=$AU_KEY_ID
+  if [ "${#AU_KEY_IDS[@]}" -lt 2 ]; then
+    au_say "$name has the only device key, so it is not revoked: with none, no device could use the server. Add the next device first (auster key add <name>)."
+    return 1
+  fi
+  au_keys_write "$id" || { au_say "The engine's key file could not be written, so nothing was revoked."; return 1; }
+  rm -f "$AU_DATA/keys/$id" "$AU_DATA/keys/$id.name"
+  au_say "The key for $name is revoked. Restarting the server, which reads its keys only when it starts (an answer in progress is cut)..."
+  au_engine_restart || return 4
+  au_checked
+}
+
+au_cmd_key_show() { # NAME -> that device's key as a QR code. It takes no lock, and works while the engine is stopped
+  local name=$1
+  au_name_ok "$name" || return 2
+  au_root_check "$AU_DATA" || return 1
+  if [ "$AU_ROOT_NEW" = 1 ]; then au_say "Auster is not installed on this Mac."; return 1; fi
+  au_key_find "$name" || { au_say "No device named $name has a key. \`auster status\` lists the devices."; return 1; }
+  au_qr_show "$name" "$AU_KEY_ID"
+}
+
+# --- the line in ~/.zprofile (B6) ----------------------------------------------------------------------
+
+au_zprofile_has() { [ -f "$HOME/.zprofile" ] && grep -qxF -- "$AU_ZPROFILE_LINE" "$HOME/.zprofile" 2>/dev/null; }
+
+au_zprofile_add() { # -> AU_ZPROFILE_LINE at the end of ~/.zprofile, by rename with the file's own mode; nothing when
+  # it is there. A link, or anything but this account's own file, is not rewritten: the line is printed instead
+  local z="$HOME/.zprofile" t="$HOME/.zprofile.auster-new.$$" m=644
+  au_zprofile_has && return 0
+  if [ -L "$z" ] || { [ -e "$z" ] && { [ ! -f "$z" ] || [ "$(stat -f %u "$z" 2>/dev/null)" != "$AU_UID" ]; }; }; then
+    au_say "~/.zprofile is a link, or not your own file, so Auster does not change it. For Terminal to find auster, add this line to it yourself:"
+    au_say "$AU_ZPROFILE_LINE"
+    return 0
+  fi
+  if [ -f "$z" ]; then m=$(stat -f %Lp "$z") || return 1; fi
+  rm -f "$t"
+  { if [ -s "$z" ]; then cat "$z"; [ "$(tail -c 1 "$z" | od -An -tx1 | tr -d ' \n')" = 0a ] || printf '\n'; fi
+    printf '%s\n' "$AU_ZPROFILE_LINE"; } > "$t" && chmod "$m" "$t" && mv -f "$t" "$z" || { rm -f "$t"; return 1; }
+  au_say "Added to ~/.zprofile, so that a new Terminal window finds auster: $AU_ZPROFILE_LINE"
+}
+
+au_zprofile_remove() { # -> AU_ZPROFILE_LINE taken out of ~/.zprofile wherever a line equals it byte for byte, every
+  # other line as it was, by rename with the file's own mode; a file left empty is deleted (the installer made it).
+  # A link, or anything but this account's own file, is not rewritten: the line is printed instead
+  local z="$HOME/.zprofile" t="$HOME/.zprofile.auster-new.$$" m
+  [ -e "$z" ] || [ -L "$z" ] || return 0
+  grep -qxF -- "$AU_ZPROFILE_LINE" "$z" 2>/dev/null || return 0
+  if [ -L "$z" ] || [ ! -f "$z" ] || [ "$(stat -f %u "$z" 2>/dev/null)" != "$AU_UID" ]; then
+    au_say "~/.zprofile is a link, or not your own file, so Auster does not change it. Remove this line from it yourself:"
+    au_say "$AU_ZPROFILE_LINE"
+    return 0
+  fi
+  m=$(stat -f %Lp "$z") || return 1
+  rm -f "$t"
+  grep -vxF -- "$AU_ZPROFILE_LINE" "$z" > "$t"
+  if [ ! -s "$t" ]; then rm -f "$t" "$z"; au_say "Auster's line is taken out of ~/.zprofile, which held nothing else."; return 0; fi
+  if chmod "$m" "$t" && mv -f "$t" "$z"; then au_say "Auster's line is taken out of ~/.zprofile."; return 0; fi
+  rm -f "$t"
+  au_say "~/.zprofile could not be rewritten. Remove this line from it yourself: $AU_ZPROFILE_LINE"
+  return 1
+}
+
 # --- what is left, and removing (B8) ------------------------------------------------------------------
 
 au_left() { # -> lists what the data root holds, with sizes
@@ -417,12 +952,30 @@ au_left() { # -> lists what the data root holds, with sizes
   done
 }
 
-au_remove() { # -> B8: stop and unload both jobs, delete their files, then the data root on a second yes.
-  # TODO(V7): the marked line in ~/.zprofile (B6 writes it), and the tests T85, T86 and T108.
+au_root_delete() { # DIR -> DIR deleted, only when it is the data root: the path this home folder gives it, a folder
+  # holding its marker file, reached from the home folder through no link (B8). Otherwise says so, deletes nothing
+  local d=$1 p
+  if [ -z "$d" ] || [ "$d" = / ] || [ -z "${HOME:-}" ] || [ "$HOME" = / ] || [ "$d" != "$HOME/Library/Application Support/Auster" ]; then
+    au_say "$d is not Auster's data root; nothing was deleted."
+    return 1
+  fi
+  for p in "$HOME/Library" "$HOME/Library/Application Support" "$d"; do
+    if [ -L "$p" ] || [ ! -d "$p" ]; then au_say "$p is a link or not a folder, so $d is not Auster's data root any more; nothing was deleted."; return 1; fi
+  done
+  if [ ! -f "$d/$AU_ROOT_MARKER" ] || [ -L "$d/$AU_ROOT_MARKER" ]; then
+    au_say "$d is not Auster's data root any more (it has no $AU_ROOT_MARKER); nothing was deleted."
+    return 1
+  fi
+  rm -rf -- "$d"
+}
+
+au_remove() { # -> B8, and `install.sh remove` through the driver: stop the engine, unload both jobs and delete
+  # their files and builds/stopped, clear any disabled mark launchd keeps for their labels (launchctl enable), take
+  # the line out of ~/.zprofile; then list what is left and delete it only on a second yes
   local l f
   au_root_check "$AU_DATA" || return 1
   if [ "$AU_ROOT_NEW" = 1 ]; then au_say "Auster is not installed in $AU_DATA."; return 1; fi
-  au_say "This stops Auster's server on this Mac and removes its two background jobs."
+  au_say "This stops Auster's server on this Mac, removes its two background jobs and its line in ~/.zprofile."
   au_yes "Remove Auster?" || { au_say "Nothing was changed."; return 1; }
   au_mkdir "$AU_DATA/builds" && au_lock_take || return 1
   for l in "$AU_LABEL_ENGINE" "$AU_LABEL_CHECK"; do
@@ -431,7 +984,8 @@ au_remove() { # -> B8: stop and unload both jobs, delete their files, then the d
     if [ -f "$f" ] || [ -L "$f" ]; then rm -f "$f"; fi
     launchctl enable "gui/$AU_UID/$l"
   done
-  rm -f "$AU_DATA/builds/stopped"
+  rm -rf "$AU_DATA/builds/stopped"
+  au_zprofile_remove
   au_say "Auster's server is stopped and its jobs are removed."
   au_left
   if ! au_yes "Delete all of it, the models included?"; then
@@ -440,16 +994,28 @@ au_remove() { # -> B8: stop and unload both jobs, delete their files, then the d
     return 0
   fi
   au_lock_release
-  if [ -L "$AU_DATA" ] || [ ! -d "$AU_DATA" ] || [ ! -f "$AU_DATA/$AU_ROOT_MARKER" ] ||
-     [ "$AU_DATA" != "$HOME/Library/Application Support/Auster" ]; then
-    au_say "$AU_DATA is not Auster's data root any more; nothing was deleted."
-    return 1
-  fi
-  rm -rf "$AU_DATA" && au_say "Auster is removed from this Mac."
+  au_root_delete "$AU_DATA" || return 1
+  au_say "Auster is removed from this Mac."
 }
 
-au_status() { # -> what is installed. TODO(V7): the whole of B6's status, and U3's line for each recipe.
-  local s r
+# --- status (B6) -------------------------------------------------------------------------------------------
+
+au_probe_read() { # -> AU_PR_RESULT, AU_PR_SPEED from the probe line of _update/engine (common/auster-check's header
+  # gives its form; bound 1,024 bytes, seven lines), or 1
+  local f="$AU_DATA/_update/engine" l
+  [ -f "$f" ] && [ ! -L "$f" ] && [ "$(au_size "$f")" -le 1024 ] || return 1
+  [ "$(wc -l < "$f" | tr -d ' ')" = 7 ] && [ "$(tail -c 1 "$f" | od -An -tx1 | tr -d ' \n')" = 0a ] || return 1
+  IFS= read -r l < "$f" && [ "$l" = 'auster-record 1' ] || return 1
+  l=$(sed -n 2p "$f"); au_split "$l"
+  [ "${#AU_F[@]}" -eq 4 ] && [ "${AU_F[0]}" = probe ] && [[ ${AU_F[1]} =~ ^(ok|slow|open|broken|failed|down|stopped)$ ]] || return 1
+  { [ "${AU_F[2]}" = - ] || [[ ${AU_F[2]} =~ $AU_RE_SPEED ]]; } && [[ ${AU_F[3]} =~ ^[1-9][0-9]{0,11}$ ]] || return 1
+  AU_PR_RESULT=${AU_F[1]} AU_PR_SPEED=${AU_F[2]}
+}
+
+au_status() { # -> B6: what serves, the engine job's last start, why the engine is stopped, a job macOS has switched
+  # off without Auster knowing (launchctl print-disabled), the check job's last probe, the devices, the sleep
+  # setting. TODO(U3): each recipe's line; TODO(U2): a `.local` name that macOS has changed
+  local s r l pd job i
   au_root_check "$AU_DATA" > /dev/null || { au_say "The data root $AU_DATA cannot be read."; return 1; }
   [ "$AU_ROOT_NEW" = 0 ] || { au_say "Auster is not installed."; return 0; }
   for s in "$AU_DATA"/builds/r*/serving; do
@@ -461,19 +1027,81 @@ au_status() { # -> what is installed. TODO(V7): the whole of B6's status, and U3
     fi
     au_start_read "$r" && au_say "The engine job's last start: $AU_ST_CODE."
   done
-  [ -e "$AU_DATA/builds/stopped" ] && au_say "The engine is stopped: \`auster start\` starts it."
+  au_stopped_read
+  case "$AU_STOPPED:$AU_STOPPED_WHY" in
+    no:*) ;;
+    newer:*) au_say "The engine is stopped, and builds/stopped was written by a newer version of Auster." ;;
+    yes:household) au_say "The engine is stopped: the household stopped it (auster stop) at $AU_STOPPED_AT. \`auster start\` starts it." ;;
+    yes:open) au_say "The engine is stopped: Auster stopped it at $AU_STOPPED_AT, because it answered a request that carried no key. \`auster start\` starts it and checks it again." ;;
+    *) au_say "The engine is stopped, for a reason that cannot be read (builds/stopped). \`auster start\` starts it." ;;
+  esac
+  pd=$(launchctl print-disabled "gui/$AU_UID" 2>/dev/null)
+  for l in "$AU_LABEL_ENGINE" "$AU_LABEL_CHECK"; do
+    if [ "$l" = "$AU_LABEL_ENGINE" ]; then job="engine job"; else job="check job"; fi
+    if printf '%s\n' "$pd" | grep -qF -e "\"$l\" => disabled" -e "\"$l\" => true"; then
+      [ "$l" = "$AU_LABEL_ENGINE" ] && [ "$AU_STOPPED" != no ] && continue   # Auster's own stop, said above
+      au_say "macOS has Auster's $job switched off (System Settings, General, Login Items, Allow in the Background), so it does not start at login."
+      if [ "$l" = "$AU_LABEL_ENGINE" ]; then au_say "\`auster start\` switches it on again and starts it."
+      else au_say "Switch it on again there: without it, nobody is told when the server stops answering."; fi
+    elif ! au_job_loaded "$l"; then
+      [ "$l" = "$AU_LABEL_ENGINE" ] && [ "$AU_STOPPED" != no ] && continue
+      au_say "Auster's $job is not loaded."
+    fi
+  done
+  if au_probe_read; then
+    case "$AU_PR_RESULT" in
+      ok|slow) au_say "The check job's last probe: $AU_PR_RESULT, at $AU_PR_SPEED tokens a second." ;;
+      *) au_say "The check job's last probe: $AU_PR_RESULT." ;;
+    esac
+  fi
+  au_key_list
+  l=
+  for ((i = 0; i < ${#AU_KEY_NAMES[@]}; i++)); do l+="${l:+, }${AU_KEY_NAMES[$i]}"; done
+  [ -z "$l" ] || au_say "Devices with a key: $l."
+  s=$(pmset -g 2>/dev/null | awk '$1 == "sleep" { print $2; exit }')
+  case "$s" in
+    0) au_say "This Mac is set never to sleep." ;;
+    ''|*[!0-9]*) au_say "This Mac's sleep setting cannot be read." ;;
+    *) au_say "This Mac sleeps after $s minutes idle, and a sleeping Mac does not answer." ;;
+  esac
+  [ -d "$AU_DATA/_update" ] || au_say "There is no _update folder, so no update is looked for until the installer line is pasted again."
   return 0
+}
+
+au_usage() {
+  au_say "usage: auster status | stop | start | restart | network | verify | people <n> | remove" \
+    "              auster key add <name> | key revoke <name> | key show <name>" >&2
+  return 2
 }
 
 auster_main() {
   set -u
   export LC_ALL=C
+  local rc=2
   au_identity || exit 1
-  case "${1:-}" in
-    status) [ $# -eq 1 ] || exit 2; au_status; exit $? ;;
-    remove) [ $# -eq 1 ] || exit 2; au_remove; exit $? ;;
-    *) au_say "usage: auster status | remove   (the other commands come with a later version: V7)" >&2; exit 2 ;;
+  trap 'au_lock_release; au_qr_leave' EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  case "${1:-}:$#" in
+    status:1) au_status; rc=$? ;;
+    stop:1) au_cmd_stop; rc=$? ;;
+    start:1) au_cmd_start; rc=$? ;;
+    restart:1) au_cmd_restart; rc=$? ;;
+    network:1) au_cmd_network; rc=$? ;;
+    verify:1) au_cmd_verify; rc=$? ;;
+    remove:1) au_remove; rc=$? ;;
+    people:2) if [[ $2 =~ ^[1-9][0-9]?$ ]]; then au_cmd_people "$2"; rc=$?; else au_usage; fi ;;
+    key:3)
+      case "$2" in
+        add) au_cmd_key_add "$3"; rc=$? ;;
+        revoke) au_cmd_key_revoke "$3"; rc=$? ;;
+        show) au_cmd_key_show "$3"; rc=$? ;;
+        *) au_usage ;;
+      esac ;;
+    update:*|rollback:*|unhold:*|cleanup:*) au_cmd_later "$1"; rc=$? ;;
+    *) au_usage ;;
   esac
+  exit "$rc"
 }
 
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then auster_main "$@"; fi

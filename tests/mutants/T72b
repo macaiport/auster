@@ -1,0 +1,3 @@
+# file: common/auster
+# write the engine's key file in place
+/^au_keys_write()/,/^}/s/^  mv -f "\$t" "\$f" || { rm -f "\$t"; return 1; }$/  cat "$t" > "$f" \&\& rm -f "$t" || return 1/

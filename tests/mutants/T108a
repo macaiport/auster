@@ -1,0 +1,3 @@
+# file: common/auster
+# step 12 loads the jobs without launchctl enable first
+/^au_job_load()/,/^}/s/^  launchctl enable "gui\/\$AU_UID\/\$1" || return 1$/  :/

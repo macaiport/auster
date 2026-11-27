@@ -1,0 +1,3 @@
+# file: common/auster
+# restart without the server check
+/^au_cmd_restart()/,/^}/s/^  au_checked$/  return 0/

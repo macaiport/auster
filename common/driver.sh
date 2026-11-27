@@ -10,12 +10,14 @@
 # functions the two share (the data root, the lock, the questions, the jobs, the server check).
 #
 # Built by V5 (2026-11-26): a first install, B3 steps 1 to 15. Step 1 is install.sh's, which runs before
-# anything is fetched; step 2 is install.sh's too. What later steps complete is marked TODO:
+# anything is fetched; step 2 is install.sh's too. V6 built the jobs' programs, common/auster-engine and
+# common/auster-check, which step 3 copies with the check job's section C into jobs/. V7 added the question
+# about ~/.zprofile (B6), asked with the question; the keys made by common/auster's functions, which
+# `auster key add` uses too (step 11, with tools/mint-id copied to jobs/mint-id at step 3); and the QR code
+# of step 14. What later steps complete is marked TODO:
 #   U4  `update`, and a run on a Mac that already serves the recipe (B3's update-only branches, D3.6);
 #   U2  the readers of the records written here, and the records' own tests;
-#   U5  the server check's callers other than a first install, and exit code 4's tests;
-#   V7  the keys' commands and the QR code. (V6 built the jobs' programs, common/auster-engine and
-#       common/auster-check, which step 3 copies with the check job's section C into jobs/.)
+#   U5  the server check's callers other than a first install, and exit code 4's tests.
 #
 # Exit codes (B3): 0 done; 1 refused or answered no, and nothing of this run is left; 2 usage; 3 not
 # everything was updated (here only: a run that U4 must handle); 4 the server is down; 5 stopped after
@@ -24,11 +26,13 @@
 # pasting the line again goes on from there.
 #
 # Test variables: those of section C (AU_GPU_MIB, AU_RAM_BYTES, AU_DISK_FREE_BYTES, AU_DISK_TOTAL_BYTES,
-# which common/capability.js reads), and AU_TTY (common/auster), the file a test answers the questions in.
+# which common/capability.js reads), and common/auster's: AU_TTY, the file a test answers the questions in;
+# AU_SCREEN, the file the QR code is drawn on; AU_SERVER_CHECK_SECS, the server check's limit.
 set -u
 export LC_ALL=C
 AU_TREE=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
 . "$AU_TREE/common/auster"
+AU_MINT="$AU_TREE/tools/mint-id"               # A2: ids are minted by the tree's program
 
 AU_ENGINE_HOST=https://github.com/ggml-org/llama.cpp/releases/download
 AU_MODEL_HOST=https://huggingface.co
@@ -37,7 +41,6 @@ AU_PORT_FIRST=8484                             # B4: the port, chosen at install
 AU_TEST_PORT_FIRST=18484                       # B3 step 10: the candidate's free port on 127.0.0.1
 AU_RE_COMMIT='^[0-9a-f]{40}$'
 AU_RE_VERSION='^v(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$'
-AU_RE_DEVICE='^[a-z][a-z0-9-]{0,39}$'
 AU_RE_ENTRY='^[A-Za-z0-9._+@-]+(/[A-Za-z0-9._+@-]+)*/?$'
 
 AU_AWAKE=no AU_DEVICE= AU_LOCKED=0 AU_ROOT_NEW=0 AU_MADE_ROOT=0 AU_CANDIDATE= AU_CREATED=()
@@ -80,6 +83,7 @@ au_stop() { # SENTENCE... -> exit 5: what is left is listed, and how to remove i
 }
 
 au_cleanup() {
+  au_qr_leave
   au_candidate_stop
   au_lock_release
   rm -rf "$AU_RUN"
@@ -229,6 +233,7 @@ au_step3_root() {
   au_program "$AU_TREE/common/registry-lib.js" "$AU_DATA/jobs/registry-lib.js" 644
   au_program "$AU_TREE/common/capability-lib.js" "$AU_DATA/jobs/capability-lib.js" 644
   au_program "$AU_TREE/common/capability.js" "$AU_DATA/jobs/capability.js" 644
+  au_program "$AU_TREE/tools/mint-id" "$AU_DATA/jobs/mint-id" 644   # for `auster key add` (B7, A2)
 }
 
 au_program() { # SOURCE DEST MODE -> written by rename, unless already equal byte for byte
@@ -254,13 +259,7 @@ au_link_inside() { # ROOT LINK -> 0 when LINK's target, resolved from its own fo
   done
 }
 
-au_list() { # ROOT -> the engine's file list (B3 step 9): `path TAB size TAB sha256` for each file and
-  # `path TAB link TAB target` for each link, sorted by path; the engine job makes it again at each start
-  (cd "$1" && find . \( -type f -o -type l \) -print | sed 's|^\./||' | LC_ALL=C sort | while IFS= read -r p; do
-    if [ -L "$p" ]; then printf '%s\tlink\t%s\n' "$p" "$(readlink "$p")"
-    else printf '%s\t%s\t%s\n' "$p" "$(stat -f %z "$p")" "$(au_sha "$p")"; fi
-  done)
-}
+# au_list ROOT, the engine's file list, is common/auster's, which `auster verify` uses too.
 
 au_unpack() { # ARCHIVE DIR -> DIR, made fresh with mode 0700, holds the archive in root/ and its file list
   # in files. Says why and returns 1 for any link that points outside it, any absolute or .. name, any
@@ -509,7 +508,7 @@ au_step6_question() { # -> on a yes, AU_AWAKE and the choice are settled; a no r
     au_ask "Install for $AU_PEOPLE people? Type yes, another number of people (1 to $AU_DEFAULT_PEOPLE), or no:" ||
       au_refuse "Nothing was installed."
     case "$AU_REPLY" in
-      yes|YES|Yes) au_mac_record; au_device_name; return 0 ;;
+      yes|YES|Yes) au_mac_record; au_device_name; au_zprofile_question; return 0 ;;
       no|NO|No) au_refuse "Nothing was installed, and nothing of this run is left." ;;
     esac
     n=$AU_REPLY
@@ -534,6 +533,13 @@ au_device_name() { # -> AU_DEVICE: the name of the first device, asked with the 
     au_say "That name is not one Auster takes."
   done
   AU_DEVICE=device-1
+}
+
+au_zprofile_question() { # -> on a yes, the line that lets Terminal find `auster` added to ~/.zprofile (B6): asked
+  # with the question, so that nothing is asked after the downloads, and written at once; no answer is a no
+  au_zprofile_has && return 0
+  au_yes "Add one line to the end of ~/.zprofile, so that Terminal finds the command auster?" || return 0
+  au_zprofile_add || au_say "~/.zprofile could not be changed. For Terminal to find auster, add this line to it yourself: $AU_ZPROFILE_LINE"
 }
 
 au_mac_record() { # -> builds/mac (C1, capability-lib.js's header gives its form), by rename
@@ -716,37 +722,17 @@ au_step10_test() { # -> 0 on a pass; on a fail the descriptor goes to failed/ an
 
 # --- steps 11 to 15 ------------------------------------------------------------------------------------
 
-au_key_new() { # FILE -> a new key in FILE, mode 0600, by rename
-  local k
-  k=$(openssl rand -hex 16 2>/dev/null)
-  [[ $k =~ $AU_RE_KEY ]] || return 1
-  ( umask 077; printf '%s\n' "$k" > "$1.new.$$" ) && mv -f "$1.new.$$" "$1"
-}
-
-au_step11_keys() { # one key for each device, named by the household, and Auster's own for the probe (B7).
-  # TODO(V7): `auster key add`, `revoke` and `show`, and the tests T81 to T84.
-  local f id name n=0 k
-  AU_NEW_DEVICES=()
-  if ! ls "$AU_DATA"/keys/k*.name > /dev/null 2>&1; then
-    name=${AU_DEVICE:-device-1}
-    id=$("$AU_TREE/tools/mint-id" k) && [[ $id =~ $AU_RE_KEYID ]] || au_stop "A device key could not be made."
-    au_key_new "$AU_DATA/keys/$id" || au_stop "A device key could not be made."
-    ( umask 077; printf '%s\n' "$name" > "$AU_DATA/keys/$id.name" )
-    AU_NEW_DEVICES+=("$name")
+au_step11_keys() { # one key for each device, named by the household, and Auster's own for the probe (B7), by
+  # common/auster's functions, which `auster key add` uses too; then the engine's key file, written and checked
+  AU_NEW_DEVICES=() AU_NEW_KEYS=()
+  au_key_list
+  if [ "${#AU_KEY_IDS[@]}" = 0 ]; then
+    au_key_mint "${AU_DEVICE:-device-1}" || au_stop "A device key could not be made."
+    AU_NEW_DEVICES+=("${AU_DEVICE:-device-1}")
+    AU_NEW_KEYS+=("$AU_KEY_ID")
   fi
   [ -f "$AU_DATA/keys/probe" ] || au_key_new "$AU_DATA/keys/probe" || au_stop "Auster's own key could not be made."
-  f="$AU_DATA/keys/.engine.keys.new.$$"
-  ( umask 077; : > "$f" )
-  for k in "$AU_DATA"/keys/k* "$AU_DATA/keys/probe"; do
-    case "${k##*/}" in *.*) continue ;; esac
-    [ -f "$k" ] && [ ! -L "$k" ] || continue
-    head -n 1 "$k" >> "$f"
-    n=$((n + 1))
-  done
-  mv -f "$f" "$AU_DATA/keys/engine.keys" || au_stop "The engine's key file could not be written."
-  f="$AU_DATA/keys/engine.keys"
-  [ -f "$f" ] && [ ! -L "$f" ] && [ "$(stat -f %Lp "$f")" = 600 ] && [ "$n" -ge 2 ] && [ "$n" -le 64 ] &&
-    [ "$(grep -c -v -E "$AU_RE_KEY" "$f")" = 0 ] || au_stop "The engine's key file is not as written, so the engine is not started."
+  au_keys_write || au_stop "The engine's key file is not as written, so the engine is not started."
 }
 
 au_xml() { local s=$1; s=${s//&/&amp;}; s=${s//</&lt;}; s=${s//>/&gt;}; printf '%s' "$s"; }
@@ -791,7 +777,7 @@ au_step12_switch() { # the switch: serving written by rename with a speed of 0, 
   au_mkdir "$r" && au_mkdir "$r/kept" || au_stop "$r could not be made."
   au_descriptor "$r/serving" 0 || au_stop "The record of what serves could not be written."
   au_jobs_write
-  rm -f "$AU_DATA/builds/stopped"
+  rm -rf "$AU_DATA/builds/stopped"   # whatever it is: a stopped that cannot be read means stopped (D3.1)
   AU_T0=$(date +%s)
   au_job_load "$AU_LABEL_ENGINE" && au_job_load "$AU_LABEL_CHECK" || au_stop "launchd did not load Auster's jobs."
 }
@@ -813,10 +799,12 @@ au_step13_check() { # the server check (B3 step 13): passed goes on; open and no
   esac
 }
 
-au_step14_show() { # each new device's key as a QR code (B7). TODO(V7): the QR code; until then, no key is shown
-  local n
-  for n in ${AU_NEW_DEVICES[@]+"${AU_NEW_DEVICES[@]}"}; do
-    au_say "A key is made for the device $n. Showing it as a QR code comes with a later version (V7)."
+au_step14_show() { # each new device's key as a QR code (B7), only after a passed server check (step 13). With no
+  # terminal to draw it on, it says how to show it later, and the install goes on
+  local i
+  for ((i = 0; i < ${#AU_NEW_KEYS[@]}; i++)); do
+    au_say "A key is made for the device ${AU_NEW_DEVICES[$i]}."
+    au_qr_show "${AU_NEW_DEVICES[$i]}" "${AU_NEW_KEYS[$i]}" || true
   done
 }
 

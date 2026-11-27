@@ -1,0 +1,3 @@
+# file: common/auster
+# remove leaves the labels' disabled marks: no launchctl enable
+/^au_remove()/,/^}/s/^    launchctl enable "gui\/\$AU_UID\/\$l"$/    :/
