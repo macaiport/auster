@@ -222,8 +222,11 @@ sent while they are off.
 **A simpler path for the second role:** Proton's Lumo and Infomaniak's AI Services (E3a) are already
 central services of this kind, run by companies whose business is privacy, in Switzerland or the EU, on
 open-weight models. Auster may not need to be the way through at all: it can curate such providers (E4)
-and let the household choose one. Whether either offers an API a Mac can use was not looked at for
-Lumo; Infomaniak's is OpenAI-compatible.
+and let the household choose one, among those a Mac can call. Infomaniak's API is OpenAI-compatible.
+Lumo has no published API (checked 2026-11-27): only unofficial clients that speak its web app's own
+protocol, such as [lumo-tamer](https://github.com/ZeroTricks/lumo-tamer), which can break without
+notice and are not a way for Auster to send a household's requests. Lumo could join the list only if
+Proton publishes an API.
 
 ## Decisions for the owner
 
