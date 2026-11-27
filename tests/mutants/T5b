@@ -1,0 +1,3 @@
+# file: common/auster
+# status says nothing when _update/off switches the checks off
+/^au_status_updates() {/,/^}/s/^    off:\*) au_say .*$/    off:*) ;;/

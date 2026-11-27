@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# the driver writes without looking for records of a newer format but the lock
+s/^  if au_newer_records; then   # T95: every record of D3.1, the format first, and none rewritten$/  if false; then/

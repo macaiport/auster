@@ -1,0 +1,56 @@
+The records of D3.1 for two and for three recipes on one Mac (docs/plans/v0.1.md, D6), built directly
+and not by an install: an install refuses a second recipe (BD14), but the records stay per recipe, and
+T24 (three recipes, each failing in its own way) and T30 (one recipe's disk rule never removes a file
+another recipe's descriptor names) need them. Each folder is a data root's records and files, written
+once by U2 (2026-11-27) with fixed ids that match A2's patterns; no id here is ever minted again.
+
+  two/     recipes A and B
+  three/   recipes A, B and C: two/ byte for byte, and C's folder with the three files only C names
+
+Git keeps neither modes nor empty folders, so a test copies one with tests/helpers.sh `records_fixture
+two|three DEST`, which gives every folder mode 0700 (and each recipe its kept/ and failed/), every record
+0600 and every file in store/ 0444, as Auster leaves them. T0 checks that every record reads with
+common/auster's readers, that every sha256 a descriptor names is a file in store/ with that sha256, that
+each launch line names its engine's file list by its sha256, that every file in store/ is named by a
+descriptor, and that two/ is three/ less C.
+
+The ids
+  rapdsanqlj2eu  recipe A                       rkfbt7hbg4kzw  recipe B
+  r6xnosrsvgruc  recipe C (three/ only)
+  ecmk3usbjhyrc  engine b12359                  ew6sxpf27zvlg  engine b12400 (made up)
+  mkvfeqqxoygjg  model A, the older file        macehkwh77vhw  model A
+  mx2o3cznfz23s  model B
+  byvlad4zog2kq  A's earlier build              bm4smkutoesko  A's build in use
+  bvuefucqhcs35  A's build that failed          bnkj6d7jgrlzs  B's earlier build
+  bjhl5vv2hfgyg  B's build in use               bx33a5rua3kky  C's build in use
+
+The descriptors (engine, model, template, system prompt, test, each by the first 8 hex digits of its
+sha256; then people, context per person, port and speed)
+
+  builds/<A>/serving                       bm4smkutoesko  b12359  model A      5aad25b2 c7aec194 e7cc43a4 5bdf88be 22858c45  4 32768 8484 36.9
+  builds/<A>/kept/2026-11-20T10:00:00Z-..  byvlad4zog2kq  b12359  model A old  5aad25b2 f266677f e7cc43a4 5bdf88be 22858c45  4 32768 8484 35.2
+  builds/<A>/failed/2026-11-22T10:00:00Z-  bvuefucqhcs35  b12400  model A      086ad00d c7aec194 e7cc43a4 5bdf88be 22858c45  4 32768 8484 0
+  builds/<B>/serving                       bjhl5vv2hfgyg  b12359  model A old  5aad25b2 f266677f a1f4dbd0 02837bc7 e935d5ee  2 16384 8485 40.1
+  builds/<B>/kept/2026-11-21T10:00:00Z-..  bnkj6d7jgrlzs  b12400  model B      086ad00d f542df1e a1f4dbd0 02837bc7 e935d5ee  2 16384 8485 0
+  builds/<C>/serving (three/)              bx33a5rua3kky  b12400  model B      086ad00d f542df1e e0a3fe2e 01e4c3ef d25735e8  1 8192 8486 51.0
+
+What they share, which is what T30 is about:
+- model A's older file (f266677f) is named by A's kept entry and by B's serving: removing A's earlier
+  build must leave it;
+- engine b12400 (086ad00d) is named by A's failed entry, B's kept entry and, in three/, C's serving;
+- engine b12359 (5aad25b2) is named by A's serving, A's kept entry and B's serving;
+- model B (f542df1e) is named by B's kept entry and, in three/, C's serving.
+Each recipe has its own template, system prompt and test, since a build is named by one recipe's order
+lines only (A3).
+
+The other records
+  builds/mac           a 64 GB Mac (GPU limit 53,084 MiB), macOS 27.2.1, router 0a:1b:2c:3d:4e:5f, no keep-awake
+  builds/local-name    test-mac, the stub scutil's LocalHostName
+  builds/<A>/hold      A's failed build, bvuefucqhcs35, held
+  builds/<r>/start     each recipe: starting, at 10.0.0.5, a fixed boot session, time 1800000000
+
+store/ holds each file a descriptor names, as text that says what it stands for: the engine archives
+("engine archive stand-in, b12359"), the models ("model stand-in A"), templates, system prompts and
+tests. engines/<sha256>/ holds each engine "unpacked": root/llama-stub/llama-server, a stand-in that only
+exits 1, and files, its list in the form of B3 step 9, whose sha256 the launch lines name (36799637 for
+b12359, 74d40bde for b12400). Nothing here is ever run.

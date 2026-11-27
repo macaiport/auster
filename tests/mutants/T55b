@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# take the figures from _update/registry when an earlier check left one
+s|^  AU_REG="\$AU_TREE/registry.tsv"$|  AU_REG="$AU_TREE/registry.tsv"; [ -f "$AU_DATA/_update/registry" ] \&\& AU_REG="$AU_DATA/_update/registry"|

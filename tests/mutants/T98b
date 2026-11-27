@@ -1,0 +1,3 @@
+# file: common/updates.sh
+# the rule file runs timeout, which its own PATH finds on macOS 27 and macOS 14 lacks
+s/^  if \[\[ \${AU_UPDATE_NOW:-} =~ \$_AUU_TIME \]\]; then printf '%s\\n' "\$AU_UPDATE_NOW"; else date +%s; fi$/  if [[ ${AU_UPDATE_NOW:-} =~ $_AUU_TIME ]]; then printf '%s\\n' "$AU_UPDATE_NOW"; else timeout 5 date +%s; fi/

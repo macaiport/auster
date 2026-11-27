@@ -1,0 +1,3 @@
+# file: common/auster
+# treat an unreadable hold as no holds
+s/^  AU_HOLD=unreadable$/  AU_HOLD=ok/

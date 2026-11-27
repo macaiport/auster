@@ -1,0 +1,3 @@
+# file: common/updates.sh
+# read with one read and no second read, in the rule file's own reader
+s/^  { IFS= read -r line || true; IFS= read -r more || r2=1; } < "\$f" 2>\/dev\/null || return 1$/  { IFS= read -r line || true; r2=1; } < "$f" 2>\/dev\/null || return 1/

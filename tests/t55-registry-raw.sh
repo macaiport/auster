@@ -1,7 +1,7 @@
 # T55, the reader's half: each line a Mac reads keeps its raw text byte for byte, fields after the last one
 # this version knows included, so that a descriptor can copy the build, engine and model lines word for
-# word (A3, A5). That `serving` and the kept copy hold exactly those lines, and that they are taken from the
-# fixed commit's registry, not from `_update/registry` (the plan's mutant (b)), is U2's half. Mutant:
+# word (A3, A5). That `serving` holds exactly those lines, taken from the fixed commit's registry and not from
+# `_update/registry` (the plan's mutant (b)), is t55-install-descriptor.sh (U2); the kept copy is U5's. Mutant:
 # tests/mutants/T55a.
 . "$TESTS/lib.sh"
 . "$TESTS/registry-helpers.sh"

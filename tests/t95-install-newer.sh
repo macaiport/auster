@@ -1,8 +1,9 @@
-# T95, the installer's half (V5): a driver meeting records of a newer format refuses with exit 1, says how
+# T95, the installer's half (V5, U2): a driver meeting records of a newer format refuses with exit 1, says how
 # to update or remove, and never rewrites them. The lock, builds/updating: `auster-record 2` with exactly
 # format 1's fields, with one field more, and larger than 4,096 bytes; the format is read before the fields
-# or the size are counted. And `builds/mac` and the stamp in format 2. The readers of the other records,
-# and the rest of T95, are U2's. Mutants: tests/mutants/T95a and T95b.
+# or the size are counted. And `builds/mac` and the stamp in format 2; then (U2) every other record of D3.1, each
+# in format 2 alone. The readers' half, and bin/auster's, are t95-records-newer.sh. Mutants: tests/mutants/T95a,
+# T95b and T95f.
 . "$TESTS/lib.sh"
 . "$TESTS/helpers.sh"
 . "$TESTS/install-helpers.sh"
@@ -37,4 +38,16 @@ mkdir -m 700 "$DATA/_update"
 S="$DATA/_update/scripts"
 printf 'auster-record 2\trelease\tv0.9.0\t%s\t2026-11-26T15:04:05Z\tmore\n' "$COMMIT" > "$S"; was=$(shasum -a 256 < "$S")
 run_install $'no\nno\n' "$IR"; newer "$S" "the stamp in format 2"
+rm -f "$S"
+
+# U2: every other record of D3.1, each alone in format 2 (D3.1: every record carries its own format number)
+mkdir -m 700 "$DATA/builds/$IR" "$DATA/builds/$IR/kept" "$DATA/builds/$IR/failed"
+for r in builds/stopped builds/paused builds/local-name "builds/$IR/start" "builds/$IR/hold" _update/offer _update/tried \
+    _update/noted _update/engine "builds/$IR/serving" "builds/$IR/kept/2026-11-20T10:00:00Z-$IB1" "builds/$IR/failed/2026-11-21T10:00:00Z-$IB1"; do
+  f="$DATA/$r"
+  case "$r" in */serving|*/kept/*|*/failed/*) printf 'auster-descriptor 2\nbuild\tmore than format 1 has\n' ;; *) printf 'auster-record 2\tmore\tthan\tformat\t1\thas\n' ;; esac > "$f"
+  was=$(shasum -a 256 < "$f")
+  run_install $'no\nno\n' "$IR"; newer "$f" "$r in format 2"
+  rm -f "$f"
+done
 done_

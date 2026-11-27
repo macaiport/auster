@@ -69,8 +69,9 @@
 //                  network` only; an update copies it from the record it replaces
 //   keep-awake     `yes` or `no`: the household's answer to the question (BD10, T103)
 //
-// The reader (auCapParseMac, bound 1,024 bytes): the first line is checked first. `auster-record 1` is
-// read on; `auster-record <n>` with a larger number gives state `newer` (Auster refuses, says how to update
+// The reader (auCapParseMac, bound 1,024 bytes): the first field of the first line is checked first (D3.1,
+// as every reader of a record does since U2). `auster-record 1` is read on, and the line must then be that
+// alone; `auster-record <n>` with a larger number gives state `newer` (Auster refuses, says how to update
 // or remove, and leaves the record as it is: D3.1, T95); anything else, a file over 1,024 bytes, one cut
 // short (no final newline), a key out of place, a value that fails its pattern or any other byte out of
 // place gives state `absent`. A file that is a link is absent too (auCapReadFile).
@@ -234,12 +235,12 @@ function auCapDf(text, big) { // -> { free, total, why }: bytes
 function auCapParseMac(bytes, big) { // -> { state: ok, absent or newer, gpuMiB, ramBytes, macos, measured, router, keepAwake }
   var absent = { state: 'absent' };
   if (typeof bytes !== 'string') return absent;
-  var nl = bytes.indexOf('\n'), head = /^auster-record ([1-9][0-9]{0,8})$/.exec(nl < 0 ? bytes : bytes.slice(0, nl));
+  var head = /^auster-record ([1-9][0-9]{0,8})$/.exec(bytes.split('\n')[0].split('\t')[0]);   // the format first: its first field
   if (!head) return absent;
   if (head[1] !== '1') return { state: 'newer' };
   if (big || bytes.length > AU_CAP_MAX.mac || bytes.charAt(bytes.length - 1) !== '\n') return absent;
   var lines = bytes.slice(0, -1).split('\n');
-  if (lines.length !== AU_CAP_MAC_FIELDS.length + 1) return absent;
+  if (lines[0] !== 'auster-record 1' || lines.length !== AU_CAP_MAC_FIELDS.length + 1) return absent;
   var v = {}, i, f, spec;
   for (i = 0; i < AU_CAP_MAC_FIELDS.length; i++) {
     spec = AU_CAP_MAC_FIELDS[i]; f = lines[i + 1].split('\t');

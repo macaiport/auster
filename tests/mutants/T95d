@@ -1,0 +1,3 @@
+# file: common/auster
+# count the size of a one-line record before its format number
+/^au_line_read() {/,/^}/s/^  au_format "\$f" auster-record || return \$?$/  [ "$(au_size "$f")" -le 4096 ] || return 1; au_format "$f" auster-record || return $?/

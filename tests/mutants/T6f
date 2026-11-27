@@ -1,0 +1,3 @@
+# file: common/updates.sh
+# the rule file checks _update alone, as U1 left it
+/^auu_own() {/,/^}/s/^  _auu_own1 "\$AU_UPDATE_DIR" || return 1$/  _auu_own1 "$AU_UPDATE_DIR"; return/

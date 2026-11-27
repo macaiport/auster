@@ -1,7 +1,7 @@
 # T36, the registry's half: renaming a recipe's label, by a later `recipe` line (A1, A3), changes nothing
 # the reader finds a recipe or its builds by: the recipe is found by its id alone, and its builds and their
-# lines come out byte for byte as before. That no path in the data root holds a label is U2's half of
-# T36, since U2 writes the data root; a build has no label but its Mac label, which only a new build
+# lines come out byte for byte as before. That no path in the data root holds a label is the data root's
+# half, t36-install-paths.sh (U2); a build has no label but its Mac label, which only a new build
 # line can change (A3). Mutant: tests/mutants/T36a, the registry's form of "use the label as the folder
 # name": key the recipe by its label.
 . "$TESTS/lib.sh"

@@ -315,5 +315,40 @@ if grep -n -E '/usr/bin/curl|Library/Developer|llama-b[0-9]+/' "$TESTS"/stubs/* 
   bad "a stub or helper names the real curl or a real engine"
 else ok "no stub or helper names the real curl or a real engine"; fi
 
+# --- the records of two and three recipes (tests/fixtures/records/README), as common/auster reads them
+records_check() { # DATA -> one line for anything out of place; nothing when every record reads and every file is named
+  local s h e
+  ( . "$ROOT/common/auster"; AU_DATA=$1
+    for s in "$1"/builds/r*/serving "$1"/builds/r*/kept/* "$1"/builds/r*/failed/*; do
+      [ -e "$s" ] || continue
+      case "$s" in */serving) au_desc_read "$s" ;; *) au_entry_read "$s" ;; esac || { echo "unreadable ${s#"$1"/}"; continue; }
+      for h in "$AU_SV_ENGINE" "$AU_SV_MODEL" "$AU_SV_TEMPLATE" "$AU_SV_SYSTEM" "$AU_SV_TEST"; do
+        [ "$(shasum -a 256 < "$1/store/$h" 2>/dev/null | cut -c1-64)" = "$h" ] || echo "${s#"$1"/} names $h, not in store/"
+        echo "$h" >> "$1.named"
+      done
+      [ "$(shasum -a 256 < "$1/engines/$AU_SV_ENGINE/files" 2>/dev/null | cut -c1-64)" = "$AU_SV_LIST" ] || echo "${s#"$1"/}: its engine's list"
+    done
+    for e in "$1"/engines/*; do au_list "$e/root" | cmp -s - "$e/files" || echo "engines/${e##*/}: files is not its list"; done
+    for s in "$1"/store/*; do grep -qx "${s##*/}" "$1.named" || echo "store/${s##*/} is named by no descriptor"; done
+    for s in "$1"/builds/r*; do
+      au_hold_read "${s##*/}"; [ "$AU_HOLD" = ok ] || [ "$AU_HOLD" = absent ] || echo "${s##*/}: hold $AU_HOLD"
+      au_start_read "${s##*/}" || echo "${s##*/}: start unreadable"
+    done
+    au_mac_read; [ "$AU_MAC" = ok ] || echo "mac $AU_MAC"
+    au_localname_read; [ "$AU_LN" = ok ] || echo "local-name $AU_LN"
+    AU_UID=$(id -u); e=$(au_own_tree "$1") || echo "ownership: $e" )
+}
+for n in two three; do
+  records_fixture "$n" "$W/records-$n"
+  same "$(records_check "$W/records-$n")" "" "records of $n recipes: every record reads, every sha256 named is in store/, and every file there is named"
+done
+same "$(ls "$W/records-two/builds" | grep -c '^r'):$(ls "$W/records-three/builds" | grep -c '^r')" "2:3" "two recipes, and three"
+same "$(diff -r "$W/records-two" "$W/records-three" | sed -E 's/[0-9a-f]{64}/<sha>/' | sort)" "Only in $W/records-three/builds: r6xnosrsvgruc
+Only in $W/records-three/store: <sha>
+Only in $W/records-three/store: <sha>
+Only in $W/records-three/store: <sha>" "three/ is two/ and recipe C, with its three files"
+[ "$(stat -f %Lp "$W/records-three/builds")$(stat -f %Lp "$W/records-three/builds/rapdsanqlj2eu/serving")$(stat -f %Lp "$W/records-three/store/$(ls "$W/records-three/store" | head -n 1)")" = 700600444 ] &&
+  ok "records_fixture: folders 0700, records 0600, store/ 0444" || bad "records_fixture: modes"
+
 stub_cleanup
 done_

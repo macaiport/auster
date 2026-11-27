@@ -8,18 +8,39 @@
 # from the terminal, the job verbs, the server check), `remove` and the start of `status`. V6 made the
 # server check fail closed. V7 (2026-11-26): every subcommand of B6 that needs no update, the keys and the
 # QR code (B7), the line in ~/.zprofile (B6), and removal whole (B8); tests T72 (its revoke clause), T81 to
-# T87, T106, T108, T113 and T114. Still to come, each marked TODO below:
+# T87, T106, T108, T113 and T114. U2 (2026-11-27): the readers of D3.1's records, below; the ownership
+# rule over the whole data root (au_root_check); the sweep for records of a newer format, which every
+# command that writes runs first (au_ready); the update check's state in `status`, from updates.sh; and
+# builds/local-name, the `.local` name the household's devices were given, which `status` compares with
+# the Mac's name now and `network` records anew (T5, T6, T95, T116). Still to come, each marked TODO below:
 #   U4  `update`;  U5  `people`'s change of setting, and T107's rows for these commands;
-#   U6  `rollback`, `unhold` and `cleanup`;  U3  each recipe's line in `status`;
-#   U2  the readers' own tests, and the `.local` name in `status` (no record holds the name the Mac had
-#       when the household's devices were given the address).
+#   U6  `rollback`, `unhold` and `cleanup`;  U3  each recipe's line in `status`.
+#
+# The readers (D3.1, Reading). Each checks the format first, from the first field of the first 4,096 bytes
+# (au_format): `auster-record 1` (`auster-descriptor 1` for a descriptor) is read on; the same word with a
+# larger number is a newer format's, which is left as it is and makes every command that writes refuse and
+# say how to update or remove (T95); anything else is absent. Then a regular file, not a link, within its
+# bound, every value matched whole before use; nothing read is ever run, sourced, or used in arithmetic
+# unmatched. A record that cannot be read counts as absent, except `hold` (its recipe is passed over) and
+# `stopped` (stopped, the reason unknown):
+#   au_line_read   the one-line records: `stopped`, `local-name`, and the stamp `_update/scripts` (updates.sh
+#                  reads it and `offer`, `tried` and `noted` with its own copy of this reader): 4,096 bytes,
+#                  one line, exactly its fields
+#   au_desc_read   a descriptor (A5): `serving`, or an entry of `kept/` or `failed/`; 8,192 bytes, five lines
+#   au_hold_read   `hold`: 1,024 bytes, its format line then at most 64 build ids
+#   au_start_read  `start`: 1,024 bytes, five lines;  au_mac_read  `mac`: 1,024 bytes, seven lines
+#   au_probe_read  `_update/engine`: 1,024 bytes, seven lines;  au_lock_read  the lock `updating`, its own
+# The engine job and the check job load nothing from this file (B4): their own readers of `serving`, `mac`,
+# `start`, `updating`, `paused` and `_update/engine` follow the same rules, and T6 runs each of them through
+# the same table.
 #
 # The commands (B6). Exit codes: 0 done; 1 refused; 2 usage; 3 not in this version (each a TODO); 4 the
 # server is down. `start`, `restart`, `key add` and `key revoke` exit 0 when the server check passes and 4
 # otherwise, naming `auster start` after open and `auster status` after not answered.
 #   status                       what serves, the engine job's last start, the check job's last probe, why
-#                                the engine is stopped, a job macOS has switched off, the devices, the sleep
-#                                setting
+#                                the engine is stopped, a job macOS has switched off, the devices, a `.local`
+#                                name macOS has changed, the sleep setting, whether update checks are made,
+#                                and every record of a newer format
 #   stop                         launchctl disable, then bootout; builds/stopped says `household`
 #   start                        enable, then bootstrap (kickstart -k if it is loaded); builds/stopped
 #                                deleted, whatever the check then gives; the server check
@@ -38,7 +59,10 @@
 # Records written here (D3.1): the lock `builds/updating` (one line: `auster-record 1`, the process, the
 # boot session, the process's start time); `builds/stopped` (one line: `auster-record 1`, `household` or
 # `open`, and the time, `date -u +%Y-%m-%dT%H:%M:%SZ`); the speed in serving's launch line; the router in
-# builds/mac (`auster network`, in capability-lib.js's form). And what the engine reads, which carries no
+# builds/mac (`auster network`, in capability-lib.js's form); builds/local-name (one line: `auster-record 1`,
+# the Mac's `.local` name, its LocalHostName, when the household's devices were given its address, or - when it
+# had none, and the time as `stopped` gives it; written by the driver after the yes at a first install and by
+# `auster network`, read by `status`). And what the engine reads, which carries no
 # format number (B7): each device's key in keys/<id> (32 hex characters and a newline, mode 0600), its name
 # in keys/<id>.name (one line, AU_RE_DEVICE), Auster's own probe key in keys/probe, and keys/engine.keys:
 # every named device's key in the order of their ids, then the probe key, one a line, mode 0600, written to
@@ -76,6 +100,13 @@ AU_RE_SPEED='^(0|[1-9][0-9]{0,5})(\.[0-9]{1,3})?$'
 AU_RE_IPV4='^(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})$'
 AU_RE_DEVICE='^[a-z][a-z0-9-]{0,39}$'   # a device's name (B7): what the household calls it, never a path
 AU_RE_UTC='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
+AU_RE_DATE='^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]Z$'   # mac's, as capability-lib.js has it
+AU_RE_NUM='^(0|[1-9][0-9]{0,8})$'       # A3's numbers
+AU_RE_SIZE='^(0|[1-9][0-9]{0,14})$'     # A3's sizes
+AU_RE_UNIT='^(0(\.[0-9]{1,3})?|1(\.0{1,3})?)$'   # A3's temperature and top-p
+AU_RE_ROUTER='^[0-9a-f]{2}(:[0-9a-f]{2}){5}$'
+AU_RE_LOCALNAME='^[A-Za-z0-9-]{1,63}$'  # a LocalHostName, as `scutil --get LocalHostName` gives it
+AU_RE_VERSION='^v(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$'   # a version of Auster (D3.2)
 AU_T=$'\t'
 if [[ ${AU_SERVER_CHECK_SECS:-} =~ ^[1-9][0-9]{0,2}$ ]]; then AU_CHECK_SECS=$AU_SERVER_CHECK_SECS; fi   # a test's limit
 
@@ -166,8 +197,10 @@ au_dir_ok() { # DIR -> 0 when DIR is a folder, not a link, owned by this account
   case "${m:1:1}${m:2:1}" in *[2367]*) return 1 ;; esac
 }
 
-au_root_check() { # DATA -> 0 when DATA is absent (AU_ROOT_NEW=1) or is Auster's data root, whole (AU_ROOT_NEW=0);
-  # otherwise prints why and returns 1. Nothing is written either way.
+au_root_check() { # DATA -> 0 when DATA is absent (AU_ROOT_NEW=1) or is Auster's data root, whole (AU_ROOT_NEW=0):
+  # mode 0700, with its marker, and it and every folder in it, at any depth, this account's and nobody else's to
+  # write, none of them a link (D3.1, Ownership); otherwise prints why and returns 1. Nothing is written either way,
+  # and the driver and every command of bin/auster run it before they write anything.
   local d=$1 p sub
   for p in "$HOME/Library" "$HOME/Library/Application Support"; do
     if [ -L "$p" ]; then au_say "$p is a link; Auster writes nowhere that passes through a link."; return 1; fi
@@ -192,10 +225,29 @@ au_root_check() { # DATA -> 0 when DATA is absent (AU_ROOT_NEW=1) or is Auster's
       au_dir_ok "$d/$sub" || { au_say "$d/$sub must be a folder that only $AU_USER owns and can write; nothing was changed."; return 1; }
     fi
   done
-  for sub in "$d"/builds/r*; do
+  for sub in "$d"/builds/r* "$d"/builds/r*/kept "$d"/builds/r*/failed "$d"/engines/*; do
     [ -e "$sub" ] || [ -L "$sub" ] || continue
     au_dir_ok "$sub" || { au_say "$sub must be a folder that only $AU_USER owns and can write; nothing was changed."; return 1; }
   done
+  if ! sub=$(au_own_tree "$d"); then
+    case "$sub" in
+      .) au_say "$d cannot be read whole, so it is not known that only $AU_USER can write in it; nothing was changed." ;;
+      *) au_say "$d/${sub#./} must be a folder that only $AU_USER owns and can write, and no link in the data root may lead to a folder; nothing was changed." ;;
+    esac
+    return 1
+  fi
+}
+
+au_own_tree() { # DIR -> 0 when every folder in DIR, at any depth, is this account's and nobody else may write to it, and
+  # no link in it leads to a folder (D3.1, Ownership; the links inside an engine's unpacked tree point inside it, which
+  # B3 step 9 checked); otherwise prints the first path that breaks the rule (from DIR, ./ first) and returns 1, as it
+  # does when find cannot walk the whole of it
+  local bad
+  bad=$(cd "$1" 2>/dev/null && find . \( -type d \( ! -user "$AU_UID" -o -perm +022 \) \) -print -o \
+    \( -type l ! -path './engines/*/root/*' -exec test -d {} \; \) -print 2>/dev/null) || { printf '.'; return 1; }
+  [ -z "$bad" ] && return 0
+  printf '%s' "${bad%%$'\n'*}"
+  return 1
 }
 
 au_mkdir() { # DIR -> a folder of mode 0700, made if absent; 1 if it cannot be, or is not ours
@@ -225,6 +277,50 @@ au_newer() { # FILE -> 0 when it is a record of a newer format than this version
   first=$(au_record_first "$1")
   case "$first" in 'auster-record '*|'auster-descriptor '*) n=${first#* } ;; *) return 1 ;; esac
   [[ $n =~ ^[1-9][0-9]{0,8}$ ]] && [ "$n" -gt 1 ]
+}
+
+au_newer_records() { # -> AU_NEWER: every record of D3.1 in the data root of a newer format than this version reads,
+  # and 0 when there is one (T95). An older version that meets one refuses whatever would write, says how to update
+  # or remove, and leaves it as it is
+  local f
+  AU_NEWER=()
+  for f in "$AU_DATA"/builds/updating "$AU_DATA"/builds/paused "$AU_DATA"/builds/stopped "$AU_DATA"/builds/mac \
+    "$AU_DATA"/builds/local-name "$AU_DATA"/_update/scripts "$AU_DATA"/_update/offer "$AU_DATA"/_update/tried \
+    "$AU_DATA"/_update/noted "$AU_DATA"/_update/engine "$AU_DATA"/builds/r*/start "$AU_DATA"/builds/r*/hold \
+    "$AU_DATA"/builds/r*/serving "$AU_DATA"/builds/r*/kept/* "$AU_DATA"/builds/r*/failed/*; do
+    if au_newer "$f"; then AU_NEWER+=("$f"); fi
+  done
+  [ "${#AU_NEWER[@]}" -gt 0 ]
+}
+
+au_nl_end() { [ "$(tail -c 1 "$1" 2>/dev/null | od -An -tx1 | tr -d ' \n')" = 0a ]; }   # FILE -> 0 when it ends in a newline
+
+au_format() { # FILE KIND -> D3.1's format first, from the first field of the first 4,096 bytes: 0 for `KIND 1`; 2 for
+  # KIND with a larger number, a newer format's, left as it is (T95); 1 for anything else (absent). KIND is
+  # auster-record, or auster-descriptor for a descriptor
+  local first n
+  first=$(au_record_first "$1")
+  [ "$first" = "$2 1" ] && return 0
+  case "$first" in "$2 "*) n=${first#"$2 "} ;; *) return 1 ;; esac
+  [[ $n =~ ^[1-9][0-9]{0,8}$ ]] && return 2
+  return 1
+}
+
+au_line_read() { # FILE N -> a one-line record (D3.1): 0 with its N fields after the format field in AU_LF, each still
+  # to be matched whole by the caller; 2 when it is of a newer format; 1 when it counts as absent. The format first;
+  # then a regular file, not a link, of at most 4,096 bytes and one line (a final newline or none: a second read
+  # must find nothing), split on single tabs into exactly N + 1 fields, none empty
+  local f=$1 line= more= r2=0 x
+  AU_LF=()
+  [ -f "$f" ] && [ ! -L "$f" ] || return 1
+  au_format "$f" auster-record || return $?
+  [ "$(au_size "$f")" -le 4096 ] || return 1
+  { IFS= read -r line || true; IFS= read -r more || r2=1; } < "$f" 2>/dev/null || return 1
+  [ "$r2" = 1 ] && [ -z "$more" ] || return 1
+  au_split "$line"
+  [ "${#AU_F[@]}" -eq $(($2 + 1)) ] || return 1
+  AU_LF=("${AU_F[@]:1}")
+  for x in "${AU_LF[@]}"; do [ -n "$x" ] || return 1; done
 }
 
 au_lock_read() { # FILE -> AU_LOCK: absent, newer, or held, with AU_LOCK_PID, AU_LOCK_BOOT, AU_LOCK_START.
@@ -343,26 +439,135 @@ au_engine_stop() { # -> the engine stopped so that it stays stopped across login
 
 # --- records the server check reads and writes --------------------------------------------------------
 
-au_serving_read() { # RECIPE -> AU_SV_* from builds/<recipe>/serving (A5), or 1 when it cannot be read.
-  # TODO(U2): the descriptor's own reader, with a bound and one pattern for every field.
-  local f="$AU_DATA/builds/$1/serving" n=0 l
+au_desc_read() { # FILE -> AU_SV_* from a descriptor (A5): `serving`, or an entry of kept/ or failed/. 0 when it reads;
+  # 2 when it is of a newer format; 1 when it counts as absent. The format first (`auster-descriptor 1`); then a
+  # regular file, not a link, of at most 8,192 bytes ending in a newline, of five lines of at most 1,000 bytes: the
+  # format line alone; the build, engine and model lines as the registry has them (A3), each known field matched
+  # whole and any field after the last one this version knows kept and not read (T55), the build's engine and
+  # model being those lines' own; and the launch line, exactly six fields: people (1 to 64), context per person (1
+  # to 1,048,576), port (1 to 65,535), the sha256 of the engine's file list, and the writing speed. The engine
+  # job's and the check job's own readers of `serving` take the same fields by the same patterns
+  local f=$1 l n=0 be bm
   AU_SV_LINES=()
-  [ -f "$f" ] && [ ! -L "$f" ] && [ "$(au_size "$f")" -le 8192 ] || return 1
-  while IFS= read -r l; do AU_SV_LINES+=("$l"); n=$((n + 1)); done < "$f"
-  [ "$n" -eq 5 ] && [ "${AU_SV_LINES[0]}" = 'auster-descriptor 1' ] || return 1
-  au_split "${AU_SV_LINES[1]}"; [ "${AU_F[0]}" = build ] && [ "${#AU_F[@]}" -ge 14 ] || return 1
-  AU_SV_BUILD=${AU_F[1]} AU_SV_TEST=${AU_F[6]} AU_SV_TEMPLATE=${AU_F[4]} AU_SV_SYSTEM=${AU_F[5]}
-  [[ $AU_SV_BUILD =~ $AU_RE_BUILD ]] && [[ $AU_SV_TEST =~ $AU_RE_SHA ]] || return 1
-  [[ $AU_SV_TEMPLATE =~ $AU_RE_SHA ]] && [[ $AU_SV_SYSTEM =~ $AU_RE_SHA ]] || return 1
-  au_split "${AU_SV_LINES[2]}"; [ "${AU_F[0]}" = engine ] && [ "${#AU_F[@]}" -ge 8 ] || return 1
+  [ -f "$f" ] && [ ! -L "$f" ] || return 1
+  au_format "$f" auster-descriptor || return $?
+  [ "$(au_size "$f")" -le 8192 ] && au_nl_end "$f" || return 1
+  while IFS= read -r l; do
+    n=$((n + 1))
+    [ "$n" -le 5 ] && [ "${#l}" -le 1000 ] || return 1
+    AU_SV_LINES+=("$l")
+  done < "$f"
+  [ "$n" = 5 ] && [ "${AU_SV_LINES[0]}" = 'auster-descriptor 1' ] || return 1
+  au_split "${AU_SV_LINES[1]}"
+  [ "${#AU_F[@]}" -ge 14 ] && [ "${AU_F[0]}" = build ] || return 1
+  [[ ${AU_F[1]} =~ $AU_RE_BUILD ]] && [[ ${AU_F[2]} =~ ^e[a-z2-7]{12}$ ]] && [[ ${AU_F[3]} =~ ^m[a-z2-7]{12}$ ]] || return 1
+  [[ ${AU_F[4]} =~ $AU_RE_SHA ]] && [[ ${AU_F[5]} =~ $AU_RE_SHA ]] && [[ ${AU_F[6]} =~ $AU_RE_SHA ]] || return 1
+  [[ ${AU_F[7]} =~ $AU_RE_NUM ]] && [[ ${AU_F[8]} =~ $AU_RE_NUM ]] && [[ ${AU_F[9]} =~ $AU_RE_NUM ]] && [[ ${AU_F[10]} =~ $AU_RE_NUM ]] || return 1
+  [[ ${AU_F[11]} =~ $AU_RE_UNIT ]] && [[ ${AU_F[12]} =~ $AU_RE_UNIT ]] && [[ ${AU_F[13]} =~ ^[a-z][a-z0-9-]{1,40}$ ]] || return 1
+  AU_SV_BUILD=${AU_F[1]} AU_SV_TEMPLATE=${AU_F[4]} AU_SV_SYSTEM=${AU_F[5]} AU_SV_TEST=${AU_F[6]} be=${AU_F[2]} bm=${AU_F[3]}
+  au_split "${AU_SV_LINES[2]}"
+  [ "${#AU_F[@]}" -ge 8 ] && [ "${AU_F[0]}" = engine ] && [ "${AU_F[1]}" = "$be" ] && [ "${AU_F[2]}" = macos-arm64 ] || return 1
+  [[ ${AU_F[3]} =~ ^b[0-9]{4,7}$ ]] && [[ ${AU_F[4]} =~ ^llama-b[0-9]{4,7}-bin-macos-arm64\.(tar\.gz|zip)$ ]] || return 1
+  [[ ${AU_F[5]} =~ $AU_RE_SIZE ]] && [[ ${AU_F[6]} =~ $AU_RE_SHA ]] && [[ ${AU_F[7]} =~ $AU_RE_NUM ]] || return 1
   AU_SV_ENGINE=${AU_F[6]}
-  au_split "${AU_SV_LINES[3]}"; [ "${AU_F[0]}" = model ] && [ "${#AU_F[@]}" -ge 10 ] || return 1
+  au_split "${AU_SV_LINES[3]}"
+  [ "${#AU_F[@]}" -ge 10 ] && [ "${AU_F[0]}" = model ] && [ "${AU_F[1]}" = "$bm" ] || return 1
+  [[ ${AU_F[2]} =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,95}/[A-Za-z0-9][A-Za-z0-9._-]{0,95}$ ]] && [[ ${AU_F[3]} =~ ^[0-9a-f]{40}$ ]] || return 1
+  [[ ${AU_F[4]} =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,200}\.gguf$ ]] && [[ ${AU_F[5]} =~ $AU_RE_SIZE ]] && [[ ${AU_F[6]} =~ $AU_RE_SHA ]] || return 1
+  [[ ${AU_F[7]} =~ ^[a-z0-9.-]{2,30}$ ]] && [[ ${AU_F[8]} =~ ^(publisher|endorsed|third-party)$ ]] && [[ ${AU_F[9]} =~ $AU_RE_NUM ]] || return 1
   AU_SV_MODEL=${AU_F[6]} AU_SV_MODEL_FILE=${AU_F[4]}
-  [[ $AU_SV_ENGINE =~ $AU_RE_SHA ]] && [[ $AU_SV_MODEL =~ $AU_RE_SHA ]] || return 1
   au_split "${AU_SV_LINES[4]}"
   [ "${#AU_F[@]}" -eq 6 ] && [ "${AU_F[0]}" = launch ] || return 1
+  [[ ${AU_F[1]} =~ ^[1-9][0-9]?$ ]] && [ "${AU_F[1]}" -le 64 ] || return 1
+  [[ ${AU_F[2]} =~ ^[1-9][0-9]{0,6}$ ]] && [ "${AU_F[2]}" -le 1048576 ] || return 1
+  [[ ${AU_F[3]} =~ ^[1-9][0-9]{0,4}$ ]] && [ "${AU_F[3]}" -le 65535 ] || return 1
+  [[ ${AU_F[4]} =~ $AU_RE_SHA ]] && [[ ${AU_F[5]} =~ $AU_RE_SPEED ]] || return 1
   AU_SV_PEOPLE=${AU_F[1]} AU_SV_CONTEXT=${AU_F[2]} AU_SV_PORT=${AU_F[3]} AU_SV_LIST=${AU_F[4]} AU_SV_SPEED=${AU_F[5]}
-  [[ $AU_SV_PORT =~ ^[1-9][0-9]{0,4}$ ]] && [[ $AU_SV_LIST =~ $AU_RE_SHA ]] && [[ $AU_SV_SPEED =~ $AU_RE_SPEED ]] || return 1
+}
+
+au_serving_read() { au_desc_read "$AU_DATA/builds/$1/serving"; }   # RECIPE -> AU_SV_* from its serving, as au_desc_read
+
+au_entry_read() { # FILE -> as au_desc_read, for an entry of kept/ or failed/, whose name is also matched: the date and the
+  # build id (D3.1), `2026-11-26T15:04:05Z-b...`, the build its own build line names
+  local n=${1##*/}
+  [[ $n =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z-b[a-z2-7]{12}$ ]] || return 1
+  au_desc_read "$1" || return $?
+  [ "${n#*Z-}" = "$AU_SV_BUILD" ]
+}
+
+au_hold_read() { # RECIPE -> AU_HOLD from builds/<recipe>/hold (D3.7; U6 writes it): absent, when there is none (no holds);
+  # ok, with AU_HOLD_IDS, the builds this recipe is not to be moved to; newer, left as it is; or unreadable, which
+  # passes the recipe over and is never taken as no holds (D3.1, T6). Its form: `auster-record 1`, then one build id
+  # a line, at most 64, every line ending in a newline; bound 1,024 bytes. A link or a folder is unreadable
+  local f="$AU_DATA/builds/$1/hold" l n=0 rc=0
+  AU_HOLD=absent AU_HOLD_IDS=()
+  [ -e "$f" ] || [ -L "$f" ] || return 0
+  AU_HOLD=unreadable
+  [ -f "$f" ] && [ ! -L "$f" ] || return 0
+  au_format "$f" auster-record || rc=$?
+  if [ "$rc" = 2 ]; then AU_HOLD=newer; return 0; fi
+  [ "$rc" = 0 ] && [ "$(au_size "$f")" -le 1024 ] && au_nl_end "$f" || return 0
+  while IFS= read -r l; do
+    n=$((n + 1))
+    if [ "$n" = 1 ]; then [ "$l" = 'auster-record 1' ] || return 0; continue; fi
+    [ "$n" -le 65 ] && [[ $l =~ $AU_RE_BUILD ]] || { AU_HOLD_IDS=(); return 0; }
+    AU_HOLD_IDS+=("$l")
+  done < "$f"
+  AU_HOLD=ok
+}
+
+au_mac_read() { # -> AU_MAC from builds/mac (C1): ok, absent or newer, with AU_MAC_LINES, its seven lines, and
+  # AU_MAC_ROUTER. capability-lib.js's header gives its form and auCapParseMac reads it for section C, by these rules:
+  # seven lines, each ending in a newline, exactly these keys in this order with one tab before the value, each
+  # value matched whole; bound 1,024 bytes
+  local f="$AU_DATA/builds/mac" l n=0 rc=0 lines=() router=
+  AU_MAC=absent AU_MAC_LINES=() AU_MAC_ROUTER=
+  [ -f "$f" ] && [ ! -L "$f" ] || return 0
+  au_format "$f" auster-record || rc=$?
+  if [ "$rc" = 2 ]; then AU_MAC=newer; return 0; fi
+  [ "$rc" = 0 ] && [ "$(au_size "$f")" -le 1024 ] && au_nl_end "$f" || return 0
+  while IFS= read -r l; do
+    n=$((n + 1))
+    lines+=("$l")
+    if [ "$n" = 1 ]; then [ "$l" = 'auster-record 1' ] || return 0; continue; fi
+    au_split "$l"
+    [ "${#AU_F[@]}" -eq 2 ] || return 0
+    case "$n:${AU_F[0]}" in
+      2:gpu-mib) [[ ${AU_F[1]} =~ $AU_RE_NUM ]] && [ "${AU_F[1]}" -le 1048576 ] || return 0 ;;
+      3:memory-bytes) [[ ${AU_F[1]} =~ $AU_RE_SIZE ]] || return 0 ;;
+      4:macos) [[ ${AU_F[1]} =~ ^[1-9][0-9]?\.(0|[1-9][0-9]?)(\.(0|[1-9][0-9]?))?$ ]] || return 0 ;;
+      5:measured) [[ ${AU_F[1]} =~ $AU_RE_DATE ]] || return 0 ;;
+      6:router) [[ ${AU_F[1]} =~ $AU_RE_ROUTER ]] || return 0; router=${AU_F[1]} ;;
+      7:keep-awake) [[ ${AU_F[1]} =~ ^(yes|no)$ ]] || return 0 ;;
+      *) return 0 ;;
+    esac
+  done < "$f"
+  [ "$n" = 7 ] || return 0
+  AU_MAC=ok AU_MAC_LINES=("${lines[@]}") AU_MAC_ROUTER=$router
+}
+
+au_localname_read() { # -> AU_LN from builds/local-name: ok, absent or newer, with AU_LN_NAME, the Mac's `.local` name
+  # when the household's devices were given its address (- when it had none), and AU_LN_AT, when (B6, T116)
+  local rc=0
+  AU_LN=absent AU_LN_NAME= AU_LN_AT=
+  au_line_read "$AU_DATA/builds/local-name" 2 || rc=$?
+  if [ "$rc" = 2 ]; then AU_LN=newer; return 0; fi
+  [ "$rc" = 0 ] && { [ "${AU_LF[0]}" = - ] || [[ ${AU_LF[0]} =~ $AU_RE_LOCALNAME ]]; } && [[ ${AU_LF[1]} =~ $AU_RE_UTC ]] || return 0
+  AU_LN=ok AU_LN_NAME=${AU_LF[0]} AU_LN_AT=${AU_LF[1]}
+}
+
+au_localname_now() { # -> the Mac's `.local` name now (scutil's LocalHostName), or nothing when it has none it can give
+  local n
+  n=$(scutil --get LocalHostName 2>/dev/null)
+  [[ $n =~ $AU_RE_LOCALNAME ]] && printf '%s' "$n"
+}
+
+au_localname_write() { # NAME -> builds/local-name (D3.1): `auster-record 1`, NAME (- when it is empty) and the time, by
+  # rename. Written after the yes at a first install, and by `auster network`; an update leaves it as it is
+  local t="$AU_DATA/builds/.local-name.new.$$"
+  rm -f "$t"
+  printf 'auster-record 1\t%s\t%s\n' "${1:--}" "$(au_now)" > "$t" && chmod 600 "$t" && mv -f "$t" "$AU_DATA/builds/local-name" ||
+    { rm -f "$t"; return 1; }
 }
 
 au_serving_speed() { # RECIPE SPEED -> serving with that speed in its launch line, replaced by rename (A5)
@@ -374,26 +579,30 @@ au_serving_speed() { # RECIPE SPEED -> serving with that speed in its launch lin
     chmod 600 "$t" && mv -f "$t" "$f"
 }
 
-au_start_read() { # RECIPE -> AU_ST_CODE, AU_ST_ADDR, AU_ST_TIME from builds/<recipe>/start, written by the
-  # engine job (B4 step 6), or 1. Its form: `auster-record 1`, then code, address, boot and time lines,
-  # each a key, a tab and a value (the address - when the job stopped before it found one).
-  # The engine job (common/auster-engine, V6) writes it in this form. TODO(U2): its reader's own tests.
-  local f="$AU_DATA/builds/$1/start" l n=0 k v
+au_start_read() { # RECIPE -> AU_ST_CODE, AU_ST_ADDR, AU_ST_TIME from builds/<recipe>/start, written by the engine
+  # job (B4 step 6; common/auster-engine's header gives its form), and 0; 2 when it is of a newer format; 1 when it
+  # counts as absent. Five lines, each ending in a newline: `auster-record 1`, then code, address, boot and time,
+  # each a key, one tab and a value matched whole (the address and the boot - when the job had none); bound 1,024
+  local f="$AU_DATA/builds/$1/start" l n=0 code= addr= time=
   AU_ST_CODE= AU_ST_ADDR= AU_ST_TIME=
-  [ -f "$f" ] && [ ! -L "$f" ] && [ "$(au_size "$f")" -le 1024 ] || return 1
+  [ -f "$f" ] && [ ! -L "$f" ] || return 1
+  au_format "$f" auster-record || return $?
+  [ "$(au_size "$f")" -le 1024 ] && au_nl_end "$f" || return 1
   while IFS= read -r l; do
     n=$((n + 1))
     if [ "$n" = 1 ]; then [ "$l" = 'auster-record 1' ] || return 1; continue; fi
-    k=${l%%"$AU_T"*}; v=${l#*"$AU_T"}
-    case "$n:$k" in
-      2:code) [[ $v =~ ^(starting|keys|engine-hash|not-home|no-network)$ ]] && AU_ST_CODE=$v ;;
-      3:address) { [ "$v" = - ] || [[ $v =~ $AU_RE_IPV4 ]]; } && AU_ST_ADDR=$v ;;
-      4:boot) [[ $v =~ $AU_RE_BOOT ]] || return 1 ;;
-      5:time) [[ $v =~ ^[1-9][0-9]{0,11}$ ]] && AU_ST_TIME=$v ;;
+    au_split "$l"
+    [ "${#AU_F[@]}" -eq 2 ] || return 1
+    case "$n:${AU_F[0]}" in
+      2:code) [[ ${AU_F[1]} =~ ^(starting|keys|engine-hash|not-home|no-network)$ ]] || return 1; code=${AU_F[1]} ;;
+      3:address) [ "${AU_F[1]}" = - ] || [[ ${AU_F[1]} =~ $AU_RE_IPV4 ]] || return 1; addr=${AU_F[1]} ;;
+      4:boot) [ "${AU_F[1]}" = - ] || [[ ${AU_F[1]} =~ $AU_RE_BOOT ]] || return 1 ;;
+      5:time) [[ ${AU_F[1]} =~ ^[1-9][0-9]{0,11}$ ]] || return 1; time=${AU_F[1]} ;;
       *) return 1 ;;
     esac
   done < "$f"
-  [ "$n" = 5 ] && [ -n "$AU_ST_CODE" ] && [ -n "$AU_ST_ADDR" ] && [ -n "$AU_ST_TIME" ]
+  [ "$n" = 5 ] || return 1
+  AU_ST_CODE=$code AU_ST_ADDR=$addr AU_ST_TIME=$time
 }
 
 au_stopped_write() { # REASON -> builds/stopped (D3.1), by rename
@@ -503,11 +712,13 @@ au_list() { # ROOT -> the engine's file list (B3 step 9): `path TAB size TAB sha
 
 # --- what serves, `stopped`, and the engine's starts (B6) ------------------------------------------------
 
-au_ready() { # -> 0 when Auster is installed here and serves, with AU_RECIPE the recipe it serves (BD14: one);
-  # otherwise says why and returns 1
+au_ready() { # -> 0 when Auster is installed here and serves, with AU_RECIPE the recipe it serves (BD14: one), and no
+  # record in the data root is of a newer format (T95: each command that writes runs this first); otherwise says
+  # why and returns 1
   local s r
   au_root_check "$AU_DATA" || return 1
   if [ "$AU_ROOT_NEW" = 1 ]; then au_say "Auster is not installed on this Mac."; return 1; fi
+  if au_newer_records; then au_say_newer "${AU_NEWER[0]}"; return 1; fi
   AU_RECIPE=
   for s in "$AU_DATA"/builds/r*/serving; do
     r=${s%/serving}; r=${r##*/}
@@ -527,18 +738,15 @@ au_stopped_read() { # -> AU_STOPPED: no, yes or newer, from builds/stopped (D3.1
   # or unknown) and AU_STOPPED_AT. One line of at most 4,096 bytes: `auster-record 1`, the reason, the time. A
   # stopped that exists but cannot be read, a link or a folder among them, means stopped for a reason unknown;
   # it is never taken as absent
-  local f="$AU_DATA/builds/stopped" line
+  local f="$AU_DATA/builds/stopped" rc=0
   AU_STOPPED=no AU_STOPPED_WHY= AU_STOPPED_AT=
   [ -e "$f" ] || [ -L "$f" ] || return 0
   AU_STOPPED=yes AU_STOPPED_WHY=unknown
-  if au_newer "$f"; then AU_STOPPED=newer; return 0; fi
-  [ -f "$f" ] && [ ! -L "$f" ] && [ "$(au_record_first "$f")" = 'auster-record 1' ] || return 0
-  [ "$(au_size "$f")" -le 4096 ] && [ "$(wc -l < "$f" | tr -d ' ')" = 1 ] &&
-    [ "$(tail -c 1 "$f" | od -An -tx1 | tr -d ' \n')" = 0a ] || return 0
-  IFS= read -r line < "$f" || return 0
-  au_split "$line"
-  [ "${#AU_F[@]}" -eq 3 ] && [[ ${AU_F[1]} =~ ^(household|open)$ ]] && [[ ${AU_F[2]} =~ $AU_RE_UTC ]] || return 0
-  AU_STOPPED_WHY=${AU_F[1]} AU_STOPPED_AT=${AU_F[2]}
+  au_line_read "$f" 2 || rc=$?
+  if [ "$rc" = 2 ]; then AU_STOPPED=newer; return 0; fi
+  [ "$rc" = 0 ] || return 0   # it exists and cannot be read: stopped, the reason unknown
+  [[ ${AU_LF[0]} =~ ^(household|open)$ ]] && [[ ${AU_LF[1]} =~ $AU_RE_UTC ]] || return 0
+  AU_STOPPED_WHY=${AU_LF[0]} AU_STOPPED_AT=${AU_LF[1]}
 }
 
 au_refuse_stopped() { # -> 0 when builds/stopped does not exist; otherwise says so, names `auster start`, and returns 1
@@ -664,24 +872,28 @@ au_router_now() { # -> AU_NET_ROUTER and AU_NET_ADDR: the router and the address
 }
 
 au_cmd_network() { # -> BD9: the router this Mac's connection goes through now, recorded in builds/mac as the home
-  # network, every other line of the record as it was, by rename. The engine job reads it at its next start
-  local f="$AU_DATA/builds/mac" t="$AU_DATA/builds/.mac.new.$$" l n=0 lines=()
+  # network, every other line of the record as it was, by rename; and the Mac's `.local` name now, recorded in
+  # builds/local-name as the one its devices use (B6, T116). The engine job reads the router at its next start
+  local f="$AU_DATA/builds/mac" t="$AU_DATA/builds/.mac.new.$$" name
   au_ready || return 1
   au_lock_take || return 1
-  if au_newer "$f"; then au_say_newer "$f"; return 1; fi
   au_router_now || { au_say "$AU_NET_WHY"; return 1; }
-  if [ -f "$f" ] && [ ! -L "$f" ] && [ "$(au_size "$f")" -le 1024 ] && [ "$(tail -c 1 "$f" | od -An -tx1 | tr -d ' \n')" = 0a ]; then
-    while IFS= read -r l; do lines+=("$l"); n=$((n + 1)); done < "$f"
-  fi
-  if [ "$n" != 7 ] || [ "${lines[0]}" != 'auster-record 1' ] || [ "${lines[5]%%"$AU_T"*}" != router ]; then
+  au_mac_read
+  if [ "$AU_MAC" != ok ]; then
     au_say "This Mac's figures (builds/mac) cannot be read, so the home network was not recorded. Paste the installer line again."
     return 1
   fi
-  lines[5]="router$AU_T$AU_NET_ROUTER"
+  AU_MAC_LINES[5]="router$AU_T$AU_NET_ROUTER"
   rm -f "$t"
-  { printf '%s\n' "${lines[@]}"; } > "$t" && chmod 600 "$t" && mv -f "$t" "$f" ||
+  { printf '%s\n' "${AU_MAC_LINES[@]}"; } > "$t" && chmod 600 "$t" && mv -f "$t" "$f" ||
     { rm -f "$t"; au_say "builds/mac could not be written, so the home network was not recorded."; return 1; }
   au_say "The home network is now the one whose router is $AU_NET_ROUTER, where this Mac is $AU_NET_ADDR."
+  name=$(au_localname_now)
+  if au_localname_write "$name"; then
+    [ -z "$name" ] || au_say "Its name there is $name.local, which is now the one recorded for its devices."
+  else
+    au_say "builds/local-name could not be written, so this Mac's name on the home network was not recorded."
+  fi
   au_say "The engine listens on it from its next start: \`auster restart\` moves it there now."
 }
 
@@ -1000,31 +1212,106 @@ au_remove() { # -> B8, and `install.sh remove` through the driver: stop the engi
 
 # --- status (B6) -------------------------------------------------------------------------------------------
 
-au_probe_read() { # -> AU_PR_RESULT, AU_PR_SPEED from the probe line of _update/engine (common/auster-check's header
-  # gives its form; bound 1,024 bytes, seven lines), or 1
-  local f="$AU_DATA/_update/engine" l
-  [ -f "$f" ] && [ ! -L "$f" ] && [ "$(au_size "$f")" -le 1024 ] || return 1
-  [ "$(wc -l < "$f" | tr -d ' ')" = 7 ] && [ "$(tail -c 1 "$f" | od -An -tx1 | tr -d ' \n')" = 0a ] || return 1
-  IFS= read -r l < "$f" && [ "$l" = 'auster-record 1' ] || return 1
-  l=$(sed -n 2p "$f"); au_split "$l"
-  [ "${#AU_F[@]}" -eq 4 ] && [ "${AU_F[0]}" = probe ] && [[ ${AU_F[1]} =~ ^(ok|slow|open|broken|failed|down|stopped)$ ]] || return 1
-  { [ "${AU_F[2]}" = - ] || [[ ${AU_F[2]} =~ $AU_RE_SPEED ]]; } && [[ ${AU_F[3]} =~ ^[1-9][0-9]{0,11}$ ]] || return 1
-  AU_PR_RESULT=${AU_F[1]} AU_PR_SPEED=${AU_F[2]}
+au_probe_read() { # -> AU_PR_RESULT, AU_PR_SPEED from the check job's record, _update/engine (common/auster-check's header
+  # gives its form, and its state_read is the job's own reader, by these rules), and 0; 2 when it is of a newer
+  # format; 1 when it counts as absent. Seven lines, each ending in a newline, these keys in this order, each value
+  # matched whole; bound 1,024 bytes
+  local f="$AU_DATA/_update/engine" l n=0 keys=(probe failures address told-probe told-address told-fit) v=()
+  AU_PR_RESULT= AU_PR_SPEED=
+  [ -f "$f" ] && [ ! -L "$f" ] || return 1
+  au_format "$f" auster-record || return $?
+  [ "$(au_size "$f")" -le 1024 ] && au_nl_end "$f" || return 1
+  while IFS= read -r l; do
+    n=$((n + 1))
+    if [ "$n" = 1 ]; then [ "$l" = 'auster-record 1' ] || return 1; continue; fi
+    [ "$n" -le 7 ] || return 1
+    au_split "$l"
+    [ "${AU_F[0]}" = "${keys[$((n - 2))]}" ] || return 1
+    if [ "$n" = 2 ]; then [ "${#AU_F[@]}" -eq 4 ] || return 1; else [ "${#AU_F[@]}" -eq 2 ] || return 1; fi
+    v+=("${AU_F[@]:1}")
+  done < "$f"
+  [ "$n" = 7 ] || return 1
+  [[ ${v[0]} =~ ^(ok|slow|open|broken|failed|down|stopped|-)$ ]] && { [ "${v[1]}" = - ] || [[ ${v[1]} =~ $AU_RE_SPEED ]]; } || return 1
+  { [ "${v[2]}" = - ] || [[ ${v[2]} =~ ^[1-9][0-9]{0,11}$ ]]; } && [[ ${v[3]} =~ ^(0|[1-9][0-9]{0,5})$ ]] || return 1
+  { [ "${v[4]}" = - ] || [[ ${v[4]} =~ $AU_RE_IPV4 ]]; } && [[ ${v[5]} =~ ^(open|broken|failed|down|-)$ ]] || return 1
+  { [ "${v[6]}" = - ] || [[ ${v[6]} =~ $AU_RE_IPV4 ]]; } && [[ ${v[7]} =~ ^(yes|no)$ ]] || return 1
+  AU_PR_RESULT=${v[0]} AU_PR_SPEED=${v[1]}
+}
+
+au_status_updates() { # -> T5, D3.1: whether update checks are made, from the state line of the deployed rule file
+  # (_update/updates.sh with no option, which fetches nothing; only its first line is read, D3.2)
+  local u="$AU_DATA/_update" line
+  if [ ! -d "$u" ] || [ -L "$u" ]; then
+    au_say "Update checks are off: there is no _update folder, so no update is looked for until the installer line is pasted again."
+    return 0
+  fi
+  if [ ! -f "$u/updates.sh" ] || [ -L "$u/updates.sh" ]; then
+    au_say "Update checks are off: _update holds no updates.sh, so no update is looked for until the installer line is pasted again."
+    return 0
+  fi
+  line=$(AU_UPDATE_DIR=$u /bin/bash "$u/updates.sh" 2>/dev/null | head -n 1)
+  au_split "$line"
+  case "${AU_F[0]:-}:${#AU_F[@]}" in
+    off:*) au_say "Update checks are off: _update/off exists. Deleting that file turns them on again." ;;
+    none:*)
+      if [ "${AU_F[3]:-}" = newer ]; then au_say "Update checks are off: the record of what installed Auster (_update/scripts) was written by a newer version."
+      else au_say "Update checks are off: there is no record of what installed Auster (_update/scripts), so no update is looked for until the installer line is pasted again."; fi ;;
+    manual:*)
+      case "${AU_F[3]:-}" in
+        checkout) au_say "Update checks are not made: Auster was installed from a checkout, which is never offered an update." ;;
+        tag) au_say "Update checks are not made: Auster was installed as a named version (${AU_F[1]:-}), which is never offered an update." ;;
+        *) au_say "Update checks are not made: Auster was not installed from its release line, so it is never offered an update." ;;
+      esac ;;
+    unknown:*) au_say "No update check has been made yet. The check job makes one soon after the Mac starts, then once a day." ;;
+    current:*) [[ ${AU_F[1]:-} =~ $AU_RE_VERSION ]] && au_say "Auster ${AU_F[1]} is the newest version at the last update check." ;;
+    ready:*)   # TODO(U3): which recipes would change, how large the download is, and whether this Mac can run it
+      [[ ${AU_F[2]:-} =~ $AU_RE_VERSION ]] && [[ ${AU_F[1]:-} =~ $AU_RE_VERSION ]] &&
+        au_say "Auster ${AU_F[2]} is released; this Mac has ${AU_F[1]}." ;;
+    *) au_say "Whether update checks are made cannot be read (_update/updates.sh gave no state)." ;;
+  esac
+  return 0
+}
+
+au_status_name() { # -> B6, T116: a `.local` name that macOS has changed since the household's devices were given it.
+  # macOS renames a Mac when another device on the network takes its name, and whatever answers to the old name then
+  # could show its own page to a device that asks for it (D3.10)
+  local now port=$1
+  au_localname_read
+  [ "$AU_LN" = ok ] && [ "$AU_LN_NAME" != - ] || return 0
+  now=$(au_localname_now)
+  [ "$now" != "$AU_LN_NAME" ] || return 0
+  if [ -n "$now" ]; then
+    au_say "macOS has changed this Mac's name on the home network from $AU_LN_NAME.local to $now.local (it does when another device takes the name)."
+  else
+    au_say "This Mac no longer has the name $AU_LN_NAME.local on the home network that its devices were given."
+  fi
+  au_say "A device that opens http://$AU_LN_NAME.local${port:+:$port}/ no longer reaches this Mac, and whatever answers to that name could show its own page."
+  au_say "Use this Mac's address by number, or give it its name back (System Settings, General, Sharing, Local hostname); \`auster network\` records the name it has now."
 }
 
 au_status() { # -> B6: what serves, the engine job's last start, why the engine is stopped, a job macOS has switched
   # off without Auster knowing (launchctl print-disabled), the check job's last probe, the devices, the sleep
-  # setting. TODO(U3): each recipe's line; TODO(U2): a `.local` name that macOS has changed
-  local s r l pd job i
-  au_root_check "$AU_DATA" > /dev/null || { au_say "The data root $AU_DATA cannot be read."; return 1; }
+  # setting, whether update checks are made (T5), a `.local` name macOS has changed (T116), and every record of a
+  # newer format (T95). TODO(U3): each recipe's line
+  local s r l pd job i rc port=
+  au_root_check "$AU_DATA" || return 1
   [ "$AU_ROOT_NEW" = 0 ] || { au_say "Auster is not installed."; return 0; }
+  if au_newer_records; then
+    for s in "${AU_NEWER[@]}"; do au_say "${s#"$AU_DATA"/} was written by a newer version of Auster, which this one does not read."; done
+    au_say "Paste the installer line from the guide to update, or remove Auster with: \"$AU_DATA/bin/auster\" remove"
+  fi
   for s in "$AU_DATA"/builds/r*/serving; do
-    [ -f "$s" ] || continue
+    [ -e "$s" ] || [ -L "$s" ] || continue
     r=${s%/serving}; r=${r##*/}
-    if au_serving_read "$r"; then
-      au_say "Serving build $AU_SV_BUILD for $AU_SV_PEOPLE people at $AU_SV_CONTEXT each, on port $AU_SV_PORT."
-      [ "$AU_SV_SPEED" != 0 ] || au_say "It has not passed a server check since the switch: \`auster restart\` checks it."
-    fi
+    rc=0; au_serving_read "$r" || rc=$?
+    case "$rc" in
+      0)
+        port=$AU_SV_PORT
+        au_say "Serving build $AU_SV_BUILD for $AU_SV_PEOPLE people at $AU_SV_CONTEXT each, on port $AU_SV_PORT."
+        [ "$AU_SV_SPEED" != 0 ] || au_say "It has not passed a server check since the switch: \`auster restart\` checks it." ;;
+      2) ;;   # said above
+      *) au_say "The record of what serves (builds/$r/serving) cannot be read." ;;
+    esac
     au_start_read "$r" && au_say "The engine job's last start: $AU_ST_CODE."
   done
   au_stopped_read
@@ -1050,6 +1337,7 @@ au_status() { # -> B6: what serves, the engine job's last start, why the engine 
   done
   if au_probe_read; then
     case "$AU_PR_RESULT" in
+      -) ;;
       ok|slow) au_say "The check job's last probe: $AU_PR_RESULT, at $AU_PR_SPEED tokens a second." ;;
       *) au_say "The check job's last probe: $AU_PR_RESULT." ;;
     esac
@@ -1058,13 +1346,14 @@ au_status() { # -> B6: what serves, the engine job's last start, why the engine 
   l=
   for ((i = 0; i < ${#AU_KEY_NAMES[@]}; i++)); do l+="${l:+, }${AU_KEY_NAMES[$i]}"; done
   [ -z "$l" ] || au_say "Devices with a key: $l."
+  au_status_name "$port"
   s=$(pmset -g 2>/dev/null | awk '$1 == "sleep" { print $2; exit }')
   case "$s" in
     0) au_say "This Mac is set never to sleep." ;;
     ''|*[!0-9]*) au_say "This Mac's sleep setting cannot be read." ;;
     *) au_say "This Mac sleeps after $s minutes idle, and a sleeping Mac does not answer." ;;
   esac
-  [ -d "$AU_DATA/_update" ] || au_say "There is no _update folder, so no update is looked for until the installer line is pasted again."
+  au_status_updates
   return 0
 }
 

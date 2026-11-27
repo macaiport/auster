@@ -1,8 +1,8 @@
 # T5, the rule file's half (D3.2, D3.10): with `off` present (a file, a folder, a link to nothing) or the stamp
 # on `checkout` (or `tag`, an install by a named version), --refresh and --refresh --now send no request and
 # write nothing (the folder is as it was, by snapshot), and the word is `off` or `manual` with the line as the
-# detail. With no stamp at all (`none`) the same. The halves for `auster status` and `auster update` are
-# later steps'. Mutant: tests/mutants/T5a.
+# detail. With no stamp at all (`none`) the same. `auster status`'s half is t5-status-checks.sh (U2); `auster
+# update`'s is U4's. Mutant: tests/mutants/T5a.
 . "$TESTS/lib.sh"
 . "$TESTS/helpers.sh"
 . "$TESTS/update-helpers.sh"

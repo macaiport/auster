@@ -1,0 +1,3 @@
+# file: common/auster
+# status never compares the name the devices were given with the name now
+/^au_status_name() {/,/^}/s/^  \[ "\$now" != "\$AU_LN_NAME" \] || return 0$/  return 0/

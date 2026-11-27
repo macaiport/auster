@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# use the label as the folder name
+/^au_step12_switch() {/,/^}/s/^  local r="\$AU_DATA\/builds\/\$AU_RECIPE"$/  local r="$AU_DATA\/builds\/$AU_LABEL"/

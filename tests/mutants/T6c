@@ -1,0 +1,3 @@
+# file: common/auster
+# treat an unreadable stopped as absent
+s/^  \[ "\$rc" = 0 \] || return 0   # it exists and cannot be read: stopped, the reason unknown$/  [ "$rc" = 0 ] || { AU_STOPPED=no AU_STOPPED_WHY=; return 0; }/

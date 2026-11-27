@@ -15,10 +15,12 @@
 # about ~/.zprofile (B6), asked with the question; the keys made by common/auster's functions, which
 # `auster key add` uses too (step 11, with tools/mint-id copied to jobs/mint-id at step 3); and the QR code
 # of step 14. U1 (2026-11-27): step 15 copies common/updates.sh, the rule file, to _update/updates.sh
-# before the stamp (D3.1, T43). What later steps complete is marked TODO:
+# before the stamp (D3.1, T43). U2 (2026-11-27): the records written here are read back by common/auster's
+# readers (its header lists them); step 3 refuses when any record of D3.1 is of a newer format, and when any folder
+# in the data root is not this account's alone; the stamp is read by the one-line reader; builds/local-name is
+# written with builds/mac (T6, T33, T36, T54, T55, T95, T116). What later steps complete is marked TODO:
 #   U4  `update`, and a run on a Mac that already serves the recipe (B3's update-only branches, D3.6);
-#   U2  the readers of the records written here, and the records' own tests;
-#   U5  the server check's callers other than a first install, and exit code 4's tests.
+#   U5  the server check's callers other than a first install, exit code 4's tests, and kept/ (the switch).
 #
 # Exit codes (B3): 0 done; 1 refused or answered no, and nothing of this run is left; 2 usage; 3 not
 # everything was updated (here only: a run that U4 must handle); 4 the server is down; 5 stopped after
@@ -41,7 +43,6 @@ AU_ENGINE_PATH=/usr/bin:/bin:/usr/sbin:/sbin   # B4: the only variable the engin
 AU_PORT_FIRST=8484                             # B4: the port, chosen at install by a connection test
 AU_TEST_PORT_FIRST=18484                       # B3 step 10: the candidate's free port on 127.0.0.1
 AU_RE_COMMIT='^[0-9a-f]{40}$'
-AU_RE_VERSION='^v(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$'
 AU_RE_ENTRY='^[A-Za-z0-9._+@-]+(/[A-Za-z0-9._+@-]+)*/?$'
 
 AU_AWAKE=no AU_DEVICE= AU_LOCKED=0 AU_ROOT_NEW=0 AU_MADE_ROOT=0 AU_CANDIDATE= AU_CREATED=()
@@ -198,7 +199,7 @@ au_bd14() { # -> refuses when the Mac already serves another recipe (BD14), befo
 # --- step 3: the lock and the data root ---------------------------------------------------------------
 
 au_step3_root() {
-  local sub f
+  local sub
   au_root_check "$AU_DATA" || exit 1
   if [ "$AU_ROOT_NEW" = 1 ]; then
     mkdir -m 700 "$AU_DATA" || au_refuse "$AU_DATA could not be made."
@@ -209,12 +210,10 @@ au_step3_root() {
     if [ ! -e "$AU_DATA/$sub" ]; then au_mkdir "$AU_DATA/$sub" || au_refuse "$AU_DATA/$sub could not be made."; au_made "$AU_DATA/$sub"; fi
   done
   au_lock_take || au_refuse
-  for f in "$AU_DATA"/builds/mac "$AU_DATA"/builds/stopped "$AU_DATA"/builds/paused "$AU_DATA"/_update/scripts \
-    "$AU_DATA"/builds/r*/start "$AU_DATA"/builds/r*/hold "$AU_DATA"/builds/r*/serving "$AU_DATA"/builds/r*/kept/* "$AU_DATA"/builds/r*/failed/*; do
-    au_newer "$f" || continue
-    au_refuse "$f was written by a newer version of Auster, so this one leaves it as it is." \
+  if au_newer_records; then   # T95: every record of D3.1, the format first, and none rewritten
+    au_refuse "${AU_NEWER[0]} was written by a newer version of Auster, so this one leaves it as it is." \
       "Paste the installer line from the guide to update, or remove Auster with: \"$AU_DATA/bin/auster\" remove"
-  done
+  fi
   if [ -e "$AU_DATA/builds/$AU_RECIPE/serving" ] || [ -L "$AU_DATA/builds/$AU_RECIPE/serving" ]; then
     # TODO(U4): D3.6's procedure, B3 steps 4 to 15 on a Mac that serves; with it, finishing a first
     # install whose server check failed (B3 step 13: the server check again, then the keys and the stamp)
@@ -543,12 +542,17 @@ au_zprofile_question() { # -> on a yes, the line that lets Terminal find `auster
   au_zprofile_add || au_say "~/.zprofile could not be changed. For Terminal to find auster, add this line to it yourself: $AU_ZPROFILE_LINE"
 }
 
-au_mac_record() { # -> builds/mac (C1, capability-lib.js's header gives its form), by rename
+au_mac_record() { # -> builds/mac (C1, capability-lib.js's header gives its form), by rename; and builds/local-name,
+  # the `.local` name the question gave the household's devices (common/auster's header; B6, T116). TODO(U4): an
+  # update keeps the router of the record it replaces, and leaves local-name as it is, as `auster network` alone
+  # changes both
   local t="$AU_DATA/builds/.mac.new.$$"
   [ -e "$AU_DATA/builds/mac" ] || au_made "$AU_DATA/builds/mac"
   printf 'auster-record 1\ngpu-mib\t%s\nmemory-bytes\t%s\nmacos\t%s\nmeasured\t%s\nrouter\t%s\nkeep-awake\t%s\n' \
     "$AU_GPU_LIMIT" "$AU_MEMORY" "$AU_MACOS" "$(au_now)" "$AU_ROUTER" "$AU_AWAKE" > "$t" &&
     chmod 600 "$t" && mv -f "$t" "$AU_DATA/builds/mac" || au_stop "This Mac's figures could not be written."
+  [ -e "$AU_DATA/builds/local-name" ] || au_made "$AU_DATA/builds/local-name"
+  au_localname_write "$AU_HOSTNAME" || au_stop "This Mac's name on the home network could not be recorded."
 }
 
 # --- steps 7 to 9: the files ---------------------------------------------------------------------------
@@ -812,14 +816,12 @@ au_step14_show() { # each new device's key as a QR code (B7), only after a passe
 au_step15_stamp() { # the stamp (D3.1): the line followed, the version, the commit and the time, by rename;
   # left as it is when the line, the version and the commit are the same. The rule file that reads it is
   # copied into _update first (D3.2, T43), so that the two are of one version once a run has finished
-  local f="$AU_DATA/_update/scripts" t l
+  local f="$AU_DATA/_update/scripts" t
   au_mkdir "$AU_DATA/_update" || au_stop "$AU_DATA/_update could not be made."
   au_put "$AU_TREE/common/updates.sh" "$AU_DATA/_update/updates.sh" 644 || au_stop "$AU_DATA/_update/updates.sh could not be written."
-  if [ -f "$f" ] && [ ! -L "$f" ]; then
-    IFS= read -r l < "$f"
-    au_split "$l"
-    [ "${#AU_F[@]}" = 5 ] && [ "${AU_F[0]}" = 'auster-record 1' ] && [ "${AU_F[1]}" = "$AU_LINE" ] &&
-      [ "${AU_F[2]}" = "$AU_VERSION" ] && [ "${AU_F[3]}" = "$AU_COMMIT" ] && return 0
+  if au_line_read "$f" 4 && [ "${AU_LF[0]}" = "$AU_LINE" ] && [ "${AU_LF[1]}" = "$AU_VERSION" ] &&
+     [ "${AU_LF[2]}" = "$AU_COMMIT" ] && [[ ${AU_LF[3]} =~ $AU_RE_UTC ]]; then
+    return 0
   fi
   t="$AU_DATA/_update/.scripts.new.$$"
   printf 'auster-record 1\t%s\t%s\t%s\t%s\n' "$AU_LINE" "$AU_VERSION" "$AU_COMMIT" "$(au_now)" > "$t" && mv -f "$t" "$f" ||

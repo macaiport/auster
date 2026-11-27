@@ -12,11 +12,14 @@
 #
 # Built by U1 (2026-11-27); its tests are T1, T3, T4, T5, T14, T41, T42 and T43 (their halves that U1
 # builds), with the cases of 1launcher's test that still apply. What later steps add is marked TODO:
-#   U2  the readers of D3.1's other records, and the ownership rule over the data root, builds/ and store/;
 #   U3  the second fetch (the registry), the joint write of offer, notes.md and registry, each recipe's line,
 #       and `ready` for a build waiting; until then offer and notes.md are written from the changelog alone;
 #   U4  --open: the update's .command file, handed to Terminal (D3.6); until then it refuses;
 #   U7  the check job's notification, which reads --noted.
+# U2 (2026-11-27) made auu_own the ownership rule over the whole data root (D3.1; tests/t6-records-own.sh), and
+# T6's and T95's tables run this file's one-line reader through the cases they run every reader through. The
+# readers of D3.1's other records are common/auster's, which the installer and bin/auster share: bin/auster must
+# still work with _update moved to the Trash.
 #
 # Its folder, AU_UPDATE_DIR (<data root>/_update), holds (D3.1):
 #   scripts   the stamp, written by the installer and never here: auster-record 1 TAB <line> TAB <version or
@@ -141,7 +144,18 @@ _auu_own1() { # FOLDER -> 0 when it is a folder, not a link, of this account's, 
   m=00${s#* }; m=${m: -3}
   case "${m:1:2}" in *[2367]*) return 1 ;; esac
 }
-auu_own() { _auu_own1 "$AU_UPDATE_DIR"; }   # TODO(U2): and the data root and every folder in it (D3.1)
+# -> 0 when AU_UPDATE_DIR, its data root (the folder above it, mode 0700) and every folder in that root, at any
+# depth, are this account's and nobody else may write to them, and no link in the root leads to a folder, but those
+# inside an engine's unpacked tree, which the installer checked point inside it (D3.1, Ownership; common/auster's
+# au_own_tree is the same rule for the installer and bin/auster). Every write here comes after it
+auu_own() {
+  local PATH=/usr/bin:/bin:/usr/sbin:/sbin root=${AU_UPDATE_DIR%/*} bad
+  _auu_own1 "$AU_UPDATE_DIR" || return 1
+  [ -n "$root" ] && [ "$root" != "$AU_UPDATE_DIR" ] && _auu_own1 "$root" && [ "$(stat -f %Lp "$root" 2>/dev/null)" = 700 ] || return 1
+  bad=$(cd "$root" 2>/dev/null && find . \( -type d \( ! -user "$(id -u)" -o -perm +022 \) \) -print -o \
+    \( -type l ! -path './engines/*/root/*' -exec test -d {} \; \) -print 2>/dev/null) || return 1
+  [ -z "$bad" ]
+}
 
 _auu_put() { # FILE LINE -> LINE and a newline, written beside FILE and renamed over it; 1 when it could not
   # be, or FILE is a folder. A link in FILE's place is replaced, never followed.

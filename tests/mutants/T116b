@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# the install does not record the name it gave the devices
+s/^  au_localname_write "\$AU_HOSTNAME" || au_stop .*$/  :/

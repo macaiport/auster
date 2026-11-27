@@ -1,0 +1,3 @@
+# file: common/auster
+# the installer and bin/auster check the folders they name, and not every folder in the data root
+/^au_own_tree() {/,/^}/s/^  local bad$/  return 0/

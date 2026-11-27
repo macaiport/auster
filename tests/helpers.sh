@@ -146,3 +146,12 @@ registry_sized() { # SRC BYTES OUT -> SRC with comment lines added (each at most
   if [ "$last" -gt 1001 ]; then printf "#%s\n" "${fill:0:499}" >> "$3"; last=$((last - 501)); fi
   printf '#%s\n' "${fill:0:$((last - 2))}" >> "$3"
 }
+
+records_fixture() { # two|three DEST -> the records of two or three recipes (tests/fixtures/records/README) copied to
+  # DEST, a data root's records, with the modes Auster gives them: every folder 0700 (and each recipe its kept/ and
+  # failed/, which git does not keep when empty), every file 0600, every file in store/ 0444
+  local src="$TESTS/fixtures/records/$1" r
+  [ -d "$src" ] && mkdir -p "$2" && cp -R "$src/." "$2/" || return 1
+  for r in "$2"/builds/r*; do mkdir -p "$r/kept" "$r/failed"; done
+  find "$2" -type d -exec chmod 700 {} + && find "$2" -type f -exec chmod 600 {} + && chmod 444 "$2"/store/*
+}

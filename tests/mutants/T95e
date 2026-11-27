@@ -1,0 +1,3 @@
+# file: common/auster
+# bin/auster writes without looking for records of a newer format
+s/^  if au_newer_records; then au_say_newer "\${AU_NEWER\[0\]}"; return 1; fi$/  :/

@@ -1,0 +1,3 @@
+# file: common/auster
+# read a newer record as its own: the readers take any format number for 1
+s/^  \[ "\$first" = "\$2 1" \] \&\& return 0$/  case "$first" in "$2 "[0-9]*) return 0 ;; esac/

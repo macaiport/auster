@@ -1,0 +1,3 @@
+#!/bin/bash
+# a stand-in for llama-server, engine b12359
+exit 1

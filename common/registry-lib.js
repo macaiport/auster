@@ -68,7 +68,8 @@
 // The judge hook. auRegBuildsFor(reg, recipeId, judge) calls judge(entry) for each entry, after the
 // registry's own codes are in entry.why, and appends what it returns (an array of codes, or nothing).
 // Later steps give the codes the registry cannot: `held` (the recipe's `hold`, U6), `failed` (a
-// descriptor in `failed/`, U2 and BD12), `fit` (section C says it does not fit, V3) and `room` (it fits
+// descriptor in `failed/`, BD12: common/auster's au_entry_read reads one since U2, and U3 and U5 give
+// the code at an update), `fit` (section C says it does not fit, V3) and `room` (it fits
 // in memory but not on disk, C6). Without a judge, appropriate means appropriate as far as the registry
 // knows. auRegRecipeLine reads `fit` on the build served: a later build is offered when the one served
 // no longer fits (D3.7).
