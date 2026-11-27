@@ -1,0 +1,3 @@
+# file: common/auster
+# rollback starting a stopped engine with kickstart -k: a kept entry gone back to is started by a restart of the job alone
+/^au_cmd_rollback() {/,/^}/s/^  if ! au_engine_start; then$/  if ! au_engine_restart; then/

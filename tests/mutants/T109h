@@ -1,0 +1,3 @@
+# file: common/auster
+# a rollback that writes the kept entry's own speed: serving is written with the speed the entry held, not 0
+/^au_cmd_rollback() {/,/^}/s/^         printf 'launch\\t%s\\t%s\\t%s\\t%s\\t0\\n' "\$AU_SV_PEOPLE" "\$AU_SV_CONTEXT" "\$AU_SV_PORT" "\$AU_SV_LIST"; } > "\$t" ||$/         printf 'launch\\t%s\\t%s\\t%s\\t%s\\t%s\\n' "$AU_SV_PEOPLE" "$AU_SV_CONTEXT" "$AU_SV_PORT" "$AU_SV_LIST" "$AU_SV_SPEED"; } > "$t" ||/

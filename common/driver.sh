@@ -49,8 +49,8 @@
 # jobs/previous/ (B3 step 6): the programs in use before an update changed them, each of AU_PROGRAMS under the last part
 # of its path in the data root (auster, auster-engine, auster-check, registry-lib.js, capability-lib.js, capability.js,
 # registry.js, mint-id) with its mode; a folder of mode 0700, made whole under another name and renamed. It exists from
-# just before the new programs are renamed into place until a server check passes (au_server_check deletes it), and
-# `auster rollback` (U6) puts them back from it.
+# just before the new programs are renamed into place until a server check passes (au_server_check deletes it), or until
+# `auster rollback` puts them back from it and deletes it (common/auster, au_rollback_programs).
 #
 # Exit codes (B3): 0 done; 1 refused or answered no, and nothing of this run is left; 2 usage; 3 not
 # everything was updated (D3.6: a recipe passed over, before its question, at its download or before its test; a new

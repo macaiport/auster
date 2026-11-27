@@ -1,8 +1,9 @@
-# T26, the update's half (U4; D3.1, D3.6): while the lock, builds/updating, names a live run, an update (install.sh
-# update), a second paste, `auster update`, `auster stop` and `auster key revoke` each refuse, leave the lock as it is and
-# change nothing (the engine still serving), and the check job makes no update check, so that `offer` does not change
-# during an update. A lock whose process is gone, whose number now belongs to another process, or from an earlier boot is
-# taken over: the update runs and leaves no lock. With the lock gone, the same check writes the offer.
+# T26, the update's half (U4, U6; D3.1, D3.6): while the lock, builds/updating, names a live run, an update (install.sh
+# update), a second paste, `auster update`, `auster stop`, `auster key revoke`, `auster rollback` and `auster unhold` each
+# refuse, leave the lock as it is and change nothing (the engine still serving), and the check job makes no update check,
+# so that `offer` does not change during an update. A lock whose process is gone, whose number now belongs to another
+# process, or from an earlier boot is taken over: the update runs and leaves no lock. With the lock gone, the same check
+# writes the offer.
 # Mutants: tests/mutants/T26a and T26b (the lock's, shared with the install's half), T26d (check during an update).
 . "$TESTS/lib.sh"
 . "$TESTS/helpers.sh"
@@ -34,6 +35,8 @@ same "$(opened | grep -c .)" 0 "  ...and it opens nothing"
 auster stop; held "auster stop while the lock is live"
 [ -e "$DATA/builds/stopped" ] && bad "  ...builds/stopped written" || ok "  ...no builds/stopped"
 auster key revoke ipad; held "auster key revoke while the lock is live"
+auster rollback; held "auster rollback while the lock is live"
+auster unhold; held "auster unhold while the lock is live"
 
 # the check job during an update
 route_drop "$CHANGELOG"; route_drop "$REGISTRY"

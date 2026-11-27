@@ -1,0 +1,3 @@
+# file: common/auster
+# go back without hashing: the files a kept entry names are checked by their size alone
+/^au_desc_files() {/,/^}/s/ && \[ "\$(au_sha "\$f")" = "\${shas\[\$i\]}" \]; then$/; then/

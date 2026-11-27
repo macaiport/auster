@@ -1,0 +1,3 @@
+# file: common/auster
+# hold nothing on a rollback to another build: the build left behind is never put in the recipe's hold
+/^au_rollback_hold() {/,/^}/s/^  if \[ "\$left" != "\$back" \]; then$/  if false; then/

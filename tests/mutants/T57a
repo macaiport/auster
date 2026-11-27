@@ -1,0 +1,4 @@
+# file: common/auster
+# fetch the registry during rollback: release's registry is fetched into _update/registry for its withdrawals first
+/^au_rollback_withdrawn() {/,/^}/s/^  AU_WD_BUILDS=' ' AU_WD_KNOWN=0$/&\
+  curl -q -sS --max-time 10 -o "$AU_DATA\/_update\/registry" https:\/\/raw.githubusercontent.com\/macaiport\/auster\/refs\/heads\/release\/registry.tsv 2>\/dev\/null/

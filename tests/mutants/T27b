@@ -1,0 +1,3 @@
+# file: common/auster
+# write hold before the server check: the build left behind is held whatever the check then gives
+/^au_cmd_rollback() {/,/^}/s/^  if au_checked; then au_rollback_hold "\$r" "\$now" "\$n"; return 0; fi$/  au_rollback_hold "$r" "$now" "$n"; if au_checked; then return 0; fi/

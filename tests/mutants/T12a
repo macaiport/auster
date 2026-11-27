@@ -1,0 +1,4 @@
+# file: common/driver.sh
+# key hold on the version: an update whose version is not the stamp's clears the recipe's hold before judging it
+/^au_update_judge() {/,/^}/s/^  au_hold_read "\$r"$/  [ "$(cut -f3 "$AU_DATA\/_update\/scripts" 2>\/dev\/null)" = "$AU_VERSION" ] || rm -f "$AU_DATA\/builds\/$r\/hold"\
+&/

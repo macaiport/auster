@@ -1,0 +1,4 @@
+# file: common/auster
+# put the build in failed/: a rollback whose server check fails copies what it went back to into failed/
+/^au_cmd_rollback() {/,/^}/s/^  if au_checked; then au_rollback_hold "\$r" "\$now" "\$n"; return 0; fi$/&\
+  au_mkdir "$AU_DATA\/builds\/$r\/failed" \&\& cp "$AU_DATA\/builds\/$r\/serving" "$AU_DATA\/builds\/$r\/failed\/$(au_now)-$n"/

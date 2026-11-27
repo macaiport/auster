@@ -1,0 +1,3 @@
+# file: common/auster
+# hold the build itself on that rollback: going back to the same build at another setting holds it too
+/^au_rollback_hold() {/,/^}/s/^  if \[ "\$left" != "\$back" \]; then$/  if :; then/

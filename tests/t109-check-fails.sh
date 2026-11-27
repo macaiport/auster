@@ -1,15 +1,15 @@
-# T109, its clauses that need no download (U5; B3 step 13, D3.6): after an update's switch, a server that answers HTTP 500
-# (the stub engine failing at the new setting, as a build that does not fit with its fitting off; the change here is of
-# setting, since a change of build is U5's second half): nothing switches back, serving holds the new setting with a
-# speed of 0, failed/ is unchanged, no stamp is written (release is at v0.2.0, so a stamp would move), the run says the
-# server did not answer and names `auster rollback`, exit 4. A second update then prints OK for the recipe, makes the
-# server check, and exits 4 again with no stamp. A `start` older than this run's start of the engine (the engine job
-# waiting on a live `paused`) is reported as "the engine job has not run since", never as its last code. At a first
-# install: exit 4, both jobs still loaded, the keys not shown, no stamp, and `auster status` giving the start code.
-# (`auster rollback` serving the old setting with a speed of 0 until its check passes, and holding nothing for a change
-# of setting, is U6's.) Mutants: tests/mutants/T109a (report success), T109b (put the build in failed/), T109c (report a
-# stale start code as current), T109d (unload the jobs at a first install), T109e (switch back by itself), T109f (write
-# the stamp on the second run).
+# T109, its clauses that need no download (U5, U6; B3 step 13, D3.6): after an update's switch, a server that answers
+# HTTP 500 (the stub engine failing at the new setting, as a build that does not fit with its fitting off; the change here
+# is of setting; tests/t109-update-build.sh has the change of build): nothing switches back, serving holds the new setting
+# with a speed of 0, failed/ is unchanged, no stamp is written (release is at v0.2.0, so a stamp would move), the run says
+# the server did not answer and names `auster rollback`, exit 4. A second update then prints OK for the recipe, makes the
+# server check, and exits 4 again with no stamp. `auster rollback` then goes back to the setting before, its check
+# passing, holds nothing (a change of setting), keeps the setting left behind as never checked and leaves failed/ as it
+# was. A `start` older than this run's start of the engine (the engine job waiting on a live `paused`) is reported as "the
+# engine job has not run since", never as its last code. At a first install: exit 4, both jobs still loaded, the keys not
+# shown, no stamp, and `auster status` giving the start code. Mutants: tests/mutants/T109a (report success), T109b (put
+# the build in failed/), T109c (report a stale start code as current), T109d (unload the jobs at a first install), T109e
+# (switch back by itself), T109f (write the stamp on the second run); T109g and T109h are tests/t109-update-build.sh's.
 . "$TESTS/lib.sh"
 . "$TESTS/helpers.sh"
 . "$TESTS/install-helpers.sh"
@@ -42,6 +42,14 @@ says "The recipe household: OK. Build $IB1 serves it, for 4 people at 32,768 tok
 says "The server has not passed a check since its build was last switched" "  ...it makes the server check"
 same "$(launch)" "launch	4	32768	8484	0" "  ...serving as it was"
 same "$(stamp)" v0.1.0 "  ...no stamp"
+
+# --- auster rollback: back to four at 16,384, a change of setting, so nothing is held
+ANSWERS=$'1\n' auster rollback
+same "$RC" 0 "auster rollback: exit 0"
+same "$(launch)" "launch	4	16384	8484	36.9" "  ...back at four people at 16,384, its check passed"
+[ -e "$DATA/builds/$IR/hold" ] && bad "  ...a hold written: $(cat "$DATA/builds/$IR/hold")" || ok "  ...nothing held: the same build at another setting"
+same "$(sed -n 5p "$DATA"/builds/$IR/kept/* | cut -f1-4,6)" "launch	4	32768	8484	0" "  ...the setting left behind kept, never checked"
+same "$(failed)" "$f0" "  ...failed/ unchanged"
 
 # --- a start older than this run's start of the engine: the engine job waits on a live `paused`
 sleep 300 & live=$!

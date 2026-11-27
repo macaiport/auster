@@ -7,7 +7,8 @@
 # stamp. A later update over it copies nothing (it holds the programs last checked); a later update with nothing to
 # change, and one with a change of setting, check the server before anything else and write no stamp and switch nothing
 # on a fail; `auster restart` deletes jobs/previous/ only when its check passes. (What `auster rollback` does with
-# jobs/previous/ is U6's, clauses (e) and (f); "before any model fetch" against a real download is U5's second half.)
+# jobs/previous/, clauses (e) and (f), is tests/t94-rollback.sh; "before any model fetch" against a real download is
+# tests/t94-programs-build.sh.)
 # Mutants: tests/mutants/T94b (put the programs back by itself), T94c (delete jobs/previous/ before a check passes),
 # T94d (copy over an existing jobs/previous/), T94g (skip the trial run), T94h (a later update that does not check first).
 . "$TESTS/lib.sh"

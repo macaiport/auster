@@ -1,0 +1,3 @@
+# file: common/auster
+# refuse to go back without the registry: a rollback that cannot read _update/registry for its withdrawals changes nothing
+/^au_cmd_rollback() {/,/^}/s/^  \[ "\$AU_WD_KNOWN" = 1 \] || au_say /  [ "$AU_WD_KNOWN" = 1 ] || { au_say "Withdrawals cannot be read, so nothing was changed."; return 1; }; : /

@@ -1,0 +1,3 @@
+# file: common/auster
+# no bound on the hold: every build left behind is written, past the 64 its reader reads, so the hold cannot be read
+/^au_hold_write() {/,/^}/s/^  while \[ \$# -gt 64 \]; do shift; done$/  :/

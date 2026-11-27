@@ -1,0 +1,3 @@
+# file: common/auster
+# rollback changing the build while jobs/previous exists: it goes to kept/ as if jobs/previous were not there
+/^au_cmd_rollback() {/,/^}/s/^  if \[ -e "\$AU_DATA\/jobs\/previous" \] || \[ -L "\$AU_DATA\/jobs\/previous" \]; then au_rollback_programs; return \$?; fi$/  :/

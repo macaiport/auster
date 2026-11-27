@@ -1,22 +1,23 @@
-# T112 (U5; B6, C4, D3.6 "If only its setting changes"): `auster people 2` on a Mac serving four, with a newer release
+# T112 (U5, U6; B6, C4, D3.6 "If only its setting changes"): `auster people 2` on a Mac serving four, with a newer release
 # waiting (v0.2.0, whose own programs differ, while order 1 waits for this Mac): release's install.sh is fetched and run
 # with `people 2`, the question names the change, and on a yes nothing is fetched but the installer, GitHub's API and the
 # tree, no build is tested, the old descriptor is in kept/ byte for byte, serving is rewritten by rename with two people
 # and a speed of 0 that the server check then replaces, the engine is restarted on it, and no build, no program, no stamp
 # and no `mac` change. On a Mac whose figures allow 15,360 tokens each for four, two people are chosen again at 31,744
-# (C4; T91's `auster people 2`). A stub engine failing at the new setting: exit 4, naming `auster rollback`, serving at the
-# new setting with a speed of 0, the earlier setting kept, nothing in failed/. More people than the recipe's default, a
-# no, a live lock and no installer from GitHub each change nothing. (What `auster rollback` then does is U6's: back to
-# four with a speed of 0 until its check passes, no `hold`, nothing in failed/, the two-person entry in kept/ marked
-# never checked.)
-# Mutants: tests/mutants/T112a (run the test), T112b (rewrite serving in place), T112c (skip the server check), T112e
-# (change the build), T112f (write the stamp). T112d (hold the build itself on that rollback) is U6's.
+# (C4; T91's `auster people 2`). A stub engine failing at the new setting (three people): exit 4, naming `auster
+# rollback`, serving at the new setting with a speed of 0, the earlier setting kept, nothing in failed/; `auster rollback`
+# then goes back to two people with a speed of 0 until its check passes (watched while the check waits on an engine still
+# loading), writes no `hold` and nothing in failed/, and lists the three-person entry as never checked. More people than
+# the recipe's default, a no, a live lock and no installer from GitHub each change nothing.
+# Mutants: tests/mutants/T112a (run the test), T112b (rewrite serving in place), T112c (skip the server check), T112d
+# (hold the build itself on that rollback), T112e (change the build), T112f (write the stamp).
 . "$TESTS/lib.sh"
 . "$TESTS/helpers.sh"
 . "$TESTS/install-helpers.sh"
 . "$TESTS/job-helpers.sh"
 . "$TESTS/command-helpers.sh"
 . "$TESTS/update-run-helpers.sh"
+. "$TESTS/rollback-helpers.sh"
 update_install
 waiting_b1   # serving order 2 for four at 32,768, order 1 waiting
 release_at v0.2.0 "$COMMIT2"
@@ -82,9 +83,25 @@ k=$(ls -d "$DATA/builds/$IR"/kept/* | tail -n 1)
 same "$(sed -n 5p "$k" | cut -f1-4,6)" "launch	2	32768	8484	36.9" "  ...the setting before kept, as it was checked"
 [ -z "$(ls -A "$DATA/builds/$IR/failed" 2>/dev/null)" ] && ok "  ...nothing in failed/" || bad "  ...failed/: $(ls "$DATA/builds/$IR/failed")"
 same "$(cat "$DATA/_update/scripts")" "$stamp" "  ...no stamp written"
+
+# --- auster rollback: back to two people, with a speed of 0 until its check passes; nothing held, nothing in failed/
+model_in "$IMB"                                   # store/ holds the model it serves
+engine_set 'ctx=65536' load 3                     # two people at 32,768: its server check waits a while
+watch_serving "$IB2" 2 32768
+ANSWERS=$'1\n' auster rollback
+wait "$WATCH"
+same "$RC" 0 "auster rollback: exit 0"
+same "$(cat "$W/watched")" 0 "  ...serving at two people with a speed of 0 until its check passed"
+same "$(launch)" "launch	2	32768	8484	36.9" "  ...then the speed the check measured"
+[ -e "$DATA/builds/$IR/hold" ] && bad "  ...a hold written for the build itself: $(cat "$DATA/builds/$IR/hold")" || ok "  ...nothing held: the same build at another setting"
+[ -z "$(ls -A "$DATA/builds/$IR/failed" 2>/dev/null)" ] && ok "  ...nothing in failed/" || bad "  ...failed/: $(ls "$DATA/builds/$IR/failed")"
+engine_set 'ctx=65536' load 0
+ANSWERS=$'no\n' auster rollback
+same "$RC" 1 "auster rollback again, answered no: exit 1"
+outsays "build $IB2 (standin-b.gguf), 3 people at 32,768 tokens each, served until " "  ...the three-person entry listed"
+grep -F "3 people at 32,768 tokens each" "$W/out" | grep -qF ", the build it serves now, never checked" &&
+  ok "  ...marked never checked" || bad "  ...not marked never checked: $(grep -F '3 people' "$W/out")"
 engine_set 'ctx=98304' behaviour ok
-auster restart
-same "$RC:$(launch)" "0:launch	3	32768	8484	36.9" "auster restart, the engine answering: its check passes and writes the speed"
 
 # --- what changes nothing
 s1=$(cat "$S"); k1=$(ls "$DATA/builds/$IR/kept")

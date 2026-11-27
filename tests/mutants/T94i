@@ -1,0 +1,3 @@
+# file: common/auster
+# leave the records the programs taken out wrote: rollback deletes jobs/previous only, and leaves start, _update/engine and stopped
+/^au_rollback_programs() {/,/^}/s/^  rm -rf "\$prev" "\$AU_DATA"\/builds\/r\*\/start "\$AU_DATA\/_update\/engine" "\$AU_DATA\/builds\/stopped"$/  rm -rf "$prev"/

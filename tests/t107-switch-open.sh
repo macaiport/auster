@@ -1,15 +1,18 @@
-# T107 (U5; B3 step 13, B6): after a switch (`auster people 2`, a change of setting), a server that answers a request
+# T107 (U5, U6; B3 step 13, B6): after a switch (`auster people 2`, a change of setting), a server that answers a request
 # with no key is stopped at once, disable then bootout, builds/stopped says open, the run says so, names `auster rollback`
 # and exits 4, and a simulated login starts nothing. While builds/stopped exists, saying open or unreadable, `update`,
 # `people`, `restart`, `key add` and `key revoke` refuse and name `auster start`, and `start`, `rollback`, `status` and
 # `key show` are not refused for it. `auster start` deletes builds/stopped, starts the engine, checks it, and while the
 # server is still open stops it again and writes builds/stopped anew, exit 4 naming `auster start`; once the engine
-# answers as it should, exit 0 and the switch's speed written. The request with no key is sent only after the keyed
-# question is answered, so that an engine still loading (HTTP 503) is not taken for an open one. At a first install an
-# open server ends the run with exit 4, the keys made but not shown and no stamp. (`auster rollback`'s own going back,
-# starting and checking is U6's; t107-server-check-closed.sh holds the check's no-key rule, mutants T107f and T107g.)
+# answers as it should, exit 0 and the switch's speed written. `auster rollback` while stopped (open) goes back, starts
+# the engine with enable and bootstrap and checks it: still open, it is stopped again, exit 4 naming `auster start`;
+# refusing a request with no key, builds/stopped is deleted, exit 0. The request with no key is sent only after the
+# keyed question is answered, so that an engine still loading (HTTP 503) is not taken for an open one. At a first
+# install an open server ends the run with exit 4, the keys made but not shown and no stamp.
+# (t107-server-check-closed.sh holds the check's no-key rule, mutants T107f and T107g.)
 # Mutants: tests/mutants/T107a (warn and leave it running), T107b (bootout without disable), T107c (start without the
-# check), T107d (the request with no key before the keyed question is answered), T107e (refuse start while it says open).
+# check), T107d (the request with no key before the keyed question is answered), T107e (refuse start while it says open),
+# T107h (refuse rollback while stopped), T107i (rollback starting a stopped engine with kickstart -k).
 . "$TESTS/lib.sh"
 . "$TESTS/helpers.sh"
 . "$TESTS/install-helpers.sh"
@@ -76,6 +79,26 @@ same "$RC" 0 "auster start, the server refusing a request with no key: exit 0"
 [ -e "$DATA/builds/stopped" ] && bad "  ...builds/stopped is left" || ok "  ...builds/stopped deleted"
 engine_alive && ok "  ...the engine runs" || bad "  ...no engine"
 same "$(sed -n 5p "$DATA/builds/$IR/serving" | cut -f6)" 36.9 "  ...and its check wrote the switch's speed"
+
+# --- auster rollback while stopped: back, started with enable and bootstrap, and checked
+engine_set '*' behaviour open
+auster restart
+same "$RC:$(cut -f2 "$DATA/builds/stopped" 2>/dev/null)" "4:open" "auster restart, the server open: exit 4, stopped again"
+n=$(wc -l < "$STUB_LOG")
+ANSWERS=$'1\n' auster rollback
+same "$RC" 4 "auster rollback while stopped, the server still open: exit 4"
+outsays "It stays stopped until \`auster start\`, which starts it and checks it again." "  ...it names auster start"
+same "$(calls "$n")" "launchctl enable launchctl bootstrap launchctl disable launchctl bootout " "  ...started, checked, and stopped again"
+stopped_open "rollback, still open"
+same "$(sed -n 5p "$DATA/builds/$IR/serving" | cut -f1-3,6)" "launch	4	32768	0" "  ...back at four people, with a speed of 0"
+engine_set '*' behaviour ok
+n=$(wc -l < "$STUB_LOG")
+ANSWERS=$'1\n' auster rollback
+same "$RC" 0 "auster rollback while stopped, the server refusing a request with no key: exit 0"
+same "$(calls "$n")" "launchctl enable launchctl bootstrap " "  ...started with enable, then bootstrap"
+[ -e "$DATA/builds/stopped" ] && bad "  ...builds/stopped is left" || ok "  ...builds/stopped deleted"
+engine_alive && ok "  ...the engine runs" || bad "  ...no engine"
+same "$(sed -n 5p "$DATA/builds/$IR/serving" | cut -f1-3,6)" "launch	2	32768	36.9" "  ...back at two people, its check passed"
 
 # --- the request with no key only after the keyed question is answered
 engine_set '*' load 3

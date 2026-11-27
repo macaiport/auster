@@ -21,8 +21,11 @@
 # `auster rollback` a way back from a speed of 0, and when jobs/previous/ holds programs never checked (T94, T107, T109,
 # T111, T112). U5, its middle part (2026-11-27): `update --retry`, which runs the update with a build that failed its
 # test on this Mac offered again (D3.7, BD12; T99). U5, its last part (2026-11-27): `status` reports a run that holds the
-# lock, and one that ended without releasing it (D3.6 step 5, T25). Still to come, each marked TODO below:
-#   U6  `rollback`, `unhold` and `cleanup`;  U8  the words of each withdrawal's reason in `status`.
+# lock, and one that ended without releasing it (D3.6 step 5, T25). U6, its first part (2026-11-27): `rollback`, which puts
+# back Auster's previous programs from jobs/previous/, or goes back to a build or setting in kept/ (D3.6, BD18); the record
+# `hold`, which a rollback writes (AD8); and `unhold` (T12, T27, T57, and the rollback clauses of T94, T107, T109, T112).
+# Still to come, each marked TODO below: U6  `cleanup`;  U8  the words of each withdrawal's reason in `status` and
+# `rollback`.
 #
 # The readers (D3.1, Reading). Each checks the format first, from the first field of the first 4,096 bytes
 # (au_format): `auster-record 1` (`auster-descriptor 1` for a descriptor) is read on; the same word with a
@@ -43,7 +46,7 @@
 # the same table.
 #
 # The commands (B6). Exit codes: 0 done; 1 refused; 2 usage; 3 not in this version (each a TODO); 4 the
-# server is down. `start`, `restart`, `key add` and `key revoke` exit 0 when the server check passes and 4
+# server is down. `start`, `restart`, `key add`, `key revoke` and `rollback` exit 0 when the server check passes and 4
 # otherwise, naming `auster start` after open and `auster status` after not answered.
 #   status                       what serves, the engine job's last start, the check job's last probe, why
 #                                the engine is stopped, a job macOS has switched off, the devices, a `.local`
@@ -68,7 +71,14 @@
 #                                while stopped or locked and unless the rule file's word is ready. --retry: the
 #                                file runs `update --retry`, whose driver offers again a build in failed/ (D3.7,
 #                                BD12); it goes on when the word is current too, and refuses with no build in failed/
-#   rollback, unhold, cleanup    TODO(U6)
+#   rollback [--withdrawn-ok] [<recipe id>]   back with no download (D3.6): while jobs/previous/ exists, Auster's
+#                                previous programs put back, the records only the programs write deleted, and the bin/auster
+#                                put back runs `start`; otherwise kept/ listed newest first (never checked, failed here and
+#                                withdrawn marked), one picked by its number, its files hashed again, serving copied into
+#                                kept/ and the entry written as serving with a speed of 0, the engine started and checked;
+#                                on a pass, the build left behind held. No test, no failed/, no fetch; 0, 1 or 4
+#   unhold [<recipe id>]         the recipe's holds cleared (builds/<recipe>/hold deleted)
+#   cleanup                      TODO(U6)
 # Each that stops or starts the engine or writes a record takes the lock. While builds/stopped exists,
 # whatever it holds and whether or not it can be read, `update`, `people`, `restart`, `key add` and `key
 # revoke` refuse and name `auster start`; `start`, `rollback`, `status`, `key show`, `verify`, `network`
@@ -78,7 +88,9 @@
 # boot session, the process's start time); `builds/stopped` (one line: `auster-record 1`, `household` or
 # `open`, and the time, `date -u +%Y-%m-%dT%H:%M:%SZ`); the launch line of serving, by rename, with the speed a
 # server check measured or with a new setting and a speed of 0 (au_serving_launch); an entry of kept/, a copy of
-# serving byte for byte named by the time and its build, `2026-11-26T15:04:05Z-b...` (au_kept_add); the router in
+# serving byte for byte named by the time and its build, `2026-11-26T15:04:05Z-b...` (au_kept_add), and taken out of kept/
+# when a rollback goes back to it; builds/<recipe>/hold (`auster-record 1`, then each build id a line, at most 64, by
+# rename; deleted when none is left, and by `unhold`: au_hold_write); the router in
 # builds/mac (`auster network`, in capability-lib.js's form); builds/local-name (one line: `auster-record 1`,
 # the Mac's `.local` name, its LocalHostName, when the household's devices were given its address, or - when it
 # had none, and the time as `stopped` gives it; written by the driver after the yes at a first install and by
@@ -511,13 +523,13 @@ au_desc_read() { # FILE -> AU_SV_* from a descriptor (A5): `serving`, or an entr
   [ "${#AU_F[@]}" -ge 8 ] && [ "${AU_F[0]}" = engine ] && [ "${AU_F[1]}" = "$be" ] && [ "${AU_F[2]}" = macos-arm64 ] || return 1
   [[ ${AU_F[3]} =~ ^b[0-9]{4,7}$ ]] && [[ ${AU_F[4]} =~ ^llama-b[0-9]{4,7}-bin-macos-arm64\.(tar\.gz|zip)$ ]] || return 1
   [[ ${AU_F[5]} =~ $AU_RE_SIZE ]] && [[ ${AU_F[6]} =~ $AU_RE_SHA ]] && [[ ${AU_F[7]} =~ $AU_RE_NUM ]] || return 1
-  AU_SV_ENGINE=${AU_F[6]}
+  AU_SV_ENGINE=${AU_F[6]} AU_SV_ENGINE_SIZE=${AU_F[5]}
   au_split "${AU_SV_LINES[3]}"
   [ "${#AU_F[@]}" -ge 10 ] && [ "${AU_F[0]}" = model ] && [ "${AU_F[1]}" = "$bm" ] || return 1
   [[ ${AU_F[2]} =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,95}/[A-Za-z0-9][A-Za-z0-9._-]{0,95}$ ]] && [[ ${AU_F[3]} =~ ^[0-9a-f]{40}$ ]] || return 1
   [[ ${AU_F[4]} =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,200}\.gguf$ ]] && [[ ${AU_F[5]} =~ $AU_RE_SIZE ]] && [[ ${AU_F[6]} =~ $AU_RE_SHA ]] || return 1
   [[ ${AU_F[7]} =~ ^[a-z0-9.-]{2,30}$ ]] && [[ ${AU_F[8]} =~ ^(publisher|endorsed|third-party)$ ]] && [[ ${AU_F[9]} =~ $AU_RE_NUM ]] || return 1
-  AU_SV_MODEL=${AU_F[6]} AU_SV_MODEL_FILE=${AU_F[4]}
+  AU_SV_MODEL=${AU_F[6]} AU_SV_MODEL_FILE=${AU_F[4]} AU_SV_MODEL_SIZE=${AU_F[5]}
   au_split "${AU_SV_LINES[4]}"
   [ "${#AU_F[@]}" -eq 6 ] && [ "${AU_F[0]}" = launch ] || return 1
   [[ ${AU_F[1]} =~ ^[1-9][0-9]?$ ]] && [ "${AU_F[1]}" -le 64 ] || return 1
@@ -537,7 +549,7 @@ au_entry_read() { # FILE -> as au_desc_read, for an entry of kept/ or failed/, w
   [ "${n#*Z-}" = "$AU_SV_BUILD" ]
 }
 
-au_hold_read() { # RECIPE -> AU_HOLD from builds/<recipe>/hold (D3.7; U6 writes it): absent, when there is none (no holds);
+au_hold_read() { # RECIPE -> AU_HOLD from builds/<recipe>/hold (D3.7; a rollback writes it): absent, when there is none (no holds);
   # ok, with AU_HOLD_IDS, the builds this recipe is not to be moved to; newer, left as it is; or unreadable, which
   # passes the recipe over and is never taken as no holds (D3.1, T6). Its form: `auster-record 1`, then one build id
   # a line, at most 64, every line ending in a newline; bound 1,024 bytes. A link or a folder is unreadable
@@ -707,8 +719,9 @@ au_server_check() { # RECIPE T0 [KEYFILE] -> AU_CHECK: passed, open or unanswere
   # Refused is HTTP 401 or 403 and nothing else: that request asks for one token, so that an open server
   # answers it at once, and any other code, a time-out or no answer is open (it fails closed; V6). Its
   # limit is what is left of the 180 s, at least 5 s and at most 30 s.
-  # passed writes the speed into serving when it holds 0, and deletes jobs/previous/ (Auster's programs from
-  # before an update changed them, B3 step 6: those now in place have passed); open stops the engine (disable,
+  # passed deletes jobs/previous/ (Auster's programs from before an update changed them, B3 step 6: those now in
+  # place have passed), then writes the speed into serving when it holds 0, so that nothing the server runs from is
+  # written by programs still unchecked while jobs/previous/ exists (U6: `auster rollback`); open stops the engine (disable,
   # then bootout) and writes builds/stopped with the reason open; unanswered does nothing. AU_CHECK_WHY says why.
   local r=$1 t0=$2 w key= kf now i=0 code left
   AU_CHECK=unanswered AU_CHECK_WHY= AU_CHECK_SPEED=
@@ -759,8 +772,8 @@ au_server_check() { # RECIPE T0 [KEYFILE] -> AU_CHECK: passed, open or unanswere
     AU_CHECK=open AU_CHECK_WHY="it did not refuse a request that carried no key (it gave ${code:-no answer})"
     return 0
   fi
-  [ "$AU_SV_SPEED" = 0 ] && au_serving_speed "$r" "$AU_CHECK_SPEED"
   if [ -e "$AU_DATA/jobs/previous" ] || [ -L "$AU_DATA/jobs/previous" ]; then rm -rf "$AU_DATA/jobs/previous"; fi
+  [ "$AU_SV_SPEED" = 0 ] && au_serving_speed "$r" "$AU_CHECK_SPEED"
   AU_CHECK=passed
 }
 
@@ -1016,8 +1029,233 @@ au_cmd_people() { # N -> C4, B6: the update's procedure for the build served onl
   return "$rc"
 }
 
+# --- rollback and the holds (D3.6, B6, AD8) ----------------------------------------------------------------
+
+au_recipe_pick() { # [RECIPE] -> AU_RECIPE: RECIPE, which must serve on this Mac, or with none the one that serves (BD14);
+  # with several serving and none named, says so and returns 2; an id that serves nothing, 1
+  local s r all=() i
+  if [ -n "$1" ]; then
+    if [ -f "$AU_DATA/builds/$1/serving" ] && [ ! -L "$AU_DATA/builds/$1/serving" ]; then AU_RECIPE=$1; return 0; fi
+    au_say "No recipe with the id $1 serves on this Mac, so nothing was changed."
+    return 1
+  fi
+  for s in "$AU_DATA"/builds/r*/serving; do
+    r=${s%/serving}; r=${r##*/}
+    [[ $r =~ $AU_RE_RECIPE ]] && [ -f "$s" ] && [ ! -L "$s" ] && all+=("$r")
+  done
+  [ "${#all[@]}" -le 1 ] && return 0
+  s=; for i in "${all[@]}"; do s+="${s:+, }$i"; done
+  au_say "This Mac serves more than one recipe ($s): name one, as in \`auster $AU_CMD ${all[0]}\`. Nothing was changed."
+  return 2
+}
+
+au_hold_write() { # RECIPE ID... -> builds/<recipe>/hold (D3.1): `auster-record 1`, then each build id a line, by rename,
+  # the newest 64 when there are more (the bound au_hold_read reads); with no id, the file is deleted: no holds
+  local f="$AU_DATA/builds/$1/hold" t="$AU_DATA/builds/$1/.hold.new.$$"
+  shift
+  if [ $# -eq 0 ]; then rm -rf "$f"; return; fi
+  while [ $# -gt 64 ]; do shift; done
+  rm -f "$t"
+  { printf 'auster-record 1\n'; printf '%s\n' "$@"; } > "$t" && chmod 600 "$t" && mv -f "$t" "$f" || { rm -f "$t"; return 1; }
+}
+
+au_rollback_hold() { # RECIPE LEFT BACK -> after rollback's passed check (D3.6, AD8): LEFT, the build left behind, put in
+  # the recipe's hold when it is not BACK, the build gone back to, which is taken off it; the same build at another
+  # setting holds nothing. A hold that cannot be read is left as it is, never taken as empty (D3.1)
+  local r=$1 left=$2 back=$3 id ids=() change=0
+  au_hold_read "$r"
+  if [ "$AU_HOLD" != absent ] && [ "$AU_HOLD" != ok ]; then
+    au_say "builds/$r/hold cannot be read, so it is left as it is: every build counts as held until \`auster unhold\`."
+    return 0
+  fi
+  for id in ${AU_HOLD_IDS[@]+"${AU_HOLD_IDS[@]}"}; do
+    if [ "$id" = "$back" ]; then
+      au_say "Build $back was held on this Mac; going back to it takes it off the list."
+      change=1
+    elif [ "$id" != "$left" ] || [ "$left" = "$back" ]; then
+      ids+=("$id")
+    fi
+  done
+  if [ "$left" != "$back" ]; then
+    ids+=("$left") change=1
+    au_say "Build $left is held on this Mac now: no update moves it there again until \`auster unhold\`."
+  fi
+  [ "$change" = 1 ] || return 0
+  au_hold_write "$r" ${ids[@]+"${ids[@]}"} ||
+    au_say "builds/$r/hold could not be written, so the holds stay as they were."
+}
+
+au_rollback_withdrawn() { # RECIPE -> AU_WD_BUILDS, ` BUILD ` for each build of the recipe that the registry the last update
+  # check fetched (_update/registry) withdraws, by jobs/registry.js (U3 copies it there), and AU_WD_KNOWN, 1 when that
+  # registry was read. Only its withdrawals are taken from it, never a size or a sha256 (D3.6), and nothing is fetched:
+  # going back works offline (T57), and without the registry no entry is known to be withdrawn
+  local l
+  AU_WD_BUILDS=' ' AU_WD_KNOWN=0
+  [ -f "$AU_DATA/jobs/registry.js" ] && [ ! -L "$AU_DATA/jobs/registry.js" ] || return 0
+  [ -f "$AU_DATA/_update/registry" ] && [ ! -L "$AU_DATA/_update/registry" ] || return 0
+  while IFS= read -r l; do
+    au_split "$l"
+    case "${AU_F[0]}" in
+      registry) AU_WD_KNOWN=1 ;;
+      build) [ "${AU_F[3]:-}" != - ] && [[ ${AU_F[3]:-} =~ ^[a-z]{1,20}$ ]] && [[ ${AU_F[4]:-} =~ $AU_RE_BUILD ]] && AU_WD_BUILDS+="${AU_F[4]} " ;;
+    esac
+  done < <(osascript -l JavaScript "$AU_DATA/jobs/registry.js" "$AU_DATA/_update/registry" "$1" 2>/dev/null)
+}
+
+au_desc_files() { # -> 0 when every file the descriptor read last (AU_SV_*) names is whole (AD13): the model and the engine's
+  # archive in store/ at their size, then their sha256; the template, the system prompt and the recipe's test at their
+  # sha256; and the engine's unpacked files against the list whose sha256 the launch line holds. Otherwise names each
+  # that is not, and 1
+  local bad=0 i f out names=(model "engine's archive" template "system prompt" "recipe's test")
+  local shas=("$AU_SV_MODEL" "$AU_SV_ENGINE" "$AU_SV_TEMPLATE" "$AU_SV_SYSTEM" "$AU_SV_TEST") sizes=("$AU_SV_MODEL_SIZE" "$AU_SV_ENGINE_SIZE" - - -)
+  for i in 0 1 2 3 4; do
+    f="$AU_DATA/store/${shas[$i]}"
+    if [ -f "$f" ] && [ ! -L "$f" ] && { [ "${sizes[$i]}" = - ] || [ "$(au_size "$f")" = "${sizes[$i]}" ]; } && [ "$(au_sha "$f")" = "${shas[$i]}" ]; then
+      continue
+    fi
+    au_say "  The ${names[$i]} (store/${shas[$i]}) is missing or has changed since it was checked."
+    bad=1
+  done
+  f="$AU_DATA/engines/$AU_SV_ENGINE/root" out=
+  if [ -d "$f" ] && [ ! -L "$f" ]; then out=$(au_list "$f" | openssl dgst -sha256 2>/dev/null); out=${out##*= }; fi
+  if [ "$out" != "$AU_SV_LIST" ]; then au_say "  The engine's unpacked files (engines/$AU_SV_ENGINE) are missing or have changed."; bad=1; fi
+  [ "$bad" = 0 ]
+}
+
+au_rollback_programs() { # -> B3 step 6's way back (D3.6, BD18, T94): the programs in jobs/previous/ put back by rename (auster
+  # into bin/, every other into jobs/), the folder deleted, and no build changed. Then the records that only Auster's
+  # programs write, and write again by themselves, are deleted: each builds/<recipe>/start (the engine job's, at each
+  # start) and _update/engine (the check job's, at each probe), with builds/stopped, which a start deletes; so that none
+  # written by the programs taken out is left in a format the ones put back cannot read (the row "a record's format and
+  # rollback"). The lock is released, and the bin/auster put back starts the engine and checks it (`auster start`:
+  # enable, then bootstrap, or kickstart -k when the job is loaded), so that every record written from then on is
+  # theirs. Its exit code is that start's: 0, 4, or 1 when it refuses
+  local prev="$AU_DATA/jobs/previous" f n
+  au_say "Putting back Auster's programs from before the last update changed them (jobs/previous); no build is changed."
+  for f in "$prev"/*; do
+    n=${f##*/}
+    [[ $n =~ ^[a-z][a-z0-9-]{0,40}(\.js)?$ ]] && [ -f "$f" ] && [ ! -L "$f" ] || continue
+    if [ "$n" = auster ]; then mv -f "$f" "$AU_DATA/bin/auster"; else mv -f "$f" "$AU_DATA/jobs/$n"; fi ||
+      { au_say "$n could not be put back; jobs/previous keeps the programs not yet put back, and \`auster rollback\` tries again."; return 1; }
+  done
+  rm -rf "$prev" "$AU_DATA"/builds/r*/start "$AU_DATA/_update/engine" "$AU_DATA/builds/stopped"
+  au_lock_release
+  au_say "The previous programs are back in place. They start the server and check it:"
+  /bin/bash "$AU_DATA/bin/auster" start
+}
+
+au_cmd_rollback() { # WITHDRAWN-OK RECIPE -> D3.6, B6: back with no download. While jobs/previous/ exists, Auster's previous
+  # programs (au_rollback_programs). Otherwise kept/ is listed, newest first, each entry a build at a setting, those never
+  # checked (a speed of 0), failed here (failed/) or withdrawn (_update/registry) marked, and the person picks one by its
+  # number. A failed build is refused, and a withdrawn one unless WITHDRAWN-OK is 1 (--withdrawn-ok); then the chosen
+  # entry's files are checked again (au_desc_files) and it goes back as a change of setting does: serving copied into
+  # kept/, the chosen entry written as serving by rename with a speed of 0 (A5) and taken out of kept/, the engine started
+  # (enable, then bootstrap, or kickstart -k when the job is loaded) and builds/stopped deleted, and the server check. It
+  # runs no test and never writes failed/. Passed: the hold (au_rollback_hold), and 0. Open or not answered: 4, saying so
+  # as `auster start` does, and that another rollback goes further back. With nothing in kept/ and no jobs/previous/, 1.
+  # It takes the lock, and works while builds/stopped exists (B6). The programs are the whole Mac's, so RECIPE (with
+  # several recipes, BD14's fixtures) names the recipe of kept/ only
+  local wdok=$1 r f n i=0 k c= now unread=0 failed=' ' all=() paths=() builds=() d m t
+  au_ready || return 1
+  au_lock_take || return 1
+  if [ -e "$AU_DATA/jobs/previous" ] || [ -L "$AU_DATA/jobs/previous" ]; then au_rollback_programs; return $?; fi
+  AU_CMD=rollback
+  au_recipe_pick "$2" || return $?
+  r=$AU_RECIPE
+  for f in "$AU_DATA/builds/$r"/kept/*; do { [ -e "$f" ] || [ -L "$f" ]; } && all+=("$f"); done
+  if [ "${#all[@]}" = 0 ]; then
+    au_say "There is nothing to go back to: kept/ holds no earlier build or setting, and no update has changed Auster's programs since they were checked. Nothing was changed."
+    return 1
+  fi
+  au_serving_read "$r" ||
+    { au_say "The record of what serves (builds/$r/serving) cannot be read, so it cannot be kept, and nothing was changed."; return 1; }
+  now=$AU_SV_BUILD
+  for f in "$AU_DATA/builds/$r"/failed/*; do { [ -e "$f" ] || [ -L "$f" ]; } && au_entry_read "$f" && failed+="$AU_SV_BUILD "; done
+  au_rollback_withdrawn "$r"
+  au_say "What the server can go back to, with no download, newest first:"
+  for ((k = ${#all[@]} - 1; k >= 0; k--)); do
+    f=${all[$k]}
+    au_entry_read "$f" || { unread=$((unread + 1)); continue; }
+    i=$((i + 1)) paths+=("$f") builds+=("$AU_SV_BUILD") m= n=${f##*/}
+    d="${n:0:10} ${n:11:8} UTC"
+    [ "$AU_SV_BUILD" != "$now" ] || m+=", the build it serves now"
+    [ "$AU_SV_SPEED" != 0 ] || m+=", never checked"
+    case "$failed" in *" $AU_SV_BUILD "*) m+=", failed its test here" ;; esac
+    case "$AU_WD_BUILDS" in *" $AU_SV_BUILD "*) m+=", withdrawn" ;; esac
+    au_say "  $i  build $AU_SV_BUILD ($AU_SV_MODEL_FILE), $AU_SV_PEOPLE people at $(au_commas "$AU_SV_CONTEXT") tokens each, served until $d$m"
+  done
+  [ "$unread" = 0 ] || au_say "  ($unread more in builds/$r/kept cannot be read, and are not offered.)"
+  [ "$AU_WD_KNOWN" = 1 ] || au_say "Whether a build has been withdrawn is not known here (_update/registry cannot be read), so none is marked."
+  [ "$i" -gt 0 ] || { au_say "Nothing was changed."; return 1; }
+  for t in 1 2 3 4 5; do
+    au_ask "Go back to which? Type its number, or no:" || { au_say "Nothing was changed."; return 1; }
+    case "$AU_REPLY" in ''|no|NO|No) au_say "Nothing was changed."; return 1 ;; esac
+    if [[ $AU_REPLY =~ ^[1-9][0-9]{0,3}$ ]] && [ "$AU_REPLY" -le "$i" ]; then c=$AU_REPLY; break; fi
+    au_say "Please type a number from 1 to $i, or no."
+  done
+  [ -n "$c" ] || { au_say "Nothing was changed."; return 1; }
+  f=${paths[$((c - 1))]} n=${builds[$((c - 1))]}
+  case "$failed" in *" $n "*)
+    au_say "Build $n failed its test on this Mac (builds/$r/failed), so Auster does not go back to it. Nothing was changed."
+    return 1 ;;
+  esac
+  case "$AU_WD_BUILDS" in *" $n "*)
+    if [ "$wdok" != 1 ]; then
+      au_say "Build $n has been withdrawn, so Auster goes back to it only when told so: \`auster rollback --withdrawn-ok\`. Nothing was changed."
+      return 1
+    fi
+    au_say "Build $n has been withdrawn; Auster goes back to it because --withdrawn-ok says so."   # TODO(U8): the words of its reason (D3.8, T27)
+  esac
+  au_entry_read "$f" || { au_say "That entry can no longer be read, so nothing was changed."; return 1; }
+  au_say "Checking the files of build $n against their sha256..."
+  if ! au_desc_files; then
+    au_say "So Auster does not go back to it, and nothing was changed: the server keeps serving as it was."
+    return 1
+  fi
+  au_kept_add "$r" || { au_say "What it serves now could not be kept (builds/$r/kept), so nothing was changed."; return 1; }
+  au_entry_read "$f" || { au_say "That entry can no longer be read, so nothing was changed."; return 1; }
+  t="$AU_DATA/builds/$r/.serving.new.$$"
+  rm -f "$t"
+  if ! { printf '%s\n' "${AU_SV_LINES[0]}" "${AU_SV_LINES[1]}" "${AU_SV_LINES[2]}" "${AU_SV_LINES[3]}"
+         printf 'launch\t%s\t%s\t%s\t%s\t0\n' "$AU_SV_PEOPLE" "$AU_SV_CONTEXT" "$AU_SV_PORT" "$AU_SV_LIST"; } > "$t" ||
+     ! chmod 600 "$t" || ! mv -f "$t" "$AU_DATA/builds/$r/serving"; then
+    rm -f "$t"
+    au_say "The record of what serves (builds/$r/serving) could not be written, so nothing was switched."
+    return 1
+  fi
+  rm -f "$f"
+  au_say "Going back to build $n, $AU_SV_PEOPLE people at $(au_commas "$AU_SV_CONTEXT") tokens each. Starting the server on it..."
+  if ! au_engine_start; then
+    au_say "launchd did not start Auster's engine job, so the server was not checked. \`auster status\` says why."
+    return 4
+  fi
+  rm -rf "$AU_DATA/builds/stopped"
+  if au_checked; then au_rollback_hold "$r" "$now" "$n"; return 0; fi
+  [ -z "$(ls -A "$AU_DATA/builds/$r/kept" 2>/dev/null)" ] || au_say "Another \`auster rollback\` goes further back, with no download."
+  return 4
+}
+
+au_cmd_unhold() { # RECIPE -> D3.6, B6: the recipe's holds cleared, builds/<recipe>/hold deleted whatever it holds, so that an
+  # update may move it to any build again (AD8). It takes the lock, and starts and stops nothing, so it works while the
+  # engine is stopped
+  local f id s=
+  au_ready || return 1
+  au_lock_take || return 1
+  AU_CMD=unhold
+  au_recipe_pick "$1" || return $?
+  f="$AU_DATA/builds/$AU_RECIPE/hold"
+  au_hold_read "$AU_RECIPE"
+  case "$AU_HOLD" in
+    absent) au_say "No build is held on this Mac, so nothing was changed."; return 0 ;;
+    ok) for id in ${AU_HOLD_IDS[@]+"${AU_HOLD_IDS[@]}"}; do s+="${s:+, }$id"; done ;;
+  esac
+  rm -rf "$f" || { au_say "builds/$AU_RECIPE/hold could not be deleted, so the holds stay."; return 1; }
+  if [ -n "$s" ]; then au_say "No build is held on this Mac now (it held $s): an update may move it to any build again."
+  else au_say "The holds (builds/$AU_RECIPE/hold, which could not be read) are cleared: an update may move it to any build again."; fi
+}
+
 au_cmd_later() { # COMMAND -> 3: a command of B6 that comes with a later version
-  au_say "auster $1 comes with a later version of Auster (U6); nothing was changed."   # TODO(U6): rollback, unhold, cleanup
+  au_say "auster $1 comes with a later version of Auster (U6); nothing was changed."   # TODO(U6): cleanup
   return 3
 }
 
@@ -1596,6 +1834,7 @@ au_status() { # -> B6: what serves, the engine job's last start, why the engine 
 
 au_usage() {
   au_say "usage: auster status | update [--retry] | stop | start | restart | network | verify | people <n> | remove" \
+    "              auster rollback [--withdrawn-ok] [<recipe id>] | unhold [<recipe id>]" \
     "              auster key add <name> | key revoke <name> | key show <name>" >&2
   return 2
 }
@@ -1626,7 +1865,15 @@ auster_main() {
       esac ;;
     update:1) au_cmd_update; rc=$? ;;
     update:2) if [ "$2" = --retry ]; then au_cmd_update --retry; rc=$?; else au_usage; fi ;;
-    rollback:*|unhold:*|cleanup:*) au_cmd_later "$1"; rc=$? ;;
+    rollback:1) au_cmd_rollback 0 ""; rc=$? ;;
+    rollback:2)
+      if [ "$2" = --withdrawn-ok ]; then au_cmd_rollback 1 ""; rc=$?
+      elif [[ $2 =~ $AU_RE_RECIPE ]]; then au_cmd_rollback 0 "$2"; rc=$?
+      else au_usage; fi ;;
+    rollback:3) if [ "$2" = --withdrawn-ok ] && [[ $3 =~ $AU_RE_RECIPE ]]; then au_cmd_rollback 1 "$3"; rc=$?; else au_usage; fi ;;
+    unhold:1) au_cmd_unhold ""; rc=$? ;;
+    unhold:2) if [[ $2 =~ $AU_RE_RECIPE ]]; then au_cmd_unhold "$2"; rc=$?; else au_usage; fi ;;
+    cleanup:*) au_cmd_later "$1"; rc=$? ;;
     *) au_usage ;;
   esac
   exit "$rc"
