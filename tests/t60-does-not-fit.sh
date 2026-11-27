@@ -2,7 +2,8 @@
 # phase 1 step 11), fails the recipe's test; one that fits passes whatever its speed; the test's speed
 # is reported and never decides the result, and the test writes it nowhere: it leaves no file behind, so
 # that only the server check after the switch can set this Mac's baseline (B3 step 13, built by U5).
-# Mutants: tests/mutants/T60a to T60c.
+# The test file is assets/household-test.json, the one the registry's builds name. Mutants:
+# tests/mutants/T60a to T60c.
 . "$TESTS/lib.sh"
 . "$TESTS/helpers.sh"
 stub_env
@@ -10,7 +11,7 @@ W=$(mktemp -d "${TMPDIR%/}/t60.XXXXXX")
 RT="$ROOT/common/recipe-test.js"
 KEY=9b2e4d6f8a0c1e3f5a7b9c1d3e5f7a9b
 mkdir -p "$W/case" "$W/cwd" "$W/tmp"
-cp "$TESTS/fixtures/recipe-test/household-test.json" "$W/case/test.json"
+cp "$ROOT/assets/household-test.json" "$W/case/test.json"
 printf '%s\n' "$KEY" > "$W/case/test.key"; chmod 600 "$W/case/test.key"
 export STUB_CLOCK="$W/clock"; echo 1764150000 > "$STUB_CLOCK"
 engine_set 'port=18611' behaviour http500

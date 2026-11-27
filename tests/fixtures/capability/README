@@ -8,7 +8,9 @@ household.tsv   The household recipe as A6 gives it, in a registry of format 1: 
                 665, 432, 163,840, publisher); engine b12359 for both. The recipe allows
                 publisher,endorsed, 4 people by default, 8,192 to 32,768 a person. The model files' context
                 limits (262,144 and 131,072) are fixture values; T90 changes Mistral's at run time.
-                V8 writes the real registry.tsv; this file stands in for it until then.
+                The repo's own registry.tsv (V8) has the same ids and figures, and differs only in its
+                comment lines and where this file holds a placeholder or a fixture value: order 1's
+                template, the test, the two context limits, the Mac label and the recipe label (T56).
 
 Made at run time by the tests, not kept here:
 - the Mac's figures, through the test variables AU_GPU_MIB, AU_RAM_BYTES, AU_DISK_FREE_BYTES and

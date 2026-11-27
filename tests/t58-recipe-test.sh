@@ -4,14 +4,15 @@
 # Also: each request carries curl's --max-time, the seconds left of the limit, and a request that stalls
 # is cut short and fails the run; the test file is phase 1's twelve picks; the key never reaches a command
 # line and its header file is 0600 in a fresh 0700 folder that is gone afterwards; usage errors and no
-# answer at all. Mutants: tests/mutants/T58a to T58d, the plan's (T58b and T58d change the test file); T58e
+# answer at all. The test file is assets/household-test.json, the one the registry's builds name.
+# Mutants: tests/mutants/T58a to T58d, the plan's (T58b and T58d change assets/household-test.json); T58e
 # puts the key on curl's command line; T58f drops --max-time.
 . "$TESTS/lib.sh"
 . "$TESTS/helpers.sh"
 stub_env
 W=$(mktemp -d "${TMPDIR%/}/t58.XXXXXX")
 RT="$ROOT/common/recipe-test.js"
-FIX="$TESTS/fixtures/recipe-test/household-test.json"
+FIX="$ROOT/assets/household-test.json"
 P1="$TESTS/fixtures/phase-1/questions.json"
 KEY=5f3a9c2e8b1d47a0c6e9f2b8d4a1c7e3
 printf '# the test key\n%s\n' "$KEY" > "$W/test.key"; chmod 600 "$W/test.key"

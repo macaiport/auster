@@ -1,7 +1,10 @@
 The recipe's test (docs/plans/v0.1.md, A7), for T58 to T60.
 
 household-test.json  the household recipe's test file, format 1 (its form is described at the top of
-                     common/recipe-test.js). V8 copies it into assets/. Phase 1's questions 49 to 52,
+                     common/recipe-test.js): a copy of assets/household-test.json, the file the
+                     registry's builds name. T58 and T60 grade the one in assets/; this copy is the one
+                     the install tests put in their tree (tests/install-helpers.sh), and T56 checks that
+                     the two are the same, byte for byte. Phase 1's questions 49 to 52,
                      35 to 38, 3, 10, 45 and 47 (docs/phase-2.md, section 1), each copied word for word
                      from tests/fixtures/phase-1/questions.json, which T58 checks; the safety and format
                      questions mandatory; the speed question of A5.

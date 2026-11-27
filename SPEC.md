@@ -9,7 +9,7 @@ Product name Auster (decided 2026-11-25), repo `macaiport/auster`. Concept, road
 |---|---|---|
 | 0 | Scaffold: CLAUDE.md, SPEC.md, memory/, docs/, concept captured | Done 2026-11-25 |
 | 1 | Household assistant built by hand on the Studio: engine, a model that fits, always-on server, one client, per-user keys, all measured | Current: under way. Models A, B and C measured and quizzed; MLX compared; keys, the chat page and an iPad on the home network tested ([docs/phase-1.md](docs/phase-1.md)). Left: two devices with one key revoked, and the restart tests (AD15). The model is chosen (plan A6) and a cold start measured (step 10) |
-| 2 | v0.1: the `household-assistant` recipe. Recipe format, from-zero installer, capability rules, and the built-in update of Auster and of its models | Building. V1 to V7 built and tested (`tests/run.sh`: the test stubs and fixtures, the registry reader and gate, section C, the recipe's test, the first install: `install.sh` and `common/driver.sh`; the engine job and the check job; keys, the QR code, the `auster` command and removal); V8 and U1 to U9 next. [`docs/plans/v0.1.md`](docs/plans/v0.1.md) is drafted in full (2026-11-26). The whole plan was reviewed the same day (pass 2, seven lenses), found to need rework, and reworked; re-checked six times and each pass's fixes folded; the owner accepted BD8 to BD19. **check-it'd 2026-11-26 — build-ready-with-fixes (pass 2g)**. V1 begun (`tools/mint-id`, `tests/run.sh`). Phase 2's first step settled the facts that can be settled on the development Mac ([docs/phase-2.md](docs/phase-2.md)) |
+| 2 | v0.1: the `household-assistant` recipe. Recipe format, from-zero installer, capability rules, and the built-in update of Auster and of its models | Building. V1 to V8 built and tested (`tests/run.sh`: the test stubs and fixtures, the registry reader and gate, section C, the recipe's test, the first install: `install.sh` and `common/driver.sh`; the engine job and the check job; keys, the QR code, the `auster` command and removal; the repo's own `registry.tsv`, `assets/` and recipe folder); U1 to U9 next, and BD20 (order 1's chat template fails on some dates) is open. [`docs/plans/v0.1.md`](docs/plans/v0.1.md) is drafted in full (2026-11-26). The whole plan was reviewed the same day (pass 2, seven lenses), found to need rework, and reworked; re-checked six times and each pass's fixes folded; the owner accepted BD8 to BD19. **check-it'd 2026-11-26 — build-ready-with-fixes (pass 2g)**. V1 begun (`tools/mint-id`, `tests/run.sh`). Phase 2's first step settled the facts that can be settled on the development Mac ([docs/phase-2.md](docs/phase-2.md)) |
 | 3 | `coders-companion`, the second recipe on the same format | Planning only |
 | 4 | Launcher window (concept v0.2) | Planning only |
 | 5 | `kids-homework-box`, `audit-tower`, trust-tier labels (concept v0.3) | Planning only |
@@ -50,15 +50,16 @@ MLX fits.
 
 Side tracks, not phases: the name checks and funding. Their notes are kept privately.
 
-**Current phase:** 2, building: V1 to V7 done. Phase 1's last items need the owner, and so do three of phase 2's first-step checks ([docs/phase-2.md](docs/phase-2.md)). The household recipe's model is chosen: Mistral Small 4, then Magistral Small (plan A6)
+**Current phase:** 2, building: V1 to V8 done. Phase 1's last items need the owner, and so do three of phase 2's first-step checks ([docs/phase-2.md](docs/phase-2.md)). The household recipe's model is chosen: Mistral Small 4, then Magistral Small (plan A6)
 
 **Next:**
 1. Phase 1's last items: the restart tests for AD15 (they need the owner at the Mac and an administrator),
    and two devices at once with one key revoked.
 2. The D12 checks that need the owner: the iPad reading the QR
    code, and a launchd job for the engine's speeds.
-3. Build V8 (the real `registry.tsv` and `assets/`) and then the update, U1 to U9; U5 builds the server
-   check's callers first, against their tests, before the rest of the switch.
+3. Decide BD20 (order 1's chat template raises an error on 1 March of most years), then build the
+   update, U1 to U9; U5 builds the server check's callers first, against their tests, before the rest of
+   the switch.
 
 ---
 

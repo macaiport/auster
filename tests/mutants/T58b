@@ -1,3 +1,3 @@
-# file: tests/fixtures/recipe-test/household-test.json
+# file: assets/household-test.json
 # one mandatory group dropped: the four format questions made optional
 /"group": "format"/s/"mandatory": true/"mandatory": false/
