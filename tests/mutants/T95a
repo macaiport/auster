@@ -1,0 +1,4 @@
+# file: common/auster
+# read a newer record as its own: any format number is read as format 1
+s|^    'auster-record 1') ;;$|    'auster-record '[0-9]*) ;;|
+s|^  \[\[ \$n =~ ^\[1-9\]\[0-9\]{0,8}\$ \]\] && \[ "\$n" -gt 1 \]$|  false|

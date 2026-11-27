@@ -1,0 +1,13 @@
+#!/bin/bash
+# Stub caffeinate: logs its arguments (tests/stub-lib.sh) and keeps nothing awake. With -w PID it waits
+# until that process has ended, as caffeinate does; with anything else it exits 0 at once, so that a test
+# never waits on it.
+. "$(dirname "$0")/../stub-lib.sh"
+stub_begin "$@"
+pid=
+while [ $# -gt 0 ]; do
+  case "$1" in -w) pid=${2:-}; [ $# -ge 2 ] && shift ;; esac
+  shift
+done
+if [ -n "$pid" ]; then while stub_alive "$pid"; do sleep 0.05; done; fi
+exit 0

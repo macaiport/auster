@@ -1,0 +1,4 @@
+# file: common/driver.sh
+# write serving before the test
+/^  au_step10_test$/i\
+  au_mkdir "$AU_DATA/builds/$AU_RECIPE"; au_descriptor "$AU_DATA/builds/$AU_RECIPE/serving" 0

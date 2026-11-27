@@ -1,0 +1,6 @@
+# file: common/driver.sh
+# only unload the jobs: written and loaded before the test, booted out after a fail, their files left
+/^  au_step10_test$/i\
+  au_jobs_write; au_job_load "$AU_LABEL_ENGINE"; au_job_load "$AU_LABEL_CHECK"
+/^  au_stop "The build did not pass the recipe's test/i\
+  launchctl bootout "gui/$AU_UID/$AU_LABEL_ENGINE"; launchctl bootout "gui/$AU_UID/$AU_LABEL_CHECK"

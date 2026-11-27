@@ -5,6 +5,9 @@
 #   rand -hex N   the same bytes as hex, and a newline
 #   Each call takes the next line of the file STUB_OPENSSL_RAND_FILE instead, when that is set (one
 #   hex value a line, used once each, failing loudly when they run out), so that keys can differ.
+#   STUB_OPENSSL_RAND_COUNTER, a file holding a count (absent is 0), wins over both: each call adds one
+#   to the count and gives N bytes, each the count's low byte, so that every call of a run differs and
+#   has the length asked for (01 01 ..., then 02 02 ...).
 #   dgst -sha256 [FILE], sha256 [FILE]   the file's sha256 (by shasum), in the Mac's own openssl's form
 . "$(dirname "$0")/../stub-lib.sh"
 stub_begin "$@"
@@ -20,7 +23,14 @@ next_hex() {
 }
 case "${1:-}" in
   rand)
-    next_hex
+    if [ -n "${STUB_OPENSSL_RAND_COUNTER:-}" ]; then
+      n=${!#}; c=$(( $(cat "$STUB_OPENSSL_RAND_COUNTER" 2>/dev/null || echo 0) + 1 ))
+      echo "$c" > "$STUB_OPENSSL_RAND_COUNTER"
+      b=$(printf '%02x' $((c % 256))); h=
+      for ((i = 0; i < n; i++)); do h+=$b; done
+    else
+      next_hex
+    fi
     if [ "${2:-}" = -hex ]; then echo "$h"; exit 0; fi
     while [ -n "$h" ]; do printf "\\x${h:0:2}"; h=${h:2}; done ;;
   dgst|sha256)

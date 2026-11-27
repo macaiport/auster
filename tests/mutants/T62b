@@ -1,0 +1,3 @@
+# file: install.sh
+# use the id unmatched
+s|    if ! \[\[ \$recipe =~ \$AUSTER_RE_RECIPE \]\]; then|    if false; then|

@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# only the engine job keeps the Mac awake: never the download
+s|^  if \[ "\$AU_AWAKE" = yes \]; then caffeinate -i -w "\$pid" > /dev/null 2>&1 & fi$|  if false; then caffeinate -i -w "$pid" > /dev/null 2>\&1 \& fi|

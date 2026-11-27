@@ -1,0 +1,3 @@
+# file: common/auster
+# check the process number alone
+s|^  \[ "\$2" = "\$AU_BOOT" \] \|\| return 1$|  kill -0 "$1" 2>/dev/null; return|

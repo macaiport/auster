@@ -1,0 +1,5 @@
+# file: common/driver.sh
+# download before the question
+/^  au_step7_model$/d
+/^  au_step6_question$/i\
+  au_step7_model

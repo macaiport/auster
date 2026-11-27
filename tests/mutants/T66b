@@ -1,0 +1,7 @@
+# file: install.sh
+# the main function called at the top: right after it is defined, before the rest
+/^  auster_install_handover "\$tree" "\$mode"/{
+n
+a\
+auster_install_main "$@"
+}

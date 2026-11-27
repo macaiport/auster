@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# unescaped job file: the data root's path put into the XML as it is
+s|data=\$(au_xml "\$AU_DATA")|data=$AU_DATA|

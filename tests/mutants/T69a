@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# an unquoted expansion: the candidate's program path
+s|exec env -i PATH="\$AU_ENGINE_PATH" "\$AU_ENGINE_DIR/root/\$AU_PROGRAM"|exec env -i PATH="$AU_ENGINE_PATH" $AU_ENGINE_DIR/root/$AU_PROGRAM|

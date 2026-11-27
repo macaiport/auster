@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# find the asset by name: the template is the .jinja file, the system prompt the *system* file, the test the *test* file
+s#^      if \[ "\$(au_sha "\$f")" = "\$sha" \]; then found=\$f; break; fi$#      case "${what\#*:}:${f\#\#*/}" in template:*.jinja|system-prompt:*system*|test:*test*) found=$f; break ;; esac#

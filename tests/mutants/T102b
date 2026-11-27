@@ -1,0 +1,4 @@
+# file: common/driver.sh
+# guess a limit when --list-devices gives none in the expected form
+/^  AU_RAM=\$(sysctl -n hw.memsize 2>\/dev\/null)$/i\
+  grep -q '^  MTL0: .* MiB free)$' "$AU_RUN/list-devices.txt" || printf 'Available devices:\\n  MTL0: guessed (49152 MiB, 49152 MiB free)\\n' > "$AU_RUN/list-devices.txt"

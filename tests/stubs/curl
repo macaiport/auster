@@ -28,7 +28,8 @@
 # Records:
 #   STUB_LOG                    "curl" and the arguments; "curl <stdin> ..." when it reads its input
 #   STUB_CURL_DIR/requests/NNNN one folder per request sent (redirects too): method, url, headers
-#                               (what curl would send, Host and User-Agent among them) and body.
+#                               (what curl would send, Host and User-Agent among them), body, and
+#                               pid (the process number of the curl that sent it).
 #                               A request to an engine carries its key in headers: a test looking for
 #                               keys that left the Mac skips the engine's own address.
 #
@@ -274,6 +275,7 @@ record_request() { # -> folder for this request, when STUB_CURL_DIR is set; the 
   if [ -n "${STUB_CURL_DIR:-}" ]; then d=$(stub_new_dir "$STUB_CURL_DIR/requests"); else d="$work/req"; mkdir -p "$d"; fi
   printf '%s\n' "$cur_method" > "$d/method"
   printf '%s\n' "$cur_url" > "$d/url"
+  printf '%s\n' "$$" > "$d/pid"
   : > "$d/headers"
   for k in "${!hnames[@]}"; do [ -z "${hnames[$k]}" ] || printf '%s: %s\n' "${hnames[$k]}" "${hvalues[$k]}" >> "$d/headers"; done
   [ "$cur_has_body" = 0 ] || cp "$body" "$d/body"

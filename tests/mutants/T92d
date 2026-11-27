@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# start the download before the disk rule refuses
+s|^  if \[ "\$rc" = 3 \]; then au_refusal; fi$|  if [ "$rc" = 3 ]; then AU_CH_BUILD=$(awk -F'\\t' '$1 == "build" { print $5; exit }' "$AU_REGOUT"); au_step7_model; au_refusal; fi|

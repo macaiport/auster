@@ -1,0 +1,4 @@
+# file: common/driver.sh
+# unpack without checks
+/^  local a=\$1 d=\$2 name m rest f ino nl cnt$/a\
+  rm -rf "$d"; mkdir -m 700 "$d" "$d/root"; tar -xzf "$a" -C "$d/root" 2>/dev/null; au_list "$d/root" > "$d/files"; return 0

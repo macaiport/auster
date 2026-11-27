@@ -1,0 +1,3 @@
+# file: install.sh
+# compare versions as text, so that 9 is above 27
+s|if \[ "\$major" -lt "\$AUSTER_MACOS_FLOOR" \]; then|if [[ "$major" < "$AUSTER_MACOS_FLOOR" ]]; then|

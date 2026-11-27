@@ -1,0 +1,4 @@
+# file: install.sh
+# refuse after making the data root: the refusals asked only once the driver has run
+/^  auster_install_refuse "\$mode" || return 1$/d
+s|^  auster_install_handover "\$tree" "\$mode" "\$recipe" "\$commit" "\$line" "\$version" "\$wd"$|  auster_install_handover "$tree" "$mode" "$recipe" "$commit" "$line" "$version" "$wd"; auster_install_refuse "$mode" \|\| return 1|

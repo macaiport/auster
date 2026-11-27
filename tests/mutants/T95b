@@ -1,0 +1,4 @@
+# file: common/auster
+# count the fields, and the size, before the format number
+/^  first=\$(au_record_first "\$f")$/i\
+  [ "$(au_size "$f")" -le 4096 ] && [ "$(awk -F'\\t' '{ print NF; exit }' "$f")" = 4 ] || return 0

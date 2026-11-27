@@ -1,0 +1,470 @@
+#!/bin/bash
+# auster: the `auster` command (docs/plans/v0.1.md, B6), and the shell functions the driver
+# (common/driver.sh) shares with it. The driver copies this file byte for byte to <data root>/bin/auster
+# (B3 step 3) and loads it with `.`, which defines functions and constants only; run as a program, it
+# runs auster_main.
+#
+# Built by V5 (2026-11-26): the shared functions (the data root and its ownership, the lock, questions
+# from the terminal, the job verbs, the server check) and the least of the command that a first install
+# needs: `remove` (B8), because B3 step 3 says it works from then on, and `status`, which only reports.
+# Still to come, each marked TODO below:
+#   V7  every other subcommand of B6, the keys' commands and the QR code (B7), the line in ~/.zprofile,
+#       and the tests of `remove` (T85, T86, T108);
+#   U5  the server check's other callers (start, restart, key add and revoke, rollback, people) and its
+#       tests (T107 to T114). The check here is B3 step 13's definition, used by a first install.
+#
+# Everything runs under /bin/bash 3.2 with what macOS ships (T98). Test variables: AU_TTY names a file
+# that stands for the terminal the questions are read from (a test's answers, one a line).
+
+AU_LABEL_ENGINE=local.auster.engine
+AU_LABEL_CHECK=local.auster.check
+AU_ROOT_MARKER=.auster-data-root
+AU_CHECK_SECS=180                     # B3 step 13: the server check's limit from this run's start of the engine
+AU_RE_RECIPE='^r[a-z2-7]{12}$'
+AU_RE_BUILD='^b[a-z2-7]{12}$'
+AU_RE_KEYID='^k[a-z2-7]{12}$'
+AU_RE_KEY='^[0-9a-f]{32}$'
+AU_RE_SHA='^[0-9a-f]{64}$'
+AU_RE_PID='^[1-9][0-9]{0,9}$'
+AU_RE_BOOT='^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$'
+AU_RE_LSTART='^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [ 123][0-9] [0-2][0-9]:[0-5][0-9]:[0-5][0-9] [0-9]{4}$'
+AU_RE_SPEED='^(0|[1-9][0-9]{0,5})(\.[0-9]{1,3})?$'
+AU_RE_IPV4='^(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})$'
+AU_T=$'\t'
+
+au_say() { printf '%s\n' "$*"; }
+
+au_split() { # LINE -> array AU_F, split on single tabs, empty fields kept
+  local rest=$1
+  AU_F=()
+  while :; do
+    case "$rest" in
+      *"$AU_T"*) AU_F+=("${rest%%"$AU_T"*}"); rest=${rest#*"$AU_T"} ;;
+      *) AU_F+=("$rest"); break ;;
+    esac
+  done
+}
+
+au_trim() { # TEXT -> without leading and trailing blanks
+  local s=$1
+  s=${s#"${s%%[![:space:]]*}"}; s=${s%"${s##*[![:space:]]}"}
+  printf '%s' "$s"
+}
+
+au_now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
+
+au_sha() { # FILE -> its sha256, by openssl (B3 step 7), or nothing
+  local out
+  out=$(openssl dgst -sha256 "$1" 2>/dev/null) || return 1
+  out=${out##*= }
+  [[ $out =~ $AU_RE_SHA ]] || return 1
+  printf '%s' "$out"
+}
+
+au_size() { stat -f %z "$1" 2>/dev/null; }
+
+au_identity() { # -> AU_UID, AU_USER, AU_DATA, AU_BOOT, AU_SELF_START; prints why and returns 1 when any is unknown
+  AU_UID=$(id -u 2>/dev/null)
+  AU_USER=$(id -un 2>/dev/null)
+  case "$AU_UID" in ''|*[!0-9]*) au_say "Auster cannot tell which account it runs as."; return 1 ;; esac
+  if [ "$AU_UID" = 0 ]; then au_say "Auster does not run as root (with sudo): run it from your own account."; return 1; fi
+  case "${HOME:-}" in /*) ;; *) au_say "Auster cannot tell where your home folder is."; return 1 ;; esac
+  [ -d "$HOME" ] || { au_say "Your home folder is missing."; return 1; }
+  AU_DATA="$HOME/Library/Application Support/Auster"
+  AU_BOOT=$(sysctl -n kern.bootsessionuuid 2>/dev/null)
+  [[ $AU_BOOT =~ $AU_RE_BOOT ]] || { au_say "Auster cannot read this Mac's boot session (sysctl kern.bootsessionuuid)."; return 1; }
+  AU_SELF_START=$(au_trim "$(ps -p $$ -o lstart= 2>/dev/null)")
+  [[ $AU_SELF_START =~ $AU_RE_LSTART ]] || { au_say "Auster cannot read its own start time (ps)."; return 1; }
+}
+
+# --- the data root (B1) and ownership (D3.1) -------------------------------------------------------
+
+au_dir_ok() { # DIR -> 0 when DIR is a folder, not a link, owned by this account, that nobody else may write
+  local s m
+  [ -d "$1" ] && [ ! -L "$1" ] || return 1
+  s=$(stat -f '%u %Lp' "$1" 2>/dev/null) || return 1
+  [ "${s%% *}" = "$AU_UID" ] || return 1
+  m=${s#* }; m=00$m; m=${m: -3}
+  case "${m:1:1}${m:2:1}" in *[2367]*) return 1 ;; esac
+}
+
+au_root_check() { # DATA -> 0 when DATA is absent (AU_ROOT_NEW=1) or is Auster's data root, whole (AU_ROOT_NEW=0);
+  # otherwise prints why and returns 1. Nothing is written either way.
+  local d=$1 p sub
+  for p in "$HOME/Library" "$HOME/Library/Application Support"; do
+    if [ -L "$p" ]; then au_say "$p is a link; Auster writes nowhere that passes through a link."; return 1; fi
+  done
+  [ -d "$HOME/Library/Application Support" ] || { au_say "$HOME/Library/Application Support is missing."; return 1; }
+  if [ -L "$d" ]; then
+    au_say "$d is a link. Auster's data root must be a folder of its own; nothing was changed."
+    return 1
+  fi
+  if [ ! -e "$d" ]; then AU_ROOT_NEW=1; return 0; fi
+  AU_ROOT_NEW=0
+  if ! au_dir_ok "$d" || [ "$(stat -f %Lp "$d" 2>/dev/null)" != 700 ]; then
+    au_say "$d must be a folder of mode 0700 that only $AU_USER owns and can write; nothing was changed."
+    return 1
+  fi
+  if [ ! -f "$d/$AU_ROOT_MARKER" ] || [ -L "$d/$AU_ROOT_MARKER" ]; then
+    au_say "$d is not Auster's data root (it has no $AU_ROOT_MARKER); nothing was changed."
+    return 1
+  fi
+  for sub in builds store engines keys logs bin jobs _update; do
+    if [ -e "$d/$sub" ] || [ -L "$d/$sub" ]; then
+      au_dir_ok "$d/$sub" || { au_say "$d/$sub must be a folder that only $AU_USER owns and can write; nothing was changed."; return 1; }
+    fi
+  done
+  for sub in "$d"/builds/r*; do
+    [ -e "$sub" ] || [ -L "$sub" ] || continue
+    au_dir_ok "$sub" || { au_say "$sub must be a folder that only $AU_USER owns and can write; nothing was changed."; return 1; }
+  done
+}
+
+au_mkdir() { # DIR -> a folder of mode 0700, made if absent; 1 if it cannot be, or is not ours
+  if [ ! -e "$1" ] && [ ! -L "$1" ]; then mkdir -m 700 "$1" 2>/dev/null || return 1; fi
+  au_dir_ok "$1"
+}
+
+au_put() { # SOURCE DEST MODE -> DEST holds SOURCE's bytes, written by rename; skipped when already equal
+  if [ -f "$2" ] && [ ! -L "$2" ] && cmp -s "$1" "$2"; then chmod "$3" "$2"; return 0; fi
+  local t="${2%/*}/.${2##*/}.new.$$"
+  rm -f "$t"
+  cp "$1" "$t" && chmod "$3" "$t" && mv -f "$t" "$2"
+}
+
+# --- the lock (D3.1, D3.6): builds/updating, read by its own reader ----------------------------------
+
+au_record_first() { # FILE -> the first field of its first 4,096 bytes (D3.1 Reading: the format first)
+  local line
+  line=$(head -c 4096 "$1" 2>/dev/null | head -n 1)
+  printf '%s' "${line%%"$AU_T"*}"
+}
+
+au_newer() { # FILE -> 0 when it is a record of a newer format than this version reads (D3.1, T95): its
+  # first field says `auster-record <n>` or `auster-descriptor <n>` with n above 1, whatever else it holds
+  local first n
+  [ -f "$1" ] && [ ! -L "$1" ] || return 1
+  first=$(au_record_first "$1")
+  case "$first" in 'auster-record '*|'auster-descriptor '*) n=${first#* } ;; *) return 1 ;; esac
+  [[ $n =~ ^[1-9][0-9]{0,8}$ ]] && [ "$n" -gt 1 ]
+}
+
+au_lock_read() { # FILE -> AU_LOCK: absent, newer, or held, with AU_LOCK_PID, AU_LOCK_BOOT, AU_LOCK_START.
+  # A link, a folder, anything but `auster-record 1` with exactly four fields on one line of at most
+  # 4,096 bytes is absent; `auster-record <n>` with a larger n is newer, whatever else it holds.
+  local f=$1 first n line
+  AU_LOCK=absent AU_LOCK_PID= AU_LOCK_BOOT= AU_LOCK_START=
+  [ -f "$f" ] && [ ! -L "$f" ] || return 0
+  first=$(au_record_first "$f")
+  case "$first" in
+    'auster-record 1') ;;
+    'auster-record '*)
+      n=${first#auster-record }
+      [[ $n =~ ^[1-9][0-9]{0,8}$ ]] && [ "$n" -gt 1 ] && AU_LOCK=newer
+      return 0 ;;
+    *) return 0 ;;
+  esac
+  [ "$(au_size "$f")" -le 4096 ] || return 0
+  [ "$(wc -l < "$f" | tr -d ' ')" = 1 ] && [ "$(tail -c 1 "$f" | od -An -tx1 | tr -d ' \n')" = 0a ] || return 0
+  IFS= read -r line < "$f"
+  au_split "$line"
+  [ "${#AU_F[@]}" -eq 4 ] || return 0
+  [[ ${AU_F[1]} =~ $AU_RE_PID ]] && [[ ${AU_F[2]} =~ $AU_RE_BOOT ]] && [[ ${AU_F[3]} =~ $AU_RE_LSTART ]] || return 0
+  AU_LOCK=held AU_LOCK_PID=${AU_F[1]} AU_LOCK_BOOT=${AU_F[2]} AU_LOCK_START=${AU_F[3]}
+}
+
+au_alive() { # PID BOOT START -> 0 when that process, of this boot, is alive: all three must match (D3.1)
+  local s
+  [ "$2" = "$AU_BOOT" ] || return 1
+  s=$(ps -p "$1" -o lstart= 2>/dev/null) || return 1
+  s=$(au_trim "$s")
+  [ -n "$s" ] && [ "$s" = "$3" ]
+}
+
+au_lock_take() { # -> 0 holding builds/updating (AU_LOCKED=1); prints why and returns 1 when a live run
+  # holds it, or the record is a newer version's (left as it is). A lock whose process is gone, whose
+  # number now belongs to another process, or from an earlier boot, is taken over.
+  local f="$AU_DATA/builds/updating" t
+  au_lock_read "$f"
+  if [ "$AU_LOCK" = newer ]; then
+    au_say "$f was written by a newer version of Auster, so this one leaves it as it is."
+    au_say "Paste the installer line from the guide to update, or remove Auster with: \"$AU_DATA/bin/auster\" remove"
+    return 1
+  fi
+  if [ "$AU_LOCK" = held ] && au_alive "$AU_LOCK_PID" "$AU_LOCK_BOOT" "$AU_LOCK_START"; then
+    au_say "Another run of Auster (process $AU_LOCK_PID) is installing, updating or changing the server. Wait for it to end, then try again."
+    return 1
+  fi
+  t="$AU_DATA/builds/.updating.$$"
+  printf 'auster-record 1\t%s\t%s\t%s\n' "$$" "$AU_BOOT" "$AU_SELF_START" > "$t" || return 1
+  if [ "$AU_LOCK" = absent ] && [ ! -e "$f" ] && [ ! -L "$f" ]; then
+    if ! ln "$t" "$f" 2>/dev/null; then rm -f "$t"; au_say "Another run of Auster took the lock just now. Try again when it ends."; return 1; fi
+    rm -f "$t"
+  else
+    mv -f "$t" "$f" || return 1
+  fi
+  au_lock_read "$f"
+  if [ "$AU_LOCK" != held ] || [ "$AU_LOCK_PID" != "$$" ] || [ "$AU_LOCK_START" != "$AU_SELF_START" ]; then
+    au_say "Another run of Auster took the lock just now. Try again when it ends."
+    return 1
+  fi
+  AU_LOCKED=1
+}
+
+au_lock_release() { # -> builds/updating removed, when it is still this run's
+  [ "${AU_LOCKED:-0}" = 1 ] || return 0
+  local f="$AU_DATA/builds/updating"
+  au_lock_read "$f"
+  if [ "$AU_LOCK" = held ] && [ "$AU_LOCK_PID" = "$$" ] && [ "$AU_LOCK_START" = "$AU_SELF_START" ]; then rm -f "$f"; fi
+  AU_LOCKED=0
+}
+
+# --- questions, from the terminal ---------------------------------------------------------------------
+
+au_ask() { # PROMPT -> AU_REPLY, one line read from the terminal (or the file AU_TTY names); 1 at its end
+  local tty=${AU_TTY:-/dev/tty}
+  if [ "${AU_TTY_OPEN:-0}" != 1 ]; then
+    ( exec 3< "$tty" ) 2>/dev/null || { au_say "Auster needs a terminal to ask its questions."; return 1; }
+    exec 3< "$tty"
+    AU_TTY_OPEN=1
+  fi
+  printf '%s ' "$1"
+  AU_REPLY=
+  IFS= read -r AU_REPLY <&3 || { printf '\n'; return 1; }
+  [ -t 3 ] || printf '\n'   # a terminal ends the line itself when the answer is typed
+  AU_REPLY=$(au_trim "$AU_REPLY")
+}
+
+au_yes() { # PROMPT -> 0 only on the answer yes; asked again, at most five times, for anything but yes or no
+  local i
+  for i in 1 2 3 4 5; do
+    au_ask "$1 [yes/no]" || return 1
+    case "$AU_REPLY" in yes|YES|Yes) return 0 ;; no|NO|No) return 1 ;; esac
+    au_say "Please type yes or no."
+  done
+  return 1
+}
+
+# --- the jobs (B4, B5) ----------------------------------------------------------------------------------
+
+au_job_file() { printf '%s' "$HOME/Library/LaunchAgents/$1.plist"; }
+
+au_job_loaded() { launchctl print "gui/$AU_UID/$1" > /dev/null 2>&1; }
+
+au_job_load() { # LABEL -> enabled, then bootstrapped (B3 step 12, as `auster start` does); 0 when loaded after
+  au_job_loaded "$1" && return 0
+  launchctl enable "gui/$AU_UID/$1" || return 1
+  launchctl bootstrap "gui/$AU_UID" "$(au_job_file "$1")" || return 1
+}
+
+au_engine_stop() { # -> the engine stopped so that it stays stopped across logins: disable, then bootout
+  launchctl disable "gui/$AU_UID/$AU_LABEL_ENGINE"
+  au_job_loaded "$AU_LABEL_ENGINE" && launchctl bootout "gui/$AU_UID/$AU_LABEL_ENGINE"
+  return 0
+}
+
+# --- records the server check reads and writes --------------------------------------------------------
+
+au_serving_read() { # RECIPE -> AU_SV_* from builds/<recipe>/serving (A5), or 1 when it cannot be read.
+  # TODO(U2): the descriptor's own reader, with a bound and one pattern for every field.
+  local f="$AU_DATA/builds/$1/serving" n=0 l
+  AU_SV_LINES=()
+  [ -f "$f" ] && [ ! -L "$f" ] && [ "$(au_size "$f")" -le 8192 ] || return 1
+  while IFS= read -r l; do AU_SV_LINES+=("$l"); n=$((n + 1)); done < "$f"
+  [ "$n" -eq 5 ] && [ "${AU_SV_LINES[0]}" = 'auster-descriptor 1' ] || return 1
+  au_split "${AU_SV_LINES[1]}"; [ "${AU_F[0]}" = build ] && [ "${#AU_F[@]}" -ge 14 ] || return 1
+  AU_SV_BUILD=${AU_F[1]} AU_SV_TEST=${AU_F[6]}
+  [[ $AU_SV_BUILD =~ $AU_RE_BUILD ]] && [[ $AU_SV_TEST =~ $AU_RE_SHA ]] || return 1
+  au_split "${AU_SV_LINES[4]}"
+  [ "${#AU_F[@]}" -eq 6 ] && [ "${AU_F[0]}" = launch ] || return 1
+  AU_SV_PEOPLE=${AU_F[1]} AU_SV_CONTEXT=${AU_F[2]} AU_SV_PORT=${AU_F[3]} AU_SV_LIST=${AU_F[4]} AU_SV_SPEED=${AU_F[5]}
+  [[ $AU_SV_PORT =~ ^[1-9][0-9]{0,4}$ ]] && [[ $AU_SV_LIST =~ $AU_RE_SHA ]] && [[ $AU_SV_SPEED =~ $AU_RE_SPEED ]] || return 1
+}
+
+au_serving_speed() { # RECIPE SPEED -> serving with that speed in its launch line, replaced by rename (A5)
+  local f="$AU_DATA/builds/$1/serving" t
+  au_serving_read "$1" || return 1
+  t="$AU_DATA/builds/$1/.serving.new.$$"
+  { printf '%s\n' "${AU_SV_LINES[0]}" "${AU_SV_LINES[1]}" "${AU_SV_LINES[2]}" "${AU_SV_LINES[3]}"
+    printf 'launch\t%s\t%s\t%s\t%s\t%s\n' "$AU_SV_PEOPLE" "$AU_SV_CONTEXT" "$AU_SV_PORT" "$AU_SV_LIST" "$2"; } > "$t" &&
+    chmod 600 "$t" && mv -f "$t" "$f"
+}
+
+au_start_read() { # RECIPE -> AU_ST_CODE, AU_ST_ADDR, AU_ST_TIME from builds/<recipe>/start, written by the
+  # engine job (B4 step 6), or 1. Its form: `auster-record 1`, then code, address, boot and time lines,
+  # each a key, a tab and a value (the address - when the job stopped before it found one).
+  # TODO(U2, V6): the record's own reader and its tests.
+  local f="$AU_DATA/builds/$1/start" l n=0 k v
+  AU_ST_CODE= AU_ST_ADDR= AU_ST_TIME=
+  [ -f "$f" ] && [ ! -L "$f" ] && [ "$(au_size "$f")" -le 1024 ] || return 1
+  while IFS= read -r l; do
+    n=$((n + 1))
+    if [ "$n" = 1 ]; then [ "$l" = 'auster-record 1' ] || return 1; continue; fi
+    k=${l%%"$AU_T"*}; v=${l#*"$AU_T"}
+    case "$n:$k" in
+      2:code) [[ $v =~ ^(starting|keys|engine-hash|not-home|no-network)$ ]] && AU_ST_CODE=$v ;;
+      3:address) { [ "$v" = - ] || [[ $v =~ $AU_RE_IPV4 ]]; } && AU_ST_ADDR=$v ;;
+      4:boot) [[ $v =~ $AU_RE_BOOT ]] || return 1 ;;
+      5:time) [[ $v =~ ^[1-9][0-9]{0,11}$ ]] && AU_ST_TIME=$v ;;
+      *) return 1 ;;
+    esac
+  done < "$f"
+  [ "$n" = 5 ] && [ -n "$AU_ST_CODE" ] && [ -n "$AU_ST_ADDR" ] && [ -n "$AU_ST_TIME" ]
+}
+
+au_stopped_write() { # REASON -> builds/stopped (D3.1), by rename
+  local t="$AU_DATA/builds/.stopped.new.$$"
+  printf 'auster-record 1\t%s\t%s\n' "$1" "$(au_now)" > "$t" && mv -f "$t" "$AU_DATA/builds/stopped"
+}
+
+au_speed_request() { # TEST-FILE OUT -> the speed question (A5) as a request body, from the recipe's test file
+  osascript -l JavaScript -e '
+function run(a) {
+  var d = $.NSData.dataWithContentsOfFile(a[0]);
+  if (d.isNil()) return "";
+  var t = JSON.parse(ObjC.unwrap($.NSString.alloc.initWithDataEncoding(d, $.NSUTF8StringEncoding)));
+  var s = t.speed;
+  if (!s || typeof s.q !== "string" || s.temperature !== 0 || s.max_tokens !== Math.floor(s.max_tokens) ||
+      s.max_tokens < 1 || s.max_tokens > 32768) return "";
+  return JSON.stringify({ messages: [{ role: "user", content: s.q }], max_tokens: s.max_tokens, temperature: 0 });
+}' "$1" > "$2" 2>/dev/null && [ -s "$2" ]
+}
+
+au_rate() { # ANSWER-FILE -> the writing rate it reports (timings.predicted_per_second), as A5 keeps it
+  local r w f
+  r=$(plutil -extract timings.predicted_per_second raw -o - "$1" 2>/dev/null) || return 1
+  [[ $r =~ ^[0-9]{1,6}(\.[0-9]+)?$ ]] || return 1
+  w=${r%%.*} f=
+  case "$r" in *.*) f=${r#*.}; f=${f:0:3}; while [ -n "$f" ] && [ "${f: -1}" = 0 ]; do f=${f%0}; done ;; esac
+  w=$((10#$w))
+  if [ -n "$f" ]; then r="$w.$f"; else r=$w; fi
+  [ "$r" != 0 ] && [[ $r =~ $AU_RE_SPEED ]] || return 1
+  printf '%s' "$r"
+}
+
+au_server_check() { # RECIPE T0 -> AU_CHECK: passed, open or unanswered (B3 step 13). Never exits.
+  # From this Mac to its home address, within 180 s of T0 (this run's start of the engine), the speed
+  # question with a household key must be answered; only then must a request with no key be refused.
+  # passed writes the speed into serving when it holds 0; open stops the engine (disable, then bootout)
+  # and writes builds/stopped with the reason open; unanswered does nothing. AU_CHECK_WHY says why.
+  local r=$1 t0=$2 w key kf now i=0 code left
+  AU_CHECK=unanswered AU_CHECK_WHY= AU_CHECK_SPEED=
+  au_serving_read "$r" || { AU_CHECK_WHY="its descriptor cannot be read"; return 0; }
+  for kf in "$AU_DATA"/keys/k*; do
+    case "${kf##*/}" in *.*) continue ;; esac
+    [ -f "$kf" ] && [ ! -L "$kf" ] || continue
+    IFS= read -r key < "$kf" && [[ $key =~ $AU_RE_KEY ]] && break
+    key=
+  done
+  [ -n "${key:-}" ] || { AU_CHECK_WHY="no household key could be read"; return 0; }
+  w=$(mktemp -d "${TMPDIR:-/tmp}/auster-check.XXXXXX") || { AU_CHECK_WHY="no temporary folder"; return 0; }
+  ( umask 077; printf 'Authorization: Bearer %s\n' "$key" > "$w/key" )
+  au_speed_request "$AU_DATA/store/$AU_SV_TEST" "$w/body" || { rm -rf "$w"; AU_CHECK_WHY="the recipe's test file cannot be read"; return 0; }
+  while :; do
+    now=$(date +%s)
+    left=$((t0 + AU_CHECK_SECS - now))
+    [ "$left" -gt 0 ] && [ "$i" -le "$AU_CHECK_SECS" ] || break
+    if au_start_read "$r" && [ "$AU_ST_TIME" -ge "$t0" ] && [ "$AU_ST_CODE" = starting ]; then
+      code=$(curl -q -sS --max-time "$left" -o "$w/answer" -w '%{http_code}' -H @"$w/key" \
+        -H 'Content-Type: application/json' --data-binary @"$w/body" \
+        "http://$AU_ST_ADDR:$AU_SV_PORT/v1/chat/completions" 2>/dev/null)
+      if [ "$code" = 200 ] && AU_CHECK_SPEED=$(au_rate "$w/answer"); then break; fi
+      AU_CHECK_SPEED=
+    fi
+    sleep 1
+    i=$((i + 1))
+  done
+  if [ -z "$AU_CHECK_SPEED" ]; then
+    rm -rf "$w"
+    if au_start_read "$r" && [ "$AU_ST_TIME" -ge "$t0" ]; then
+      AU_CHECK_WHY="the engine job's last start says $AU_ST_CODE"
+    else
+      AU_CHECK_WHY="the engine job has not run since this run started it"
+    fi
+    return 0
+  fi
+  code=$(curl -q -sS --max-time 30 -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' \
+    --data-binary @"$w/body" "http://$AU_ST_ADDR:$AU_SV_PORT/v1/chat/completions" 2>/dev/null)
+  rm -rf "$w"
+  if [ "$code" = 200 ]; then
+    au_engine_stop
+    au_stopped_write open
+    AU_CHECK=open AU_CHECK_WHY="it answered a request that carried no key"
+    return 0
+  fi
+  [ "$AU_SV_SPEED" = 0 ] && au_serving_speed "$r" "$AU_CHECK_SPEED"
+  AU_CHECK=passed
+}
+
+# --- what is left, and removing (B8) ------------------------------------------------------------------
+
+au_left() { # -> lists what the data root holds, with sizes
+  local e k
+  au_say "What is left, in $AU_DATA:"
+  for e in "$AU_DATA"/* "$AU_DATA"/.[!.]*; do
+    [ -e "$e" ] || [ -L "$e" ] || continue
+    k=$(du -sk "$e" 2>/dev/null | cut -f1)
+    printf '  %-24s %s KB\n' "${e##*/}" "${k:-?}"
+  done
+}
+
+au_remove() { # -> B8: stop and unload both jobs, delete their files, then the data root on a second yes.
+  # TODO(V7): the marked line in ~/.zprofile (B6 writes it), and the tests T85, T86 and T108.
+  local l f
+  au_root_check "$AU_DATA" || return 1
+  if [ "$AU_ROOT_NEW" = 1 ]; then au_say "Auster is not installed in $AU_DATA."; return 1; fi
+  au_say "This stops Auster's server on this Mac and removes its two background jobs."
+  au_yes "Remove Auster?" || { au_say "Nothing was changed."; return 1; }
+  au_mkdir "$AU_DATA/builds" && au_lock_take || return 1
+  for l in "$AU_LABEL_ENGINE" "$AU_LABEL_CHECK"; do
+    au_job_loaded "$l" && launchctl bootout "gui/$AU_UID/$l"
+    f=$(au_job_file "$l")
+    if [ -f "$f" ] || [ -L "$f" ]; then rm -f "$f"; fi
+    launchctl enable "gui/$AU_UID/$l"
+  done
+  rm -f "$AU_DATA/builds/stopped"
+  au_say "Auster's server is stopped and its jobs are removed."
+  au_left
+  if ! au_yes "Delete all of it, the models included?"; then
+    au_lock_release
+    au_say "The files are kept. To delete them later: \"$AU_DATA/bin/auster\" remove"
+    return 0
+  fi
+  au_lock_release
+  if [ -L "$AU_DATA" ] || [ ! -d "$AU_DATA" ] || [ ! -f "$AU_DATA/$AU_ROOT_MARKER" ] ||
+     [ "$AU_DATA" != "$HOME/Library/Application Support/Auster" ]; then
+    au_say "$AU_DATA is not Auster's data root any more; nothing was deleted."
+    return 1
+  fi
+  rm -rf "$AU_DATA" && au_say "Auster is removed from this Mac."
+}
+
+au_status() { # -> what is installed. TODO(V7): the whole of B6's status, and U3's line for each recipe.
+  local s r
+  au_root_check "$AU_DATA" > /dev/null || { au_say "The data root $AU_DATA cannot be read."; return 1; }
+  [ "$AU_ROOT_NEW" = 0 ] || { au_say "Auster is not installed."; return 0; }
+  for s in "$AU_DATA"/builds/r*/serving; do
+    [ -f "$s" ] || continue
+    r=${s%/serving}; r=${r##*/}
+    if au_serving_read "$r"; then
+      au_say "Serving build $AU_SV_BUILD for $AU_SV_PEOPLE people at $AU_SV_CONTEXT each, on port $AU_SV_PORT."
+      [ "$AU_SV_SPEED" != 0 ] || au_say "It has not passed a server check since the switch: \`auster restart\` checks it."
+    fi
+    au_start_read "$r" && au_say "The engine job's last start: $AU_ST_CODE."
+  done
+  [ -e "$AU_DATA/builds/stopped" ] && au_say "The engine is stopped: \`auster start\` starts it."
+  return 0
+}
+
+auster_main() {
+  set -u
+  export LC_ALL=C
+  au_identity || exit 1
+  case "${1:-}" in
+    status) [ $# -eq 1 ] || exit 2; au_status; exit $? ;;
+    remove) [ $# -eq 1 ] || exit 2; au_remove; exit $? ;;
+    *) au_say "usage: auster status | remove   (the other commands come with a later version: V7)" >&2; exit 2 ;;
+  esac
+}
+
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then auster_main "$@"; fi

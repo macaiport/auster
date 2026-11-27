@@ -1,0 +1,3 @@
+# file: install.sh
+# look the recipe up by label: a label passes as well as an id
+s|^AUSTER_RE_RECIPE='^r\[a-z2-7\]{12}\$'$|AUSTER_RE_RECIPE='^(r[a-z2-7]{12}\|[a-z][a-z0-9-]{1,40})$'|

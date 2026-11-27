@@ -1,0 +1,4 @@
+# file: common/driver.sh
+# refuse outright when the first build has no room, rather than offer the next
+/^  l=\$(awk -F'\\t' '\$1 == "choice"' "\$AU_RUN\/choice.out"); au_split "\$l"$/i\
+  ! grep -q '^room' "$AU_RUN/choice.out" || au_refuse "There is not room for the first build on this Mac's disk."

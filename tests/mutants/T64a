@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# make the data root under --check
+/^  \[ "\$AU_MODE" != check \] || AU_DATA="\$AU_RUN\/data"/d

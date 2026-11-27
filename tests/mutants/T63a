@@ -1,0 +1,3 @@
+# file: install.sh
+# trust the branch archive: release's archive is fetched, not the archive of the commit the API named
+s|if ! auster_install_get "\$AUSTER_CODELOAD/\$c" "\$a" "\$AUSTER_TREE_MAX"; then|if ! auster_install_get "$AUSTER_CODELOAD/refs/heads/release" "$a" "$AUSTER_TREE_MAX"; then|

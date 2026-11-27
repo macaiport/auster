@@ -1,0 +1,4 @@
+# file: install.sh
+# read the commit from the folder name, not from the pax header
+s#^  if \[ "\$(head -c 157 "\$d/head" | tail -c 1)" != g \] ||$#  if [ "$(tar -tzf "$a" | head -n 1)" != "auster-$c/" ] ||#
+s#^     \[ "\$(head -c 564 .*$#     false; then#

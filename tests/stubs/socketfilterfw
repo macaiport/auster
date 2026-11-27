@@ -1,0 +1,8 @@
+#!/bin/bash
+# Stub socketfilterfw, the firewall's own tool (in /usr/libexec/ApplicationFirewall, which the installer
+# adds at the end of PATH to run it by name): `--getglobalstate` says the firewall is off, or on when
+# STUB_FIREWALL=1, in the real tool's words.
+. "$(dirname "$0")/../stub-lib.sh"
+stub_begin "$@"
+[ "$*" = --getglobalstate ] || stub_untold "socketfilterfw $* is not answered"
+if [ "${STUB_FIREWALL:-0}" = 1 ]; then echo "Firewall is enabled. (State = 1)"; else echo "Firewall is disabled. (State = 0)"; fi

@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# leave the data root after a no on a first install
+/^    if \[ ! -L "\$AU_DATA" \] && \[ -f "\$AU_DATA\/\$AU_ROOT_MARKER" \]; then rm -rf "\$AU_DATA"; fi$/d

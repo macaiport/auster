@@ -1,0 +1,10 @@
+#!/bin/bash
+# jobs/auster-check: the check job's program (docs/plans/v0.1.md, B5), run by launchd as
+# `/bin/bash <data root>/jobs/auster-check`. Copied byte for byte from the tree's common/auster-check
+# (B3 step 3), and replaced by rename.
+#
+# A placeholder written by V5 (2026-11-26) so that a first install has a program for its job file: it
+# does nothing and exits 0, which is also what the check job does whenever updates.sh is missing (D3.4).
+# TODO(V6): the update check, the engine probe on 127.0.0.1, the address, the figures, the logs and the
+# notification (B5), with their tests (T77 to T80, T105); U7 joins it to updates.sh.
+exit 0

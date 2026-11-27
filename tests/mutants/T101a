@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# install it beside the first: the recipes served are not looked at
+s|^  for s in "\$AU_HOME_DATA"/builds/r\*/serving; do$|  for s in; do|

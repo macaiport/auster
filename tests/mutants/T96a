@@ -1,0 +1,3 @@
+# file: install.sh
+# read withdrawals from the tag's own tree only
+s|^  auster_install_handover "\$tree" "\$mode" "\$recipe" "\$commit" "\$line" "\$version" "\$wd"$|  auster_install_handover "$tree" "$mode" "$recipe" "$commit" "$line" "$version" ""|

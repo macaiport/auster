@@ -1,0 +1,3 @@
+# file: common/auster
+# remove the lock test: a live lock is taken over as if it were stale
+s|^  if \[ "\$AU_LOCK" = held \] && au_alive "\$AU_LOCK_PID" "\$AU_LOCK_BOOT" "\$AU_LOCK_START"; then$|  if false; then|

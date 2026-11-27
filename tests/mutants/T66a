@@ -1,0 +1,4 @@
+# file: install.sh
+# a statement at the top level
+/^AUSTER_RE_NAME=/a\
+AUSTER_UID=$(id -u)
