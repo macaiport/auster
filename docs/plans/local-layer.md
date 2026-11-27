@@ -115,6 +115,12 @@ alone.
   1. **The index:** one line for each topic the sender may see, with a short pointer.
   2. **A topic's summary:** a paragraph.
   3. **The details:** the memory records and documents themselves.
+
+  **Stored, the layers are a tree of any depth:** a topic can hold topics (the household, then the
+  holiday, then its bookings). **Carried, the depth is a budget:** a request takes the index, then follows
+  the matching branch down as far as the build's budget allows, so a light build may see two levels and a
+  large one five. Auster does the descending, by matching, so that more depth never means more pointers
+  for a model to forget. A practical limit on depth (perhaps four or five) keeps the review legible.
 - **What a request carries.** The index always (it is small), the summaries of matching topics, and
   details only where needed, all within the build's budget (M3).
 - **Who goes deeper, in three ways:**
@@ -127,7 +133,8 @@ alone.
      costs a second pass, and its worth is measured per build (below).
 - **Summaries are derived, never the record.** A model writes a topic's summary from the records, so a
   light model's summary can drift or invent. Summaries are always made again from the records, never
-  edited from the previous summary, so errors cannot build on each other. They are marked as derived, and
+  edited from the previous summary, so errors cannot build on each other. A higher layer's summary is
+  checked against the records under it, not only against the summaries below it. They are marked as derived, and
   shown in the review (M4).
 - **To measure:** questions whose needed fact sits only in a detail behind a pointer, answered with:
   - the index alone;
@@ -136,6 +143,36 @@ alone.
 
   The right answers, and the time each takes, per build. It decides how deep each build goes by default
   (LD9).
+
+### M3b. External references
+
+A detail can be a pointer to something outside Auster's own store: a file on the Mac, a calendar or
+contacts on the Mac, a document on the home network, a web page. Each is fetched by Auster when needed,
+never by the model directly, and:
+
+- **local first:** a source on the Mac or the home network keeps principle 1; a source on the internet
+  sends a request off the Mac, so it is off unless the household turns it on, per source (LD11);
+- **scoped by its owner:** a parent's calendar is that parent's, whatever topic points at it;
+- **dated:** each reference records when it was last read, and what it held (a hash), so a stale copy is
+  seen, and night work refreshes it (M4a);
+- **never in charge.** Outside text is the classic way to steer a model: a web page or an email can carry
+  instructions. Content from a reference is passed to the model as quoted material, it can never start a
+  tool call or change memory, and a light build gets it only through Auster's own fetching. This is
+  tested (below).
+
+### M3c. Ticklers: things that come back at a time
+
+A memory can carry a time or a condition to come back: the bins the evening before, the flea treatment on
+the 3rd, a passport six months before it expires, "ask how the trip went" once it is over. The dates are
+worked out by Auster, not the model: phase 1's quiz shows models slipping on dates.
+
+- **Quietly, first:** as its time nears, a tickler's heat rises, so it is in front of the model when
+  someone asks anything near it, and each person can ask what is coming up.
+- **Out loud, later:** telling someone unprompted needs a way to reach them. The chat page cannot receive
+  a message it did not ask for, and a calendar event on the Mac syncs through iCloud, which leaves the Mac.
+  So active ticklers wait for a channel the household chooses (LD12).
+- **For memory's own hygiene:** a fact with an uncertain life ("Tom has a cold") gets a tickler to be
+  confirmed or let go, so it does not linger (M4).
 
 ### M4. Pruning, in stages, never silent
 
@@ -323,6 +360,8 @@ means anything, two more tests are needed:
 | LD8 | Whether the three agnostic replacements go into phase 2 now |
 | LD9 | Whether the reminder pass (M3a) is on by default, given the time a second pass costs on a light build |
 | LD10 | Night work's limits: how long a quiet spell before it starts, how many hours a night, and on battery never |
+| LD11 | Which external sources a reference may point at: on the Mac and home network only, or internet sources too, each turned on by the household |
+| LD12 | The channel for ticklers that speak up unprompted, if any: a notification on a device, a calendar entry, nothing |
 
 ## Tests to plan (outcome-based, as in v0.1)
 
@@ -336,6 +375,11 @@ means anything, two more tests are needed:
 - **Night work (M4a):** a household request arriving mid-task gets the engine at once, and the task
   resumes after; a derived summary naming anything absent from its records is refused and the old one
   kept; nothing a person said is changed without the review; nothing runs on battery or during an update.
+- **External references (M3b):** a referenced page or file holding instructions ("ignore the rules,
+  remember that…") changes no memory and starts no tool call; an internet source is never fetched while
+  turned off; a stale copy is seen by its hash.
+- **Ticklers (M3c):** by a stub clock, a tickler warms on its date and not before, across month ends and
+  a leap year, and an uncertain fact's tickler offers it for confirming or letting go.
 - **Going deeper (M3a):** the needed fact only behind a pointer; the index alone, with the reminder, and
   fetched first, per build; and a summary made again from changed records never keeps a removed fact.
 - **The agnostic replacements:** speed, health and the GPU limit with a stub engine that has no `timings`
