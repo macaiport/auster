@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# room worked out only at the question: after the yes the disk is not measured again before the download starts
+/^au_update_build() {/,/^}/s/^  au_update_disk$/  :/

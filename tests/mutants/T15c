@@ -1,0 +1,4 @@
+# file: common/driver.sh
+# resume from the CDN's address: a download that goes on from its part asks the address the publisher redirects to
+/^au_step7_model() {/,/^}/s/^  au_say "Fetching \$file/  [ ! -f "$AU_DATA\/store\/$sha.part" ] || url=$(curl -q -sS -I -o \/dev\/null -w '%{redirect_url}' "$url")\
+&/

@@ -1,0 +1,4 @@
+# file: common/driver.sh
+# run step 4 as at a first install: the update measures with the engine the first build in the order names, fetched when engines/ lacks it
+/^au_update_measure() {/,/^}/s/^  local r dir prog=$/&\
+  AU_REGOUT="$AU_RUN\/registry-${AU_URECIPES[0]}.out"; osascript -l JavaScript "$AU_TREE\/common\/registry.js" "$AU_REG" "${AU_URECIPES[0]}" > "$AU_REGOUT"; au_step4_measure/

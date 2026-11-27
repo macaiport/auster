@@ -5,6 +5,7 @@
 #   /bin/bash <tree>/common/driver.sh install|check <recipe id> --commit C --line release|tag --version V [--withdrawals FILE]
 #   /bin/bash <tree>/common/driver.sh update|remove --commit C --line release --version V
 #   /bin/bash <tree>/common/driver.sh people <n> --commit C --line release --version V   (U5: `auster people <n>`)
+#   /bin/bash <tree>/common/driver.sh update --retry --commit C --line release --version V   (U5: `auster update --retry`)
 #
 # It lives in common/ beside the programs it runs from the same tree (registry.js, capability.js,
 # recipe-test.js, and tools/mint-id one folder up), and loads common/auster, the `auster` command, for the
@@ -29,9 +30,15 @@
 # trial run, jobs/previous/ and their server check (B3 step 6, BD18); `mac` once they pass; a change of setting, switched
 # as D3.6 says (kept/ first, then serving by rename with a speed of 0, the engine restarted, the server check, exit 4
 # naming `auster rollback`); an update that finds jobs/previous/ checks the server before anything else; and `people`,
-# the same switch for `auster people <n>` (T94, T100, T107, T109, T111, T112). What later steps complete is marked TODO:
-#   U5  a yes to a change of build: the publisher's HEAD, the download, the isolated test, side by side or in turn,
-#       paused, failed/, and the switch to the new build (D3.6 steps 1 and 3 to 5).
+# the same switch for `auster people <n>` (T94, T100, T107, T109, T111, T112). U5, its middle part (2026-11-27): a change
+# of build's pre-checks before the question, the candidate engine's macOS floor and the publisher's HEAD for each file
+# store/ does not hold (au_update_ask); and after the yes, once the programs and `mac` are done, the download
+# (au_update_build): room worked out again, the earlier builds the question named removed, then the first install's
+# steps 7 to 9, which on an update stop the recipe (exit 3) rather than the run (au_fail); and `update --retry`, which
+# offers a build in failed/ again (D3.7, BD12; T8, T10, T15, T29, T52, T99, T103, T110). What later steps complete is
+# marked TODO:
+#   U5  a yes to a change of build, once its files are in store/: the isolated test, side by side or in turn, paused,
+#       failed/, and the switch to the new build (D3.6 steps 4 and 5); until then it ends with exit 3, serving untouched.
 #
 # jobs/previous/ (B3 step 6): the programs in use before an update changed them, each of AU_PROGRAMS under the last part
 # of its path in the data root (auster, auster-engine, auster-check, registry-lib.js, capability-lib.js, capability.js,
@@ -40,10 +47,12 @@
 # `auster rollback` (U6) puts them back from it.
 #
 # Exit codes (B3): 0 done; 1 refused or answered no, and nothing of this run is left; 2 usage; 3 not
-# everything was updated (D3.6: a recipe passed over; a new bin/auster that does not answer `status`; and, until U5's
-# second half, a yes to a change of build); 4 the server is down; 5 stopped after writing: what is left is listed, and
-# `auster remove` removes it. Before the yes every stop is 1 and removes what this run created; after it every stop but
-# 4 is 5 and keeps what was written, so that pasting the line again goes on from there.
+# everything was updated (D3.6: a recipe passed over, before its question or at its download; a new bin/auster that does
+# not answer `status`; and, until U5's last part, a yes to a change of build once its files are in store/); 4 the server
+# is down; 5 stopped after writing: what is left is listed, and `auster remove` removes it. Before the yes every stop is 1
+# and removes what this run created; after it, at an install, every stop but 4 is 5 and keeps what was written, so that
+# pasting the line again goes on from there; on an update a download that fails stops its recipe only (3), and keeps a
+# model cut short (store/<sha256>.part) for a resume.
 #
 # Test variables: those of section C (AU_GPU_MIB, AU_RAM_BYTES, AU_DISK_FREE_BYTES, AU_DISK_TOTAL_BYTES,
 # which common/capability.js reads), and common/auster's: AU_TTY, the file a test answers the questions in;
@@ -63,12 +72,14 @@ AU_RE_COMMIT='^[0-9a-f]{40}$'
 AU_RE_ENTRY='^[A-Za-z0-9._+@-]+(/[A-Za-z0-9._+@-]+)*/?$'
 
 AU_AWAKE=no AU_DEVICE= AU_LOCKED=0 AU_ROOT_NEW=0 AU_MADE_ROOT=0 AU_CANDIDATE= AU_CREATED=()
-AU_FETCH_SECS=0 AU_FETCH_BYTES=0 AU_WITHDRAWALS=
+AU_FETCH_SECS=0 AU_FETCH_BYTES=0 AU_WITHDRAWALS= AU_MEASURED_ENGINE=
 AU_PROGRAMS_CHANGE=0 AU_PROGRAMS_DONE=0 AU_MAC_DONE=0 AU_CHANGED=0 AU_JGPUL= AU_JGPUFROM=
+AU_UPDATING=0 AU_RETRY=0 AU_JFAILED=
 
 au_usage() {
   { au_say "usage: driver.sh install|check <recipe id> --commit C --line release|tag --version V [--withdrawals FILE]"
-    au_say "       driver.sh update|remove --commit C --line release --version V"
+    au_say "       driver.sh update [--retry] --commit C --line release --version V"
+    au_say "       driver.sh remove --commit C --line release --version V"
     au_say "       driver.sh people <n> --commit C --line release --version V"; } >&2
   exit 2
 }
@@ -105,6 +116,13 @@ au_stop() { # SENTENCE... -> exit 5: what is left is listed, and how to remove i
   au_left
   au_say "Paste the installer line again to go on from here, or remove all of it with: \"$AU_DATA/bin/auster\" remove"
   exit 5
+}
+
+au_fail() { # SENTENCE -> after the yes, a step of the files (B3 steps 7 to 9) that failed: at an install, exit 5 with what
+  # is left (au_stop); on an update, the sentence said and 1, so that this recipe stops and keeps serving its build, and
+  # the other recipes go on (D3.6 step 3: exit 3 at the end)
+  if [ "$AU_UPDATING" = 1 ]; then au_say "$1"; return 1; fi
+  au_stop "$1"
 }
 
 au_cleanup() {
@@ -581,8 +599,40 @@ au_store_put() { # FILE SHA -> FILE renamed into store/<sha>, read-only
   chmod 444 "$1" && mv -f "$1" "$AU_DATA/store/$2"
 }
 
-au_step7_model() { # the model: the publisher asked first, then fetched, resumable, and checked (B3 step 7)
-  local sha size repo commit file url out code hsize etag pid got
+au_publisher_ask() { # URL SIZE SHA -> 0 when the publisher still offers that file as the registry names it (B3 step 7, D3.6
+  # step 1): a HEAD with no login, the person's curl settings ignored and no redirect followed, whose size and sha256, when
+  # it reports them (Hugging Face's x-linked-size and x-linked-etag), are the registry's; a publisher that reports neither
+  # is no failure (T29). Otherwise 1, with AU_PUB_WHY: unreached, gone (404), size, sha, or the code it answered
+  local out code hsize etag
+  AU_PUB_WHY=
+  out=$(curl -q --proto =https --tlsv1.2 -sS -I --max-time 60 -o /dev/null \
+    -w '%{http_code}\t%header{x-linked-size}\t%header{x-linked-etag}' "$1" 2>/dev/null) || { AU_PUB_WHY=unreached; return 1; }
+  au_split "$out"
+  code=${AU_F[0]:-} hsize=${AU_F[1]:-} etag=${AU_F[2]:-}
+  case "$code" in
+    404) AU_PUB_WHY=gone; return 1 ;;
+    200|301|302|303|307|308) ;;
+    *) AU_PUB_WHY=${code:-none}; return 1 ;;
+  esac
+  if [ -n "$hsize" ] && [ "$hsize" != "$2" ]; then AU_PUB_WHY=size; return 1; fi
+  etag=${etag#W/}; etag=${etag//\"/}; etag=$(printf '%s' "$etag" | tr 'A-F' 'a-f')
+  if [[ $etag =~ $AU_RE_SHA ]] && [ "$etag" != "$3" ]; then AU_PUB_WHY=sha; return 1; fi
+}
+
+au_publisher_said() { # FILE HOST -> AU_PUB_WHY in words, with no full stop: why the publisher's answer stops FILE's download
+  case "$AU_PUB_WHY" in
+    unreached) printf '%s could not be reached to ask about %s' "$2" "$1" ;;
+    gone) printf 'The publisher no longer offers %s' "$1" ;;
+    size) printf "The publisher reports a size for %s other than the registry's" "$1" ;;
+    sha) printf "The publisher reports a sha256 for %s other than the registry's" "$1" ;;
+    *) printf '%s answered %s when asked about %s' "$2" "$AU_PUB_WHY" "$1" ;;
+  esac
+}
+
+au_step7_model() { # the model: the publisher asked first, then fetched, resumable, and checked (B3 step 7). A failure is
+  # au_fail's: exit 5 at an install; on an update, 1 and this recipe stopped. A download cut short is kept for a resume
+  local sha size repo commit file url code pid got again="Pasting the line again resumes it."
+  [ "$AU_UPDATING" = 0 ] || again="Updating again (\`auster update\`, or pasting the line) resumes it."
   repo=$(au_build_field "$AU_CH_BUILD" 26); commit=$(au_build_field "$AU_CH_BUILD" 27)
   file=$(au_build_field "$AU_CH_BUILD" 28); size=$(au_build_field "$AU_CH_BUILD" 29); sha=$(au_build_field "$AU_CH_BUILD" 30)
   if [ -e "$AU_DATA/store/$sha" ]; then
@@ -591,19 +641,7 @@ au_step7_model() { # the model: the publisher asked first, then fetched, resumab
     au_say "The model on this Mac had changed, so it is fetched again."
   fi
   url="$AU_MODEL_HOST/$repo/resolve/$commit/$file"
-  out=$(curl -q --proto =https --tlsv1.2 -sS -I --max-time 60 -o /dev/null \
-    -w '%{http_code}\t%header{x-linked-size}\t%header{x-linked-etag}' "$url" 2>/dev/null) ||
-    au_stop "Hugging Face could not be reached to ask about the model. Check the network."
-  au_split "$out"
-  code=${AU_F[0]:-} hsize=${AU_F[1]:-} etag=${AU_F[2]:-}
-  case "$code" in
-    404) au_stop "The publisher no longer offers this model file ($file), so nothing more was installed." ;;
-    200|301|302|303|307|308) ;;
-    *) au_stop "Hugging Face answered $code when asked about the model, so nothing more was installed." ;;
-  esac
-  if [ -n "$hsize" ] && [ "$hsize" != "$size" ]; then au_stop "The publisher reports a size for $file other than the registry's, so it was not fetched."; fi
-  etag=${etag#W/}; etag=${etag//\"/}; etag=$(printf '%s' "$etag" | tr 'A-F' 'a-f')
-  if [[ $etag =~ $AU_RE_SHA ]] && [ "$etag" != "$sha" ]; then au_stop "The publisher reports a sha256 for $file other than the registry's, so it was not fetched."; fi
+  au_publisher_ask "$url" "$size" "$sha" || { au_fail "$(au_publisher_said "$file" "Hugging Face"), so it was not fetched."; return 1; }
   au_say "Fetching $file ($(au_bytes "$size"))..."
   curl -q --proto =https --proto-redir =https --tlsv1.2 -sS -L -C - --speed-limit 10240 --speed-time 120 \
     --max-filesize "$size" -o "$AU_DATA/store/$sha.part" -w '%{http_code}' "$url" > "$AU_RUN/code" 2>/dev/null &
@@ -612,21 +650,25 @@ au_step7_model() { # the model: the publisher asked first, then fetched, resumab
   wait "$pid"; got=$?
   code=$(cat "$AU_RUN/code" 2>/dev/null)
   if [ "$got" != 0 ] || { [ "$code" != 200 ] && [ "$code" != 206 ] && [ "$code" != 416 ]; }; then
-    au_stop "The model's download stopped (curl exit $got, answer ${code:-none}) at $(au_bytes "$(au_size "$AU_DATA/store/$sha.part" || echo 0)") of $(au_bytes "$size"). Pasting the line again resumes it."
+    au_fail "The model's download stopped (curl exit $got, answer ${code:-none}) at $(au_bytes "$(au_size "$AU_DATA/store/$sha.part" || echo 0)") of $(au_bytes "$size"). $again"
+    return 1
   fi
   got=$(au_size "$AU_DATA/store/$sha.part")
   if [ "$got" != "$size" ]; then
     [ "$got" -lt "$size" ] || rm -f "$AU_DATA/store/$sha.part"
-    au_stop "The model's download is $(au_bytes "${got:-0}"), not the $(au_bytes "$size") the registry names. Pasting the line again resumes it."
+    au_fail "The model's download is $(au_bytes "${got:-0}"), not the $(au_bytes "$size") the registry names. $again"
+    return 1
   fi
   if [ "$(au_sha "$AU_DATA/store/$sha.part")" != "$sha" ]; then
     rm -f "$AU_DATA/store/$sha.part"
-    au_stop "The model that arrived is not the file the registry names (its sha256 differs), so it was deleted."
+    au_fail "The model that arrived is not the file the registry names (its sha256 differs), so it was deleted."
+    return 1
   fi
-  au_store_put "$AU_DATA/store/$sha.part" "$sha" || au_stop "The model could not be put in place."
+  au_store_put "$AU_DATA/store/$sha.part" "$sha" || { au_fail "The model could not be put in place."; return 1; }
 }
 
-au_step8_assets() { # the template, the system prompt and the test, from the tree by sha256 (B3 step 8, A4)
+au_step8_assets() { # the template, the system prompt and the test, from the tree by sha256 (B3 step 8, A4); a failure is
+  # au_fail's, as at step 7
   local what sha f found t
   for what in 8:template 9:system-prompt 10:test; do
     sha=$(au_build_field "$AU_CH_BUILD" "${what%%:*}")
@@ -636,35 +678,36 @@ au_step8_assets() { # the template, the system prompt and the test, from the tre
       [ -f "$f" ] && [ ! -L "$f" ] || continue
       if [ "$(au_sha "$f")" = "$sha" ]; then found=$f; break; fi
     done
-    [ -n "$found" ] || au_stop "This version of Auster holds no ${what#*:} with the sha256 the build names, so nothing more was installed."
+    [ -n "$found" ] || { au_fail "This version of Auster holds no ${what#*:} with the sha256 the build names, so nothing more was installed."; return 1; }
     t="$AU_DATA/store/.$sha.new.$$"
     cp "$found" "$t" && [ "$(au_sha "$t")" = "$sha" ] && au_store_put "$t" "$sha" ||
-      au_stop "The ${what#*:} could not be put in place."
+      { rm -f "$t"; au_fail "The ${what#*:} could not be put in place."; return 1; }
   done
 }
 
-au_step9_engine() { # the engine, in store/ and unpacked into engines/<sha256>/ with its file list (B3 step 9)
+au_step9_engine() { # the engine, in store/ and unpacked into engines/<sha256>/ with its file list (B3 step 9); a failure is
+  # au_fail's, as at step 7
   local sha size nb file d t got
   nb=$(au_build_field "$AU_CH_BUILD" 20); file=$(au_build_field "$AU_CH_BUILD" 21)
   size=$(au_build_field "$AU_CH_BUILD" 22); sha=$(au_build_field "$AU_CH_BUILD" 23)
   if ! au_store_has "$sha" "$size"; then
     t="$AU_DATA/store/.$sha.new.$$"
     if [ "$sha" = "$AU_MEASURED_ENGINE" ] && [ -f "$AU_RUN/engine.archive" ]; then
-      cp "$AU_RUN/engine.archive" "$t" || au_stop "The engine could not be put in place."
+      cp "$AU_RUN/engine.archive" "$t" || { rm -f "$t"; au_fail "The engine could not be put in place."; return 1; }
     else
       au_say "Fetching the engine ($(au_bytes "$size"))..."
       au_fetch "$AU_ENGINE_HOST/$nb/$file" "$t" "$size"; got=$?
-      [ "$got" = 0 ] && [ "$AU_CODE" = 200 ] || { rm -f "$t"; au_stop "The engine could not be fetched from GitHub (curl exit $got)."; }
+      [ "$got" = 0 ] && [ "$AU_CODE" = 200 ] || { rm -f "$t"; au_fail "The engine could not be fetched from GitHub (curl exit $got)."; return 1; }
     fi
-    [ "$(au_size "$t")" = "$size" ] && [ "$(au_sha "$t")" = "$sha" ] || { rm -f "$t"; au_stop "The engine is not the one the registry names, so it was deleted."; }
-    au_store_put "$t" "$sha" || au_stop "The engine could not be put in place."
+    [ "$(au_size "$t")" = "$size" ] && [ "$(au_sha "$t")" = "$sha" ] || { rm -f "$t"; au_fail "The engine is not the one the registry names, so it was deleted."; return 1; }
+    au_store_put "$t" "$sha" || { au_fail "The engine could not be put in place."; return 1; }
   fi
   d="$AU_DATA/engines/$sha"
   if ! au_engine_intact "$d"; then
     t="$AU_DATA/engines/.$sha.new.$$"
-    au_unpack "$AU_DATA/store/$sha" "$t" || { rm -rf "$t"; au_stop "Nothing more was installed."; }
+    au_unpack "$AU_DATA/store/$sha" "$t" || { rm -rf "$t"; au_fail "The engine was not unpacked, so it is not used."; return 1; }
     rm -rf "$d"
-    mv "$t" "$d" || au_stop "The engine could not be put in place."
+    mv "$t" "$d" || { au_fail "The engine could not be put in place."; return 1; }
   fi
   AU_ENGINE_DIR=$d
   AU_LISTSHA=$(au_sha "$d/files")
@@ -857,7 +900,12 @@ au_step15_stamp() { # the stamp (D3.1): the line followed, the version, the comm
 # build this tree cannot install: T54). A no leaves everything as it was and the build waiting (T7, T35). A yes (U5,
 # au_update_yes) changes Auster's own programs first when they differ, or checks the server first when jobs/previous/
 # shows an earlier change never checked (au_update_programs: B3 step 6, BD18, T94); then writes `mac` (au_update_mac);
-# then switches a change of setting (au_switch_setting); a change of build ends at TODO(U5) with exit 3, nothing changed.
+# then switches a change of setting (au_switch_setting), or, for a change of build, fetches its files (au_update_build:
+# room again, the removals the question named, B3 steps 7 to 9), and ends at TODO(U5) with exit 3, serving untouched. A
+# change of build goes to the question only after its pre-checks (au_update_ask, D3.6 step 1: the engine's macOS floor,
+# and the publisher's HEAD for each file store/ does not hold); a recipe that fails one is passed over (exit 3).
+# `update --retry` (AU_RETRY) judges every recipe without its failed/, so that a build that failed its test here is
+# offered again (D3.7, BD12), and its question says so.
 # Then, and with nothing to change, the run makes the server check when a `serving` has a speed of 0 or jobs/previous/
 # is there (B3 step 13), shows the devices' keys when the Mac had no stamp (an install that never finished,
 # T65), and writes step 15, with _update's registry, notes and offer when the stamp moved (U4: so that each recipe's
@@ -896,6 +944,12 @@ au_update_measure() { # -> B3 step 4 on an update (D3.6): AU_FIGURES, AU_DISKARG
   else
     au_say "The engine this Mac serves with is not the one its list names, so the figures recorded at install (builds/mac) are used."
   fi
+  au_update_disk
+}
+
+au_update_disk() { # -> AU_DISKARGS and AU_NODISK, the disk section C is given (C6): `df -k` of the data root and the disk
+  # holdings as the rule file makes them (partial downloads among them), measured now; no disk figures at all when a
+  # descriptor cannot be read (D3.3). Made at step 4, and again after the yes, before a download starts (D3.6 step 3)
   AU_DISKARGS=() AU_NODISK=()
   if df -k "$AU_DATA" > "$AU_RUN/df.txt" 2>/dev/null &&
      ( AU_UPDATE_DIR="$AU_DATA/_update"; . "$AU_TREE/common/updates.sh"; _auu_holdings "$AU_RUN/disk" ) > /dev/null 2>&1; then
@@ -936,9 +990,10 @@ au_update_assets() { # BUILD -> 0 when store/ or this tree's assets/ hold the te
 au_update_judge() { # RECIPE -> AU_J: ok, held, passed, withdrawn or change, with AU_J_SAY, its line; for a change, AU_JK
   # (build or setting) and the figures the question gives. Section C (capability.js) is given this tree's registry, the
   # build served, the household's number of people from its launch line (C4), its `hold` (unreadable: every build held,
-  # D3.1) and failed/, the build loaded when the engine's job is loaded (C5), and the figures of step 4
+  # D3.1) and failed/ (none with --retry: D3.7, BD12), the build loaded when the engine's job is loaded (C5), and the
+  # figures of step 4. AU_JFAILED is the date the build a change picks last failed its test here, when it has
   local r=$1 l f id seen=0 held= lf=() cf=() opts=()
-  AU_J=passed AU_J_SAY= AU_JK= AU_JREMOVE=() AU_JNAME="This Mac's recipe" AU_JLABEL=
+  AU_J=passed AU_J_SAY= AU_JK= AU_JREMOVE=() AU_JNAME="This Mac's recipe" AU_JLABEL= AU_JFAILED=
   AU_REGOUT="$AU_RUN/registry-$r.out"
   osascript -l JavaScript "$AU_TREE/common/registry.js" "$AU_REG" "$r" > "$AU_REGOUT" 2>/dev/null
   l=$(awk -F'\t' '$1 == "recipe"' "$AU_REGOUT"); au_split "$l"
@@ -956,6 +1011,7 @@ au_update_judge() { # RECIPE -> AU_J: ok, held, passed, withdrawn or change, wit
     *) opts+=(--hold-unreadable) ;;
   esac
   for f in "$AU_DATA/builds/$r"/failed/*; do
+    [ "$AU_RETRY" = 0 ] || break   # update --retry: a build that failed its test here is offered again
     { [ -e "$f" ] || [ -L "$f" ]; } && au_entry_read "$f" && opts+=(--failed "$AU_SV_BUILD")
   done
   if au_job_loaded "$AU_LABEL_ENGINE"; then opts+=(--loaded "$AU_JNOW" "$AU_JP0" "$AU_JC0"); fi
@@ -992,6 +1048,9 @@ au_update_judge() { # RECIPE -> AU_J: ok, held, passed, withdrawn or change, wit
         if ! au_update_assets "$AU_JPICK"; then
           AU_J=passed AU_J_SAY="This version of Auster holds no $AU_MISSING with the sha256 build $AU_JPICK names. $AU_JNAME is not updated: it keeps serving build $AU_JNOW."
         fi
+        for f in "$AU_DATA/builds/$r"/failed/*-"$AU_JPICK"; do
+          au_entry_read "$f" && AU_JFAILED=${f##*/} AU_JFAILED=${AU_JFAILED%%T*}
+        done
       else
         AU_J_SAY="$AU_JNAME: what an update would change cannot be worked out, so it is not updated: it keeps serving build $AU_JNOW."
       fi ;;
@@ -1001,6 +1060,31 @@ au_update_judge() { # RECIPE -> AU_J: ok, held, passed, withdrawn or change, wit
     unreadable) AU_J_SAY="$AU_JNAME: passed over (cannot be read), so it is not updated: it keeps serving build $AU_JNOW." ;;
     *) AU_J_SAY="$AU_JNAME: section C gave no answer for it, so it is not updated: it keeps serving build $AU_JNOW." ;;
   esac
+}
+
+au_update_ask() { # -> D3.6 step 1's last pre-checks, before the question, for the build au_update_judge picked for a change:
+  # the engine it names must run on this macOS (the engine line's oldest macOS against the major version now, as a first
+  # install judges it, B3 step 4), and each file store/ does not hold, the model and the engine archive, must still be
+  # offered by its publisher as the registry names it (au_publisher_ask: a HEAD, nothing fetched; T29, T110). Otherwise the
+  # recipe is passed over (AU_J passed) with one sentence, AU_J_SAY, and the update ends with exit 3
+  local v major e_mac sha url file keep="$AU_JNAME is not updated: it keeps serving build $AU_JNOW."
+  v=$(sw_vers -productVersion 2>/dev/null); major=${v%%.*}
+  e_mac=$(au_build_field "$AU_JPICK" 24)
+  if ! [[ $major =~ ^[1-9][0-9]?$ ]] || ! [[ $e_mac =~ ^[1-9]?[0-9]$ ]] || [ "$major" -lt "$e_mac" ]; then
+    AU_J=passed AU_J_SAY="Build $AU_JPICK needs an engine that runs on macOS $e_mac or later, and this Mac has macOS ${v:-of a version that cannot be read}. $keep"
+    return 0
+  fi
+  sha=$(au_build_field "$AU_JPICK" 30) file=$(au_build_field "$AU_JPICK" 28)
+  url="$AU_MODEL_HOST/$(au_build_field "$AU_JPICK" 26)/resolve/$(au_build_field "$AU_JPICK" 27)/$file"
+  if [ ! -f "$AU_DATA/store/$sha" ] && ! au_publisher_ask "$url" "$(au_build_field "$AU_JPICK" 29)" "$sha"; then
+    AU_J=passed AU_J_SAY="$(au_publisher_said "$file" "Hugging Face"), so nothing was fetched. $keep"
+    return 0
+  fi
+  sha=$(au_build_field "$AU_JPICK" 23) file=$(au_build_field "$AU_JPICK" 21)
+  url="$AU_ENGINE_HOST/$(au_build_field "$AU_JPICK" 20)/$file"
+  if [ ! -f "$AU_DATA/store/$sha" ] && ! au_publisher_ask "$url" "$(au_build_field "$AU_JPICK" 22)" "$sha"; then
+    AU_J=passed AU_J_SAY="$(au_publisher_said "$file" "GitHub"), so nothing was fetched. $keep"
+  fi
 }
 
 au_update_question() { # -> 0 on a yes, 1 on a no (D3.6 step 2), for the recipe au_update_judge judged a change: what will
@@ -1058,6 +1142,7 @@ au_update_question() { # -> 0 on a yes, 1 on a no (D3.6 step 2), for the recipe 
     au_say "              up to about 3 minutes, and then restarts on it."
   fi
   [ "$AU_JWD" = - ] || au_say "  Withdrawn   The build it serves now has been withdrawn."
+  [ -z "$AU_JFAILED" ] || au_say "  Tried again Build $AU_JPICK failed its test on this Mac on $AU_JFAILED; it is tested again before it serves."
   if [ "$AU_PROGRAMS_CHANGE" = 1 ]; then
     au_say "  Programs    Auster's own programs change too (${AU_FROM:+from $AU_FROM }to $AU_VERSION): they are put in place first, before"
     au_say "              anything is downloaded, and the server restarts once to check them."
@@ -1092,17 +1177,91 @@ au_update_programs_question() { # -> 0 on a yes, 1 on a no: Auster's own program
 
 au_update_yes() { # [RECIPE] -> what follows a yes (B3 steps 6 to 13, D3.6), for the recipe au_update_judge judged a change,
   # or with none for Auster's programs alone: the programs first (au_update_programs), then `mac` (au_update_mac), then a
-  # change of setting switched (au_switch_setting). It returns once all of that has passed; the run then goes on to the
-  # server check of every recipe that needs one and to step 15. Open or not answered end the run with exit 4 on the way
-  if [ -n "${1:-}" ] && [ "$AU_JK" = build ]; then   # TODO(U5): the second half: D3.6 steps 1 and 3 to 5 for a new build
-    au_undo
-    if [ "$AU_CHANGED" = 0 ]; then au_say "Making this change comes with a later version of Auster (U5), so nothing was changed."
-    else au_say "Moving to another build comes with a later version of Auster (U5), so $AU_JNAME keeps serving build $AU_JNOW."; fi
-    exit 3
-  fi
+  # change of setting switched (au_switch_setting) or a change of build's files fetched (au_update_build). 0 once all of
+  # that has passed; 1 when the recipe stopped (a change of build, which keeps serving its build until U5's last part),
+  # having said why. The run then goes on to the server check of every recipe that needs one and to step 15, and ends
+  # with exit 3 after a 1. Open or not answered end the run with exit 4 on the way
   au_update_programs
   au_update_mac
-  [ -z "${1:-}" ] || au_switch_setting "$1"
+  [ -n "${1:-}" ] || return 0
+  if [ "$AU_JK" = build ]; then au_update_build "$1"; return $?; fi
+  au_switch_setting "$1"
+}
+
+au_update_build() { # RECIPE -> D3.6 step 3 for the build au_update_judge picked (AU_JPICK), after the yes and once Auster's
+  # programs and `mac` are done: room worked out again (section C, with the disk measured now); the earlier builds the
+  # disk rule names removed now that the room is needed, only if the question named each of them (so the one before the
+  # build in use goes only on the person's yes); then the first install's steps 7 to 9, which skip a file store/ holds by
+  # its sha256, ask the publisher, fetch from the address that names its commit with no login and the person's curl
+  # settings ignored, resume from that same address, check the size then the sha256, delete a mismatch, and keep the Mac
+  # awake during the model's download when `mac` says so (BD10). Returns 1 when this recipe stops, having said why: its
+  # serving is untouched, and the files fetched stay in store/, a cache the disk rule counts
+  local r=$1 pick=$AU_JPICK p=$AU_JP c=$AU_JC named=() l n ok
+  named=(${AU_JREMOVE[@]+"${AU_JREMOVE[@]}"})
+  au_update_disk
+  au_update_judge "$r"
+  if [ "$AU_J" != change ]; then
+    au_say "$AU_J_SAY"
+    return 1
+  fi
+  if [ "$AU_JK" != build ] || [ "$AU_JPICK" != "$pick" ] || [ "$AU_JP" != "$p" ] || [ "$AU_JC" != "$c" ]; then
+    au_say "What this Mac can hold changed since the question. $AU_JNAME is not updated: it keeps serving build $AU_JNOW. \`auster update\` asks again."
+    return 1
+  fi
+  for l in ${AU_JREMOVE[@]+"${AU_JREMOVE[@]}"}; do
+    ok=0
+    for n in ${named[@]+"${named[@]}"}; do [ "$n" != "$l" ] || ok=1; done
+    if [ "$ok" = 0 ]; then
+      au_split "$l"
+      au_say "To make room now, build ${AU_F[4]:-} would have to be removed, which the question did not name. $AU_JNAME is not updated: it keeps serving build $AU_JNOW. \`auster update\` asks again."
+      return 1
+    fi
+  done
+  au_update_remove || {
+    au_say "The earlier builds to remove could not all be read, so nothing more was removed. $AU_JNAME is not updated: it keeps serving build $AU_JNOW."
+    return 1
+  }
+  AU_CH_BUILD=$pick
+  au_mac_read
+  AU_AWAKE=no
+  [ "$AU_MAC" != ok ] || AU_AWAKE=${AU_MAC_LINES[6]#keep-awake"$AU_T"}
+  au_step7_model || { au_say "$AU_JNAME is not updated: it keeps serving build $AU_JNOW."; return 1; }
+  au_step8_assets || { au_say "$AU_JNAME is not updated: it keeps serving build $AU_JNOW."; return 1; }
+  au_step9_engine || { au_say "$AU_JNAME is not updated: it keeps serving build $AU_JNOW."; return 1; }
+  # TODO(U5): the isolated test (D3.6 step 4, B3 step 10), then the switch to the new build and its server check (step 5)
+  au_say "Build $pick's files are on this Mac. $AU_JNAME keeps serving build $AU_JNOW: testing build $pick here and switching to it come with a later version of Auster."
+  return 1
+}
+
+au_update_remove() { # -> the earlier builds the disk rule named (AU_JREMOVE), removed now that the room is needed (D3.6 step 3,
+  # C6): each entry of kept/ or failed/ deleted, then each file in store/ and engines/ it named that no descriptor left, of
+  # any recipe, names, and that is not the chosen build's (C6: never the build in use's, which serving names, nor the
+  # chosen one's). 1, with no file of store/ or engines/ deleted, when an entry named, or a descriptor left, cannot be read
+  local l f e x kind date build named list=()
+  for l in ${AU_JREMOVE[@]+"${AU_JREMOVE[@]}"}; do
+    au_split "$l"
+    kind=${AU_F[2]:-} date=${AU_F[3]:-} build=${AU_F[4]:-}
+    [[ ${AU_F[1]:-} =~ $AU_RE_RECIPE ]] && [[ $kind =~ ^(kept|failed)$ ]] && [[ $date =~ $AU_RE_UTC ]] && [[ $build =~ $AU_RE_BUILD ]] ||
+      return 1
+    f="$AU_DATA/builds/${AU_F[1]}/$kind/$date-$build"
+    au_entry_read "$f" || return 1
+    list+=("store/$AU_SV_ENGINE" "engines/$AU_SV_ENGINE" "store/$AU_SV_MODEL" "store/$AU_SV_TEMPLATE" "store/$AU_SV_SYSTEM" "store/$AU_SV_TEST")
+    rm -f "$f" || return 1
+    if [ "$kind" = failed ]; then au_say "Removed build $build, which failed its test here on ${date%%T*}, to make room."
+    else au_say "Removed build $build, kept since ${date%%T*}, to make room."; fi
+  done
+  [ "${#list[@]}" -gt 0 ] || return 0
+  ( AU_UPDATE_DIR="$AU_DATA/_update"; . "$AU_TREE/common/updates.sh"; _auu_holdings "$AU_RUN/disk-left" ) > /dev/null 2>&1 || return 1
+  named=$(awk -F'\t' '$1 == "desc" { print "store/" $6; print "engines/" $6; print "store/" $7; print "store/" $8; print "store/" $9; print "store/" $10 }' "$AU_RUN/disk-left")
+  for x in 23 30 8 9 10; do named+=$'\n'"store/$(au_build_field "$AU_JPICK" "$x")"; done
+  named+=$'\n'"engines/$(au_build_field "$AU_JPICK" 23)"
+  for e in "${list[@]}"; do
+    printf '%s\n' "$named" | grep -qxF -- "$e" && continue
+    case "$e" in
+      engines/*) rm -rf "$AU_DATA/$e" ;;
+      store/*) chmod 644 "$AU_DATA/$e" 2>/dev/null; rm -f "$AU_DATA/$e" ;;
+    esac
+  done
 }
 
 au_update_programs() { # -> B3 step 6 after the yes (BD18, T94), once a run, before anything else changes or is fetched, on the
@@ -1307,9 +1466,11 @@ au_update_known() { # -> after a run that wrote a new stamp on the release line:
 }
 
 au_update() { # -> the update (D3.6; the comment above): exits. 0 done, or nothing needed changing; 1 refused or answered no,
-  # and nothing changed; 3 a recipe passed over, a new bin/auster that does not answer `status`, or, until U5's second half,
-  # a yes to a change of build; 4 the server check failed
+  # and nothing changed; 3 a recipe passed over (before its question, or when its download stopped), a new bin/auster that
+  # does not answer `status`, or, until U5's last part, a yes to a change of build once its files are in store/; 4 the
+  # server check failed
   local s r no=0 short=0 asked=0 did=0
+  AU_UPDATING=1   # a download that fails stops its recipe, not the run (au_fail)
   au_refuse_stopped || au_refuse   # B6: while builds/stopped exists, whatever it holds, the update refuses
   AU_URECIPES=()
   for s in "$AU_DATA"/builds/r*/serving; do
@@ -1329,9 +1490,10 @@ au_update() { # -> the update (D3.6; the comment above): exits. 0 done, or nothi
   if au_programs_differ; then AU_PROGRAMS_CHANGE=1; fi
   for r in "${AU_URECIPES[@]}"; do
     au_update_judge "$r"
+    [ "$AU_J:$AU_JK" != change:build ] || au_update_ask
     case "$AU_J" in
       ok|held) au_say "$AU_J_SAY" ;;
-      change) asked=1; if au_update_question; then au_update_yes "$r"; did=1; else no=1; fi ;;
+      change) asked=1; if au_update_question; then au_update_yes "$r" || short=1; did=1; else no=1; fi ;;
       *) au_say "$AU_J_SAY"; short=1 ;;
     esac
   done
@@ -1456,7 +1618,7 @@ au_args() {
   [ $# -gt 0 ] && shift
   case "$AU_MODE" in
     install|check) AU_RECIPE=${1:-}; [[ $AU_RECIPE =~ $AU_RE_RECIPE ]] || au_usage; shift ;;
-    update|remove) AU_RECIPE= ;;
+    update|remove) AU_RECIPE=; if [ "$AU_MODE" = update ] && [ "${1:-}" = --retry ]; then AU_RETRY=1; shift; fi ;;
     people) AU_RECIPE= AU_PEOPLE_N=${1:-}; [[ $AU_PEOPLE_N =~ ^[1-9][0-9]?$ ]] || au_usage; shift ;;
     *) au_usage ;;
   esac

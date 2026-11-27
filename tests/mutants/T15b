@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# restart from zero: the model's download never goes on from its part
+/^au_step7_model() {/,/^}/s/ -sS -L -C - --speed-limit / -sS -L --speed-limit /

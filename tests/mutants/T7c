@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# remove every file a removed build named, even one that serving or the chosen build names too
+/^au_update_remove() {/,/^}/s/^    printf '%s\\n' "\$named" | grep -qxF -- "\$e" && continue$/    :/

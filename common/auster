@@ -19,8 +19,8 @@
 # `people <n>` for the driver's change of setting (B6, C4); the switch's two writes, kept/ then serving (au_kept_add,
 # au_serving_launch); a passed server check deletes jobs/previous/ (B3 step 13); and `status` says when kept/ gives
 # `auster rollback` a way back from a speed of 0, and when jobs/previous/ holds programs never checked (T94, T107, T109,
-# T111, T112). Still to come, each marked TODO below:
-#   U5  `update --retry` (a build in failed/ offered again);
+# T111, T112). U5, its middle part (2026-11-27): `update --retry`, which runs the update with a build that failed its
+# test on this Mac offered again (D3.7, BD12; T99). Still to come, each marked TODO below:
 #   U6  `rollback`, `unhold` and `cleanup`;  U8  the words of each withdrawal's reason in `status`.
 #
 # The readers (D3.1, Reading). Each checks the format first, from the first field of the first 4,096 bytes
@@ -61,9 +61,11 @@
 #                                code is the installer's (0, 1, 3, 4 or 5)
 #   key add|revoke|show <name>   B7, below
 #   remove                       B8, and `install.sh remove`'s through the driver
-#   update                       the update (D3.6): its .command file opened in Terminal at the Mac's screen,
+#   update [--retry]             the update (D3.6): its .command file opened in Terminal at the Mac's screen,
 #                                or run in this session over SSH (SSH_CONNECTION or SSH_TTY set); refused
-#                                while stopped or locked and unless the rule file's word is ready
+#                                while stopped or locked and unless the rule file's word is ready. --retry: the
+#                                file runs `update --retry`, whose driver offers again a build in failed/ (D3.7,
+#                                BD12); it goes on when the word is current too, and refuses with no build in failed/
 #   rollback, unhold, cleanup    TODO(U6)
 # Each that stops or starts the engine or writes a record takes the lock. While builds/stopped exists,
 # whatever it holds and whether or not it can be read, `update`, `people`, `restart`, `key add` and `key
@@ -1028,21 +1030,30 @@ au_command_ok() { # PATH -> 0 when it is the update's .command file as the rule 
   [ "$(stat -f %u "$p" 2>/dev/null)" = "$AU_UID" ] && [ "$(stat -f '%u %Lp' "$d" 2>/dev/null)" = "$AU_UID 700" ]
 }
 
-au_cmd_update() { # -> D3.6, B6: the update. At the Mac's own screen, the deployed rule file's --open writes the update's
-  # .command file and hands it to Terminal, so that the person sees every line: 0. Over SSH, the same file (its
+au_cmd_update() { # [--retry] -> D3.6, B6: the update. At the Mac's own screen, the deployed rule file's --open writes the
+  # update's .command file and hands it to Terminal, so that the person sees every line: 0. Over SSH, the same file (its
   # --command) runs in this session, so that the questions are asked where the person is (T38), and its exit code is
   # this command's. Either way it fetches release's install.sh into a file and runs it with `update`; typing this
   # command is the yes before the fetched installer runs (D3.10), whose own question comes after. Refused (1) while
   # builds/stopped exists (B6), while a run holds the lock (D3.1), and unless the rule file's word is ready: so with
   # update checks off, on a checkout or a named version (`manual`, T5), before the first check, and with nothing
   # waiting unless the scripts are behind (D3.3). It takes no lock itself: the driver it runs takes it
-  local u="$AU_DATA/_update" out
+  # With --retry (U5; D3.7, BD12) the file runs `update --retry`, whose driver offers again a build that failed its test
+  # on this Mac: it goes on when the word is current as well as ready, and refuses when no recipe has a build in failed/
+  local u="$AU_DATA/_update" out retry=${1:-} f
   au_ready || return 1
   au_refuse_stopped || return 1
   au_lock_read "$AU_DATA/builds/updating"
   if [ "$AU_LOCK" = held ] && au_alive "$AU_LOCK_PID" "$AU_LOCK_BOOT" "$AU_LOCK_START"; then
     au_say "Another run of Auster (process $AU_LOCK_PID) is installing, updating or changing the server. Wait for it to end, then try again."
     return 1
+  fi
+  if [ -n "$retry" ]; then
+    for f in "$AU_DATA"/builds/r*/failed/*; do au_entry_read "$f" && break; f=; done
+    if [ -z "$f" ]; then
+      au_say "No build has failed its test on this Mac, so there is nothing to try again; \`auster update\` offers what is waiting."
+      return 1
+    fi
   fi
   if [ ! -d "$u" ] || [ -L "$u" ] || [ ! -f "$u/updates.sh" ] || [ -L "$u/updates.sh" ]; then
     au_say "Update checks are off on this Mac (_update holds no updates.sh), so no update is known to be waiting. Pasting the installer line from the guide updates Auster and turns them on again."
@@ -1063,11 +1074,12 @@ au_cmd_update() { # -> D3.6, B6: the update. At the Mac's own screen, the deploy
       au_say "Pasting the installer line from the guide moves it to the release line."
       return 1 ;;
     unknown) au_say "No update check has been made yet, so no update is known to be waiting. The check job makes one soon after the Mac starts, then once a day."; return 1 ;;
-    current) au_say "Nothing is waiting: Auster ${AU_F[1]:-} is the newest version at the last update check, and this Mac serves the build for it."; return 1 ;;
+    current)
+      [ -n "$retry" ] || { au_say "Nothing is waiting: Auster ${AU_F[1]:-} is the newest version at the last update check, and this Mac serves the build for it."; return 1; } ;;
     *) au_say "Whether an update is waiting cannot be read (_update/updates.sh gave no state), so nothing was changed."; return 1 ;;
   esac
   if au_ssh; then
-    out=$(AU_UPDATE_DIR=$u /bin/bash "$u/updates.sh" --command 2>/dev/null | head -n 1)
+    out=$(AU_UPDATE_DIR=$u /bin/bash "$u/updates.sh" --command ${retry:+"$retry"} 2>/dev/null | head -n 1)
     au_split "$out"
     if [ "${AU_F[0]:-}" = written ] && [ "${#AU_F[@]}" = 2 ] && au_command_ok "${AU_F[1]}"; then
       au_say "Over SSH, the update runs here, in this session, and asks its questions here."
@@ -1077,7 +1089,7 @@ au_cmd_update() { # -> D3.6, B6: the update. At the Mac's own screen, the deploy
     au_say "The update could not be started here, so nothing was changed. Pasting the installer line from the guide updates Auster."
     return 1
   fi
-  out=$(AU_UPDATE_DIR=$u /bin/bash "$u/updates.sh" --open 2>/dev/null | head -n 1)
+  out=$(AU_UPDATE_DIR=$u /bin/bash "$u/updates.sh" --open ${retry:+"$retry"} 2>/dev/null | head -n 1)
   au_split "$out"
   case "${AU_F[0]:-}" in
     opened) au_say "The update opens in a Terminal window on this Mac's screen, which shows every step and asks its questions there."; return 0 ;;
@@ -1572,7 +1584,7 @@ au_status() { # -> B6: what serves, the engine job's last start, why the engine 
 }
 
 au_usage() {
-  au_say "usage: auster status | update | stop | start | restart | network | verify | people <n> | remove" \
+  au_say "usage: auster status | update [--retry] | stop | start | restart | network | verify | people <n> | remove" \
     "              auster key add <name> | key revoke <name> | key show <name>" >&2
   return 2
 }
@@ -1602,8 +1614,7 @@ auster_main() {
         *) au_usage ;;
       esac ;;
     update:1) au_cmd_update; rc=$? ;;
-    update:2)   # TODO(U5): --retry, a build in failed/ offered again (D3.7, BD12)
-      if [ "$2" = --retry ]; then au_say "auster update --retry comes with a later version of Auster (U5); nothing was changed."; rc=3; else au_usage; fi ;;
+    update:2) if [ "$2" = --retry ]; then au_cmd_update --retry; rc=$?; else au_usage; fi ;;
     rollback:*|unhold:*|cleanup:*) au_cmd_later "$1"; rc=$? ;;
     *) au_usage ;;
   esac

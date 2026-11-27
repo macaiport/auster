@@ -1,0 +1,5 @@
+# file: common/driver.sh
+# skip the sha256 for a resumed file: a download that went on from a part is put in store/ on its size alone
+/^au_step7_model() {/,/^}/s/^  au_say "Fetching \$file/  [ ! -f "$AU_DATA\/store\/$sha.part" ] || resumed=1\
+&/
+/^au_step7_model() {/,/^}/s/^  if \[ "\$(au_sha "\$AU_DATA\/store\/\$sha.part")" != "\$sha" \]; then$/  if [ -z "${resumed:-}" ] \&\& [ "$(au_sha "$AU_DATA\/store\/$sha.part")" != "$sha" ]; then/

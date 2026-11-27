@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# check the disk after the download starts: section C is given no disk figures, so no recipe is passed over for room before the question
+/^au_update_disk() {/,/^}/s/^    AU_DISKARGS=(--df "\$AU_RUN\/df.txt" --disk "\$AU_RUN\/disk")$/    AU_NODISK=(-u AU_DISK_FREE_BYTES -u AU_DISK_TOTAL_BYTES)/

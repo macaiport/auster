@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# offer failed builds: the update gives section C no build of failed/
+/^au_update_judge() {/,/^}/s/ && au_entry_read "\$f" && opts+=(--failed "\$AU_SV_BUILD")$//

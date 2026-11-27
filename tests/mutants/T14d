@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# send a login with the model's download: a Hugging Face token, when one is saved, as a header
+/^au_step7_model() {/,/^}/s/ -sS -L -C - --speed-limit / -sS -L -C - -H "Authorization: Bearer ${HF_TOKEN:-hf_saved}" --speed-limit /

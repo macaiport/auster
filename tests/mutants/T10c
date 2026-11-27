@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# remove earlier builds the question did not name: whatever the disk rule names after the yes is removed
+/^au_update_build() {/,/^}/s/^    if \[ "\$ok" = 0 \]; then$/    if false; then/

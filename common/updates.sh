@@ -12,7 +12,6 @@
 #
 # Built by U1 (2026-11-27); its tests are T1, T3, T4, T5, T14, T41, T42 and T43 (their halves that U1
 # builds), with the cases of 1launcher's test that still apply. What later steps add is marked TODO:
-#   U5  partial downloads among the disk holdings of a recipe's line (where U5 keeps them);
 #   U7  the check job's notification, which reads --noted.
 # U2 (2026-11-27) made auu_own the ownership rule over the whole data root (D3.1; tests/t6-records-own.sh), and
 # T6's and T95's tables run this file's one-line reader through the cases they run every reader through. The
@@ -28,6 +27,10 @@
 # that runs it itself (`auster update` over SSH); the driver also sources this file for _auu_holdings, the disk
 # holdings, when it judges an update (common/driver.sh). Its tests: T38, T19 (the check never starts an update) and
 # T43 (--open in the contract's form).
+# U5 (2026-11-27): a download cut short, store/<sha256>.part, among the disk holdings (B3 step 7); and --retry after
+# --open or --command, for `auster update --retry` (D3.7, BD12), whose .command file runs `update --retry` and which goes
+# on when the word is current as well as ready, since a build that failed its test here is never what makes it ready.
+# Its tests: T15 (the holdings) and T99.
 #
 # The update's .command file (D3.6; --open and --command), "Update Auster.command" in a new folder that only this
 # account can read (mktemp -d: mode 0700), mode 0700 itself. It holds constants only: curl's path, which is AU_CURL
@@ -35,7 +38,8 @@
 # It fetches that install.sh into a file beside itself, never into a pipe, at most 1 MiB, HTTPS only and the
 # person's curl settings ignored; runs it as the pasted line runs it (`bash -c "<install.sh>" auster-install
 # update`) only when curl exited 0 with the code 200; says in one line what happened, by the installer's exit code;
-# and removes itself and its folder when it ends. Both options refuse unless the word is ready.
+# and removes itself and its folder when it ends. Both options refuse unless the word is ready. With --retry, and only
+# then, the file holds a third constant, RETRY, and runs `update --retry`; the word may then be current too (U5).
 #
 # Its folder, AU_UPDATE_DIR (<data root>/_update), holds (D3.1):
 #   scripts   the stamp, written by the installer and never here: auster-record 1 TAB <line> TAB <version or
@@ -71,6 +75,8 @@
 #   bash updates.sh --recipes          the state line, then one `recipe` line for each recipe this Mac serves (U3)
 #   bash updates.sh --command          written TAB <the .command file's path>, after it wrote that file as --open
 #                                      does, for a caller that runs it itself; or failed TAB <one sentence> (U4)
+#   bash updates.sh --open --retry     as --open and --command, for a file that runs `update --retry`, with the word
+#   bash updates.sh --command --retry  current or ready (U5)
 # Every call exits 0 when it could answer and says the outcome in its output; a usage error exits 2.
 # The words, the first that applies (D3.2): off (the file `off` exists) | none (no stamp that this version can
 # read; <detail> is `newer` when the stamp is of a newer format) | manual (the stamp's line is not release;
@@ -491,9 +497,10 @@ _auu_js() { # -> the folder that holds section C's capability.js, the two files 
 
 _auu_holdings() { # OUT -> the disk holdings in capability-lib.js's form (`auster-disk 1`): each file in store/ and folder
   # in engines/ named by a sha256, with what it takes on disk, and a `desc` line for every descriptor of every recipe
-  # (C6: a file counts as free only when no descriptor names it). 1 when a descriptor cannot be read or an entry's
-  # date is out of form, so that no disk rule is applied rather than one that would count its files free.
-  # TODO(U5): partial downloads, once U5 settles where they are kept
+  # (C6: a file counts as free only when no descriptor names it), and a `partial` line for each download cut short,
+  # store/<sha256>.part, which the installer keeps for a resume (B3 step 7, U5), so that the download still to come is
+  # counted less what is already on disk. 1 when a descriptor cannot be read or an entry's date is out of form, so that
+  # no disk rule is applied rather than one that would count its files free.
   local PATH=/usr/bin:/bin:/usr/sbin:/sbin root=${AU_UPDATE_DIR%/*} f n s r kind date
   {
     printf 'auster-disk 1\n'
@@ -502,6 +509,12 @@ _auu_holdings() { # OUT -> the disk holdings in capability-lib.js's form (`auste
       [[ $n =~ $_AUU_SHA ]] && [ -f "$f" ] && [ ! -L "$f" ] || continue
       s=$(stat -f %z "$f" 2>/dev/null) && [[ $s =~ $_AUU_SIZE ]] || return 1
       printf 'file\tstore/%s\t%s\n' "$n" "$s"
+    done
+    for f in "$root"/store/*.part; do
+      n=${f##*/}; n=${n%.part}
+      [[ $n =~ $_AUU_SHA ]] && [ -f "$f" ] && [ ! -L "$f" ] || continue
+      s=$(stat -f %z "$f" 2>/dev/null) && [[ $s =~ $_AUU_SIZE ]] || return 1
+      printf 'partial\t%s\t%s\n' "$n" "$s"
     done
     for f in "$root"/engines/*; do
       n=${f##*/}
@@ -697,13 +710,14 @@ auu_noted() {
   printf '%s\n' "$AUU_OFFERED"
 }
 
-# -> AUU_COMMAND, the path of the update's .command file (the header gives it), written into a new folder that only
-# this account can read; or AUU_WHY, one sentence, and 1, leaving nothing. Only when the word is ready
+# [--retry] -> AUU_COMMAND, the path of the update's .command file (the header gives it), written into a new folder that
+# only this account can read; or AUU_WHY, one sentence, and 1, leaving nothing. Only when the word is ready, or with
+# --retry current (U5)
 _auu_command() {
-  local PATH=/usr/bin:/bin:/usr/sbin:/sbin d= f curl=/usr/bin/curl
+  local PATH=/usr/bin:/bin:/usr/sbin:/sbin d= f curl=/usr/bin/curl retry=${1:-}
   AUU_COMMAND= AUU_WHY=
   _auu_state
-  if [ "$AUU_WORD" != ready ]; then AUU_WHY="No update is waiting."; return 1; fi
+  case "$AUU_WORD:$retry" in ready:*|current:--retry) ;; *) AUU_WHY="No update is waiting."; return 1 ;; esac
   if [ -n "${AU_CURL:-}" ]; then
     [[ $AU_CURL =~ $_AUU_PROG ]] || { AUU_WHY="The update's file was not written: AU_CURL is not a plain absolute path."; return 1; }
     curl=$AU_CURL
@@ -714,10 +728,10 @@ _auu_command() {
     return 1
   }
   f="$d/Update Auster.command"
-  if ! { printf '#!/bin/bash\n'; printf "CURL='%s'\n" "$curl"; printf "URL='%s'\n" "$_AUU_INSTALL_URL"; cat << 'EOS'
+  if ! { printf '#!/bin/bash\n'; printf "CURL='%s'\n" "$curl"; printf "URL='%s'\n" "$_AUU_INSTALL_URL"; [ -z "$retry" ] || printf "RETRY='%s'\n" "$retry"; cat << 'EOS'
 # Written by Auster (updates.sh --open or --command): the update (docs/plans/v0.1.md, D3.6). It holds constants
-# only. It fetches release's install.sh into a file beside itself, never into a pipe, runs it with `update` only
-# when GitHub answered 200, says in one line what happened, and removes itself and its folder when it ends.
+# only. It fetches release's install.sh into a file beside itself, never into a pipe, runs it with `update`
+# (and RETRY) only when GitHub answered 200, says in one line what happened, and removes itself and its folder when it ends.
 case "$0" in /*) ;; *) echo "Run this file by its full path."; exit 1 ;; esac
 D=${0%/*}
 F="$D/install.sh"
@@ -726,7 +740,7 @@ echo "Fetching Auster's installer from github.com/macaiport/auster ..."
 code=$("$CURL" -q --proto '=https' --proto-redir '=https' --tlsv1.2 -sS -L --max-time 60 --max-filesize 1048576 -o "$F" -w '%{http_code}' "$URL" 2>/dev/null)
 rc=$?
 if [ "$rc" = 0 ] && [ "$code" = 200 ] && [ -f "$F" ] && [ ! -L "$F" ]; then
-  /bin/bash -c "$(cat "$F")" auster-install update
+  /bin/bash -c "$(cat "$F")" auster-install update ${RETRY:+"$RETRY"}
   rc=$?
   echo
   case "$rc" in
@@ -754,18 +768,18 @@ EOS
 # The update's .command file for a caller that runs it itself (`auster update` over SSH, D3.6): written TAB its path,
 # or failed TAB one sentence
 auu_command() {
-  if _auu_command; then printf 'written\t%s\n' "$AUU_COMMAND"; else printf 'failed\t%s\n' "$AUU_WHY"; fi
+  if _auu_command "${1:-}"; then printf 'written\t%s\n' "$AUU_COMMAND"; else printf 'failed\t%s\n' "$AUU_WHY"; fi
 }
 
 # The update at the Mac's own screen (D3.6): its .command file written and handed to Terminal with AU_OPEN, then
-# `opened`; or failed TAB one sentence, leaving nothing. It refuses unless the word is ready
+# `opened`; or failed TAB one sentence, leaving nothing. It refuses unless the word is ready (or current, with --retry)
 auu_open() {
   local PATH=/usr/bin:/bin:/usr/sbin:/sbin open=/usr/bin/open
   if [ -n "${AU_OPEN:-}" ]; then
     [[ $AU_OPEN =~ $_AUU_PROG ]] || { printf 'failed\t%s\n' "Terminal was not opened: AU_OPEN is not a plain absolute path."; return 0; }
     open=$AU_OPEN
   fi
-  _auu_command || { printf 'failed\t%s\n' "$AUU_WHY"; return 0; }
+  _auu_command "${1:-}" || { printf 'failed\t%s\n' "$AUU_WHY"; return 0; }
   if ! "$open" -a Terminal "$AUU_COMMAND" > /dev/null 2>&1; then
     rm -rf "${AUU_COMMAND%/*}"
     printf 'failed\t%s\n' "Terminal could not be opened for the update. Run auster update again, or paste the installer line from the guide."
@@ -783,11 +797,11 @@ if [ "${BASH_SOURCE[0]:-$0}" = "$0" ]; then
       printf '%s\t%s\t%s\t%s\t%s\n' "$AUU_WORD" "$AUU_INSTALLED" "$AUU_OFFERED" "$AUU_DETAIL" "$AUU_FETCH" ;;
     --notes) auu_notes ;;
     --noted) auu_noted ;;
-    --open) auu_open ;;
-    --command) auu_command ;;
+    --open|--command) case "${2:-}" in ''|--retry) ;; *) echo "usage: updates.sh --open|--command [--retry]" >&2; exit 2 ;; esac
+      if [ "$1" = --open ]; then auu_open "${2:-}"; else auu_command "${2:-}"; fi ;;
     --version-of) auu_version_of "${2:-}" || true ;;
     --recipes) auu_recipes ;;
-    *) echo "usage: updates.sh [--refresh [--now] | --notes | --noted | --open | --command | --version-of <file> | --recipes]" >&2; exit 2 ;;
+    *) echo "usage: updates.sh [--refresh [--now] | --notes | --noted | --open [--retry] | --command [--retry] | --version-of <file> | --recipes]" >&2; exit 2 ;;
   esac
   exit 0
 fi

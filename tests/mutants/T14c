@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# read the person's curl settings for the model's download: no -q first, so that a saved login in ~/.curlrc would be sent
+/^au_step7_model() {/,/^}/s/^  curl -q --proto =https --proto-redir =https --tlsv1.2 -sS -L -C - /  curl --proto =https --proto-redir =https --tlsv1.2 -sS -L -C - /
