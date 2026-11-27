@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# write the router the Mac is behind now into `mac` after the yes, in place of the one the install recorded
+/^au_update_mac() {/,/^}/s/AU_ROUTER=\$AU_MAC_ROUTER /AU_ROUTER=$(au_router_now > \/dev\/null; printf %s "$AU_NET_ROUTER") /

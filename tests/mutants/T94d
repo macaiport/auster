@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# copy over an existing jobs/previous: the programs in use replace those last checked
+s/^    if \[ ! -e "\$prev" \] && \[ ! -L "\$prev" \]; then$/    rm -rf "$prev"; if true; then/

@@ -1,0 +1,3 @@
+# file: common/auster-engine
+# the engine job refuses a speed of 0: a serving that has not passed a check since its switch is not started
+/^read_serving() {/,/^}/s/^  \[\[ \${F\[4\]} =~ \$RE_SHA \]\] && \[\[ \${F\[5\]} =~ \$RE_SPEED \]\] || return 1$/  [[ ${F[4]} =~ $RE_SHA ]] \&\& [[ ${F[5]} =~ $RE_SPEED ]] \&\& [ "${F[5]}" != 0 ] || return 1/

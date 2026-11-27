@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# write the stamp on the second run: a run whose server check fails goes on to step 15
+/^au_update_check() {/,/^}/s/^        exit 4 ;;$/        ;;/

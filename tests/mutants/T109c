@@ -1,0 +1,3 @@
+# file: common/auster
+# report a stale start code as current: the engine job's last start is given whenever it was
+/^au_server_check() {/,/^}/s/^    if au_start_read "\$r" && \[ "\$AU_ST_TIME" -ge "\$t0" \]; then$/    if au_start_read "$r"; then/

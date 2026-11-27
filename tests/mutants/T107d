@@ -1,0 +1,7 @@
+# file: common/auster
+# send the request with no key before the keyed question is answered, and judge the server by its answer
+/^au_server_check() {/,/^}/{
+/^  while :; do$/i\
+  au_start_read "$r"; code=$(curl -q -sS --max-time 5 -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' --data-binary @"$w/nokey" "http://$AU_ST_ADDR:$AU_SV_PORT/v1/chat/completions" 2>/dev/null)\
+  if [ "$code" != 401 ] && [ "$code" != 403 ]; then rm -rf "$w"; au_engine_stop; au_stopped_write open; AU_CHECK=open AU_CHECK_WHY="it gave $code"; return 0; fi
+}

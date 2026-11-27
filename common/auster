@@ -15,8 +15,12 @@
 # the Mac's name now and `network` records anew (T5, T6, T95, T116). U3 (2026-11-27): each recipe's line in
 # `status`, from the rule file's --recipes, with what a build waiting would change (B6, D3.3; T35). U4 (2026-11-27):
 # `update`, which opens the update's .command file in Terminal at the Mac's screen and runs it in the session over
-# SSH (D3.6; T5, T26, T35, T38). Still to come, each marked TODO below:
-#   U5  `people`'s change of setting, `update --retry`, and T107's rows for these commands;
+# SSH (D3.6; T5, T26, T35, T38). U5, its first half (2026-11-27): `people`, which runs release's install.sh with
+# `people <n>` for the driver's change of setting (B6, C4); the switch's two writes, kept/ then serving (au_kept_add,
+# au_serving_launch); a passed server check deletes jobs/previous/ (B3 step 13); and `status` says when kept/ gives
+# `auster rollback` a way back from a speed of 0, and when jobs/previous/ holds programs never checked (T94, T107, T109,
+# T111, T112). Still to come, each marked TODO below:
+#   U5  `update --retry` (a build in failed/ offered again);
 #   U6  `rollback`, `unhold` and `cleanup`;  U8  the words of each withdrawal's reason in `status`.
 #
 # The readers (D3.1, Reading). Each checks the format first, from the first field of the first 4,096 bytes
@@ -51,7 +55,10 @@
 #   restart                      kickstart -k; the server check
 #   network                      the router the Mac's connection goes through now, into builds/mac (BD9)
 #   verify                       every file serving names, against its sha256 (AD13)
-#   people <n>                   the number checked, then TODO(U5)
+#   people <n>                   the number of people at a time (B6, C4): release's install.sh fetched into a file and
+#                                run with `people <n>`, whose driver (au_people) changes the setting of the build
+#                                served and nothing else, after a question; refused while stopped or locked; its exit
+#                                code is the installer's (0, 1, 3, 4 or 5)
 #   key add|revoke|show <name>   B7, below
 #   remove                       B8, and `install.sh remove`'s through the driver
 #   update                       the update (D3.6): its .command file opened in Terminal at the Mac's screen,
@@ -65,7 +72,9 @@
 #
 # Records written here (D3.1): the lock `builds/updating` (one line: `auster-record 1`, the process, the
 # boot session, the process's start time); `builds/stopped` (one line: `auster-record 1`, `household` or
-# `open`, and the time, `date -u +%Y-%m-%dT%H:%M:%SZ`); the speed in serving's launch line; the router in
+# `open`, and the time, `date -u +%Y-%m-%dT%H:%M:%SZ`); the launch line of serving, by rename, with the speed a
+# server check measured or with a new setting and a speed of 0 (au_serving_launch); an entry of kept/, a copy of
+# serving byte for byte named by the time and its build, `2026-11-26T15:04:05Z-b...` (au_kept_add); the router in
 # builds/mac (`auster network`, in capability-lib.js's form); builds/local-name (one line: `auster-record 1`,
 # the Mac's `.local` name, its LocalHostName, when the household's devices were given its address, or - when it
 # had none, and the time as `stopped` gives it; written by the driver after the yes at a first install and by
@@ -95,6 +104,7 @@ AU_LABEL_ENGINE=local.auster.engine
 AU_LABEL_CHECK=local.auster.check
 AU_ROOT_MARKER=.auster-data-root
 AU_CHECK_SECS=180                     # B3 step 13: the server check's limit from this run's start of the engine
+AU_INSTALL_URL=https://raw.githubusercontent.com/macaiport/auster/refs/heads/release/install.sh   # what `people` runs (B6)
 AU_RE_RECIPE='^r[a-z2-7]{12}$'
 AU_RE_BUILD='^b[a-z2-7]{12}$'
 AU_RE_KEYID='^k[a-z2-7]{12}$'
@@ -598,13 +608,34 @@ au_localname_write() { # NAME -> builds/local-name (D3.1): `auster-record 1`, NA
     { rm -f "$t"; return 1; }
 }
 
-au_serving_speed() { # RECIPE SPEED -> serving with that speed in its launch line, replaced by rename (A5)
+au_serving_speed() { au_serving_read "$1" && au_serving_launch "$1" "$AU_SV_PEOPLE" "$AU_SV_CONTEXT" "$2"; }   # RECIPE SPEED -> A5
+
+au_serving_launch() { # RECIPE PEOPLE CONTEXT SPEED -> serving with that launch line, its port and engine list as they are and
+  # its other four lines byte for byte, replaced by rename (A5), never written in place
   local f="$AU_DATA/builds/$1/serving" t
   au_serving_read "$1" || return 1
   t="$AU_DATA/builds/$1/.serving.new.$$"
+  rm -f "$t"
   { printf '%s\n' "${AU_SV_LINES[0]}" "${AU_SV_LINES[1]}" "${AU_SV_LINES[2]}" "${AU_SV_LINES[3]}"
-    printf 'launch\t%s\t%s\t%s\t%s\t%s\n' "$AU_SV_PEOPLE" "$AU_SV_CONTEXT" "$AU_SV_PORT" "$AU_SV_LIST" "$2"; } > "$t" &&
-    chmod 600 "$t" && mv -f "$t" "$f"
+    printf 'launch\t%s\t%s\t%s\t%s\t%s\n' "$2" "$3" "$AU_SV_PORT" "$AU_SV_LIST" "$4"; } > "$t" &&
+    chmod 600 "$t" && mv -f "$t" "$f" || { rm -f "$t"; return 1; }
+}
+
+au_kept_add() { # RECIPE -> serving copied into kept/ byte for byte, by rename, named by the time and its build (D3.1), as a
+  # switch does first, before serving is replaced (D3.6 step 5); AU_KEPT its path. A name already taken waits a second
+  local r="$AU_DATA/builds/$1" n= t i
+  AU_KEPT=
+  au_serving_read "$1" && au_mkdir "$r/kept" || return 1
+  for i in 1 2 3; do
+    n="$r/kept/$(au_now)-$AU_SV_BUILD"
+    [ -e "$n" ] || [ -L "$n" ] || break
+    sleep 1
+  done
+  [ ! -e "$n" ] && [ ! -L "$n" ] || return 1
+  t="$r/kept/.new.$$"
+  rm -f "$t"
+  cp "$r/serving" "$t" && chmod 600 "$t" && mv -f "$t" "$n" || { rm -f "$t"; return 1; }
+  AU_KEPT=$n
 }
 
 au_start_read() { # RECIPE -> AU_ST_CODE, AU_ST_ADDR, AU_ST_TIME from builds/<recipe>/start, written by the engine
@@ -672,8 +703,9 @@ au_server_check() { # RECIPE T0 [KEYFILE] -> AU_CHECK: passed, open or unanswere
   # Refused is HTTP 401 or 403 and nothing else: that request asks for one token, so that an open server
   # answers it at once, and any other code, a time-out or no answer is open (it fails closed; V6). Its
   # limit is what is left of the 180 s, at least 5 s and at most 30 s.
-  # passed writes the speed into serving when it holds 0; open stops the engine (disable, then bootout)
-  # and writes builds/stopped with the reason open; unanswered does nothing. AU_CHECK_WHY says why.
+  # passed writes the speed into serving when it holds 0, and deletes jobs/previous/ (Auster's programs from
+  # before an update changed them, B3 step 6: those now in place have passed); open stops the engine (disable,
+  # then bootout) and writes builds/stopped with the reason open; unanswered does nothing. AU_CHECK_WHY says why.
   local r=$1 t0=$2 w key= kf now i=0 code left
   AU_CHECK=unanswered AU_CHECK_WHY= AU_CHECK_SPEED=
   au_serving_read "$r" || { AU_CHECK_WHY="its descriptor cannot be read"; return 0; }
@@ -724,6 +756,7 @@ au_server_check() { # RECIPE T0 [KEYFILE] -> AU_CHECK: passed, open or unanswere
     return 0
   fi
   [ "$AU_SV_SPEED" = 0 ] && au_serving_speed "$r" "$AU_CHECK_SPEED"
+  if [ -e "$AU_DATA/jobs/previous" ] || [ -L "$AU_DATA/jobs/previous" ]; then rm -rf "$AU_DATA/jobs/previous"; fi
   AU_CHECK=passed
 }
 
@@ -948,13 +981,35 @@ au_cmd_verify() { # -> AD13: every file serving names, against its sha256: the m
   return 1
 }
 
-au_cmd_people() { # N -> C4, B6: refused while stopped. TODO(U5): the change of setting itself, the update's procedure
-  # for the build served with the recipe's limits from the fetched tree (1 to its default), then the check
+au_cmd_people() { # N -> C4, B6: the update's procedure for the build served only, at N people. Release's install.sh is
+  # fetched into a file, never into a pipe, as the update's .command file fetches it (HTTPS only, the person's curl
+  # settings ignored, at most 1 MiB, run only on a 200), and run as the pasted line runs it with `people N`: it fixes
+  # release's commit and fetches its tree, whose registry gives the recipe's limits (1 to its default), and its driver
+  # (au_people) asks, switches the setting and makes the server check. No other build is chosen, nothing is downloaded or
+  # tested, no program changed and no stamp written. Refused (1) while builds/stopped exists (B6) and while a run holds the
+  # lock (D3.1); it takes no lock itself, since the driver it runs takes it. Its exit code is the installer's
+  local n=$1 w code rc
   au_ready || return 1
-  au_lock_take || return 1
   au_refuse_stopped || return 1
-  au_say "Changing the number of people comes with a later version of Auster (U5); nothing was changed."
-  return 3
+  au_lock_read "$AU_DATA/builds/updating"
+  if [ "$AU_LOCK" = held ] && au_alive "$AU_LOCK_PID" "$AU_LOCK_BOOT" "$AU_LOCK_START"; then
+    au_say "Another run of Auster (process $AU_LOCK_PID) is installing, updating or changing the server. Wait for it to end, then try again."
+    return 1
+  fi
+  w=$(mktemp -d "${TMPDIR:-/tmp}/auster-people.XXXXXX") || { au_say "A temporary folder could not be made, so nothing was changed."; return 1; }
+  au_say "Fetching Auster's installer from github.com/macaiport/auster, for the recipe's limits ..."
+  code=$(curl -q --proto =https --proto-redir =https --tlsv1.2 -sS -L --max-time 60 --max-filesize 1048576 \
+    -o "$w/install.sh" -w '%{http_code}' "$AU_INSTALL_URL" 2>/dev/null)
+  rc=$?
+  if [ "$rc" != 0 ] || [ "$code" != 200 ] || [ ! -f "$w/install.sh" ] || [ -L "$w/install.sh" ] || [ "$(au_size "$w/install.sh")" -gt 1048576 ]; then
+    rm -rf "$w"
+    au_say "GitHub did not give Auster's installer (curl exit $rc, answer ${code:-none}), so nothing was changed. Check the network, then try again."
+    return 1
+  fi
+  /bin/bash -c "$(cat "$w/install.sh")" auster-install people "$n"
+  rc=$?
+  rm -rf "$w"
+  return "$rc"
 }
 
 au_cmd_later() { # COMMAND -> 3: a command of B6 that comes with a later version
@@ -1459,12 +1514,20 @@ au_status() { # -> B6: what serves, the engine job's last start, why the engine 
       0)
         port=$AU_SV_PORT
         au_say "Serving build $AU_SV_BUILD for $AU_SV_PEOPLE people at $AU_SV_CONTEXT each, on port $AU_SV_PORT."
-        [ "$AU_SV_SPEED" != 0 ] || au_say "It has not passed a server check since the switch: \`auster restart\` checks it." ;;
+        if [ "$AU_SV_SPEED" = 0 ]; then   # A5: not yet checked
+          au_say "It has not passed a server check since the switch: \`auster restart\` checks it."
+          [ -z "$(ls -A "$AU_DATA/builds/$r/kept" 2>/dev/null)" ] ||
+            au_say "\`auster rollback\` goes back to what it served before, with no download."
+        fi ;;
       2) ;;   # said above
       *) au_say "The record of what serves (builds/$r/serving) cannot be read." ;;
     esac
     au_start_read "$r" && au_say "The engine job's last start: $AU_ST_CODE."
   done
+  if [ -e "$AU_DATA/jobs/previous" ] || [ -L "$AU_DATA/jobs/previous" ]; then   # B3 step 6, T94
+    au_say "Auster's own programs were changed by an update, and the server has not passed a check since (jobs/previous holds the ones before)."
+    au_say "\`auster restart\` checks them; \`auster rollback\` puts the previous ones back, with no download."
+  fi
   au_stopped_read
   case "$AU_STOPPED:$AU_STOPPED_WHY" in
     no:*) ;;

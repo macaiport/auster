@@ -1,0 +1,3 @@
+# file: common/auster
+# start without the check: auster start deletes builds/stopped, starts the engine and says nothing more
+/^au_cmd_start()/,/^}/s/^  au_checked$/  return 0/

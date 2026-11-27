@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# put the build in failed/: a switch whose server check is not answered records its descriptor as a failed build
+/^au_switch_setting() {/,/^}/s/^    \*)$/    *) au_mkdir "$AU_DATA\/builds\/$r\/failed"; au_descriptor "$AU_DATA\/builds\/$r\/failed\/$(au_now)-$AU_JPICK" 0/

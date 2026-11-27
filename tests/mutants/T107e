@@ -1,0 +1,4 @@
+# file: common/auster
+# refuse start while builds/stopped says open: a server Auster stopped for being open is never started again
+/^au_cmd_start()/,/^}/s/^  if \[ "\$AU_STOPPED" = newer \]; then au_say_newer "\$AU_DATA\/builds\/stopped"; return 1; fi$/&\
+  if [ "$AU_STOPPED_WHY" = open ]; then au_say "Auster stopped the server because it was open, so it is not started again."; return 1; fi/

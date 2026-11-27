@@ -1,0 +1,3 @@
+# file: common/auster
+# delete jobs/previous before a check passes: every server check, an update's and auster restart's among them, deletes it first
+/^au_server_check() {/,/^}/s/^  AU_CHECK=unanswered AU_CHECK_WHY= AU_CHECK_SPEED=$/&; rm -rf "$AU_DATA\/jobs\/previous"/

@@ -1,0 +1,4 @@
+# file: common/driver.sh
+# a later update that does not check first when jobs/previous is there: it goes on to its change, or to the stamp
+s/^  if \[ -e "\$AU_DATA\/jobs\/previous" \] || \[ -L "\$AU_DATA\/jobs\/previous" \]; then prev=1; fi$/  :/
+/^au_update_programs() {/,/^}/s/^  elif \[ -e "\$prev" \] || \[ -L "\$prev" \]; then$/  elif false; then/

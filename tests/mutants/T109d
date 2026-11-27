@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# unload the jobs at a first install whose server check is not answered
+/^au_step13_check() {/,/^}/s/^    \*)$/    *) launchctl bootout "gui\/$AU_UID\/$AU_LABEL_ENGINE"; launchctl bootout "gui\/$AU_UID\/$AU_LABEL_CHECK"/

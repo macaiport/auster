@@ -1,0 +1,4 @@
+# file: common/driver.sh
+# put the programs back by itself: a failed check after the programs changed copies jobs/previous back into place
+/^au_programs_failed() {/,/^}/s/^  au_say "Only Auster's own programs changed/  [ -d "$AU_DATA\/jobs\/previous" ] \&\& for f in "$AU_DATA"\/jobs\/previous\/*; do case "${f##*\/}" in auster) cp -p "$f" "$AU_DATA\/bin\/auster" ;; *) cp -p "$f" "$AU_DATA\/jobs\/${f##*\/}" ;; esac; done\
+&/

@@ -1,0 +1,4 @@
+# file: common/auster
+# warn and leave it running: an open server is reported, but neither stopped nor recorded as stopped
+/^au_server_check() {/,/^}/s/^    au_engine_stop$/    :/
+/^au_server_check() {/,/^}/s/^    au_stopped_write open$/    :/

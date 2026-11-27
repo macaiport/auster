@@ -1,0 +1,3 @@
+# file: common/auster
+# bootout without disable, so that the next login starts the open server again
+/^au_engine_stop()/,/^}/s/^  launchctl disable "gui\/\$AU_UID\/\$AU_LABEL_ENGINE"$/  :/

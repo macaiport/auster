@@ -11,6 +11,8 @@
 #   install.sh --check <recipe id>   B3's steps up to the question, in a temporary folder deleted after;
 #                                    nothing is asked, and nothing changes in the data root (T64)
 #   install.sh update                the update (D3.6), by the driver of release's newest commit (U4)
+#   install.sh people <n>            the number of people at a time, 1 to 99 here and up to the recipe's default
+#                                    by the driver of release's newest commit; `auster people <n>` runs it (B6; U5)
 #   install.sh remove                remove an install that failed before bin/auster was written (B8)
 #
 # Which commit. GitHub's API names the commit `release` holds now (commits/heads/release, asked for as the
@@ -26,6 +28,7 @@
 # add an option, never change or remove one:
 #   /bin/bash <tree>/common/driver.sh install|check <recipe id> --commit C --line release|tag --version V [--withdrawals FILE]
 #   /bin/bash <tree>/common/driver.sh update|remove --commit C --line release --version V
+#   /bin/bash <tree>/common/driver.sh people <n> --commit C --line release --version V   (added by U5)
 #
 # Exit codes (B3): 0 done; 1 refused, or a fetch failed, and nothing of this run is left; 2 usage; and the
 # driver's own, as B3 gives them (3, 4, 5).
@@ -48,6 +51,7 @@ auster_install_usage() {
   printf '%s\n' "usage: install.sh <recipe id>            install the recipe the guide names" \
     "       install.sh --check <recipe id>    check that it would install, changing nothing" \
     "       install.sh update                 update Auster on this Mac" \
+    "       install.sh people <n>             serve <n> people at a time (auster people <n> runs it)" \
     "       install.sh remove                 remove an install that stopped before \`auster\` was written" >&2
 }
 
@@ -159,6 +163,7 @@ auster_install_main() {
     '') auster_install_usage; return 2 ;;
     --check) mode=check; recipe=${2:-}; [ $# -eq 2 ] || { auster_install_usage; return 2; } ;;
     update|remove) mode=$1; [ $# -eq 1 ] || { auster_install_usage; return 2; } ;;
+    people) mode=people; recipe=${2:-}; [ $# -eq 2 ] && [[ $recipe =~ ^[1-9][0-9]?$ ]] || { auster_install_usage; return 2; } ;;
     *) mode=install; recipe=$1; [ $# -eq 1 ] || { auster_install_usage; return 2; } ;;
   esac
   if [ "$mode" = install ] || [ "$mode" = check ]; then
@@ -196,7 +201,7 @@ auster_install_main() {
   auster_install_handover "$tree" "$mode" "$recipe" "$commit" "$line" "$version" "$wd"
 }
 
-auster_install_handover() { # TREE MODE RECIPE COMMIT LINE VERSION WITHDRAWALS -> the driver's exit code
+auster_install_handover() { # TREE MODE RECIPE COMMIT LINE VERSION WITHDRAWALS -> the driver's exit code (RECIPE is <n> for people)
   local a=("$2")
   [ -z "$3" ] || a+=("$3")
   a+=(--commit "$4" --line "$5" --version "$6")

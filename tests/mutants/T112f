@@ -1,0 +1,4 @@
+# file: common/driver.sh
+# write the stamp: `people` ends with step 15, as an update does
+/^  au_say "This Mac now serves \$AU_JP people at a time/i\
+  au_step15_stamp

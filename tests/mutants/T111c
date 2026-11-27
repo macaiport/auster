@@ -1,0 +1,3 @@
+# file: common/auster
+# write the speed in place: serving's launch line written over the file, not renamed into place
+/^au_serving_launch() {/,/^}/s/chmod 600 "\$t" && mv -f "\$t" "\$f" ||/chmod 600 "$t" \&\& cat "$t" > "$f" \&\& rm -f "$t" ||/

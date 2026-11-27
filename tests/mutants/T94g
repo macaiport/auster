@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# skip the trial run of the new bin/auster: it is put in place without answering status first
+s/^    if ! au_limited 60 "\$AU_RUN\/trial.out" \/bin\/bash "\$t" status; then$/    if false; then/

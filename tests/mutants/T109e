@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# switch back by itself: a switch whose server check is not answered puts the descriptor it kept back into serving
+/^au_switch_setting() {/,/^}/s/^    \*)$/    *) cp "$AU_KEPT" "$AU_DATA\/builds\/$r\/serving"/

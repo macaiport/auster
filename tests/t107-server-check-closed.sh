@@ -1,6 +1,6 @@
 # B3 step 13, the server check fails closed on the request with no key (V6, at the coordinator's word; this
-# file is not T107's row, which U5 builds with its mutants (a) to (e), but carries T107's number so that
-# `run.sh --mutants 107` runs it). The check, common/auster's au_server_check, is called as a first install
+# file is not T107's row, which t107-switch-open.sh tests with its mutants (a) to (e) (U5), but carries T107's
+# number so that `run.sh --mutants 107` runs it). The check, common/auster's au_server_check, is called as a first install
 # calls it, against the stub curl's routes for the home address: the question with a household key answered,
 # then the request with no key. Refused is HTTP 401 or 403 and nothing else: those pass. A 500, a 404, a 200,
 # or a request that times out (the stub curl's sleep, cut by the check's limit) is open: the engine is stopped

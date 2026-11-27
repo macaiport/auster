@@ -5,7 +5,7 @@
 # sizes come from the tree's registry: an _update/registry that says otherwise changes nothing. Serving order 1 at
 # 16,384 where 32,768 fits: the question names a change of setting on the same build, from 16,384 to 32,768, with no
 # download, and a restart only. A release whose own programs differ: the question says they change; and with no recipe
-# to change, the programs alone are asked about, and a no or a yes changes nothing.
+# to change, the programs alone are asked about, and a no changes nothing (what a yes does is T94's, U5).
 # Mutants: tests/mutants/T91b (reset people to the recipe's default), T91c (take the figures from _update/registry),
 # T91d (never say that Auster's programs change), and T91a (section C's).
 . "$TESTS/lib.sh"
@@ -50,7 +50,5 @@ update_run $'no\n'
 same "$RC" 1 "the programs alone change, answered no: exit 1"
 says "Auster's own programs change (from v0.1.0 to v0.2.0), and every recipe on this Mac serves what it should." "  ...the question is about the programs"
 says "The recipe household: OK." "  ...after the recipe's OK"
-update_run $'yes\n'
-same "$RC" 3 "  ...answered yes: exit 3, at U5's step"
-same "$(data_snap)" "$before" "  ...and neither answer changed anything: no program, no stamp"
+same "$(data_snap)" "$before" "  ...and the no changed nothing: no program, no stamp"
 done_

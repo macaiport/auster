@@ -1,0 +1,4 @@
+# file: common/driver.sh
+# run the test: a change of setting tests the build it serves, as a change of build does
+/^  au_kept_add "\$r" || au_stop "What it serves now could not be kept/i\
+  AU_CH_BUILD=$AU_JPICK AU_PEOPLE=$AU_JP AU_CONTEXT=$AU_JC; au_step9_engine; au_step10_test

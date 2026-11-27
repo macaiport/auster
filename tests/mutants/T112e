@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# change the build: `people` lets section C pick any build, as an update does, and switches to the one it picks
+s/^    --serving "\$AU_JNOW" --keep-build --people "\$AU_PEOPLE_N" /    --serving "$AU_JNOW" --people "$AU_PEOPLE_N" /
