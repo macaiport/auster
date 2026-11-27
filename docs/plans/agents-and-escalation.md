@@ -95,6 +95,31 @@ own and relays nothing: the household's Mac talks to the provider the household 
   never sent unless their owner says so, for that request. Memory goes as little as the question needs.
 - **Seen afterwards:** each escalation is listed for its owner, with what was sent and what it cost.
 
+### E2a. With no provider
+
+Staying wholly on the Mac is a choice a household may make on purpose, often the reason it runs Auster.
+So when a question would go onward and no provider is set up, Auster says so plainly and still answers.
+How sure it can be that a question "would go onward" depends on the signal:
+
+| Signal | How sure | What Auster says |
+|---|---|---|
+| The person asks ("ask the bigger model") | certain | That no data-center provider is set up, so this stays on the Mac; then the local model's answer |
+| The request is past the build's limits: a document longer than its context, an image for a model that reads only text | certain: Auster measures it | The limit in plain terms, and the local ways round it: ask about one part at a time, split the document |
+| A topic the household set to go onward | certain | As when the person asks, once a conversation |
+| The model seems out of its depth: it hedges, or the question is of a kind its build failed in testing | a guess | At most a light note that this may be past what this Mac's model does well, never more: a light model's hedging is a poor signal |
+
+- **Once, not every time:** one note a conversation, with "don't mention this again". It never presses
+  the household to take a provider.
+- **The Mac's own options first:** if the Mac has room for a larger local build, that is said before any
+  mention of a data center.
+- **Always the best local answer,** with its limits stated, rather than a refusal.
+- **Counted on the Mac:** how many questions might have done better with a larger model, by build, shown
+  in `auster status` ("12 this month"), so that a household can decide; and, if it shares a report
+  (`local-layer.md`, T1), it tells the project where each build falls short without anyone escalating.
+- **It needs the front door.** In v0.1 the chat goes straight to the engine's own page, so Auster cannot
+  add a note to an answer. Until the front door, only `auster status` could show the counts, and only of
+  what it can see.
+
 ### E3. Billing
 
 - **The household pays the provider directly,** with its own key. Auster never handles money and is never
@@ -166,7 +191,9 @@ stands as written: the household pays the provider directly and the project take
 
 The list of providers is curated like models (`local-layer.md`, C2): what qualifies (no training on the
 data, a stated retention, an OpenAI-style API), how often it is reviewed, and when one is removed. A
-household can add its own endpoint, marked as not curated.
+household can add its own endpoint, marked as not curated. **The list is a file in the repo,**
+released and fetched like the registry, so it needs no server of Auster's: curating is editing that file
+and releasing it, and each Mac reads it on its daily check.
 
 **Where a provider is, and who bills, are shown for each** (the owner, 2026-11-27). Many households in
 the US would rather pay a US company: a card issuer may flag a payment to a merchant abroad, or charge a
@@ -205,6 +232,9 @@ parked outside this plan, in `docs/concepts/central-services.md`.
   report.
 - **Never steered:** a tool result holding instructions starts no tool call and changes no goal.
 - **Nothing outward:** no tool sends, books or buys; a draft is only a draft.
+- **With no provider (E2a):** a request past the build's limits, and "ask the bigger model", each get the
+  local answer and one plain note, not a refusal; a second such question in the conversation gets no
+  second note; "don't mention this again" holds; a guess is never worded as certain.
 - **Escalation:** nothing goes to a provider while the link is off; with it on, the request carries only
   what was shown; a private topic is never in it without its owner's yes; the key never appears in a file,
   a log or a command line; the cap stops escalation at the limit.
