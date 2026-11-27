@@ -14,6 +14,10 @@ The ids
 Used only in lines the registry tests make at run time (tests/t48, t52):
   bsyn3jk2ujtyp  order 1 corrected (T52)        by5tj7eyogjys  a build naming an undefined engine
   bicef73fxu6v2  never defined (T48)            ewiqx4pcoartv  never defined (T48)
+Made for U3 (2026-11-27):
+  bnvcxbtneqk7r  a build of mxxcb4456zr2v, the model line whose file is $(touch f).gguf (made at run time by
+                 tests/t22-update-hostile.sh)
+  bxiegclg6uhkw  recipe C's build waiting in records.tsv: engine b12400 and model B, with C's files
 
 The household lines follow A6: real sizes, hashes and commits for the engine and both models, the
 system prompt c44bab6b...d02e49 and order 2's template 39f03c38...81fdcda. Two values are placeholders,
@@ -78,6 +82,14 @@ reasons.tsv          good-v0.1.0, `withdraw` order 1 `stolen` (not a known reaso
                      pattern: order 1 is withdrawn and shows only "withdrawn"), and two `withdraw` lines
                      for order 2 with the reasons `Security` and an escape sequence: both fail the
                      pattern and are passed over, so order 2 stays offered and is chosen (T21).
+records.tsv          The records of tests/fixtures/records/three named by a registry (U3): their engines,
+                     models and builds (each line byte for byte as the descriptors hold it), a recipe line
+                     for each of A, B and C (recipe-a, 4 people at 8,192 to 32,768; recipe-b, 2 at 8,192
+                     to 16,384; recipe-c, 1 at 8,192), and an order for each. A: its failed and held build
+                     first, then the build it serves, then its earlier one, so A is the same. B: the build
+                     it serves alone, withdrawn (quality), so B is withdrawn. C: a new build, bxiegclg6uhkw,
+                     of the engine and model C serves, then the build it serves, so C has that build
+                     waiting, with nothing to download (every file it names is in three's store/).
 
 Made at run time, not kept here: tests/helpers.sh registry_sized SRC BYTES OUT pads a registry with
 comment lines of at most 1,000 bytes to an exact size. good-v0.1.0.tsv padded to 524,288 bytes is

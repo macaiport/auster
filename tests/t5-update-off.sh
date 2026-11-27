@@ -24,5 +24,5 @@ fresh; stamp checkout v0.1.0 -; offer v0.1.0; quiet manual checkout "a stamp on 
 fresh; stamp tag v0.1.0; quiet manual tag "a stamp for a named version"
 fresh; quiet none - "no stamp"
 fresh; stamp release v0.1.0; answer 200 "$W/cl"
-same "$(upd --refresh | cut -f1,5):$(asks)" "ready${TAB}fetched:1" "the same folder with the stamp on release and no off: one request"
+same "$(upd --refresh | cut -f1,5):$(asks)" "ready${TAB}fetched:2" "the same folder with the stamp on release and no off: two requests"
 done_

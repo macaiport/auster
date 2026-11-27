@@ -8,8 +8,8 @@
 #     beside a library file and a link to it;
 #   - the model stand-ins of tests/helpers.sh, at Hugging Face addresses that name their commits;
 #   - a registry of the household recipe's form naming them, with A6's figures (install_registry);
-#   - release's CHANGELOG.md answering 404, as it does while there is no release branch, for the deployed
-#     updates.sh that the check job runs (U1); a test that wants an answer drops the route (route_drop).
+#   - release's CHANGELOG.md and registry.tsv answering 404, as they do while there is no release branch, for the
+#     deployed updates.sh that the check job runs (U1, U3); a test that wants an answer drops the route (route_drop).
 # The ids below are fixed here and never minted again.
 
 IR=rylaqjysaozx5     # the recipe (household, A6's form)
@@ -25,6 +25,7 @@ COMMIT2=0c1e3a5c7e9f1b3d5f7a9c1e3b5d7f9a1c3e5b7d
 API=https://api.github.com/repos/macaiport/auster/commits
 CODELOAD=https://codeload.github.com/macaiport/auster/tar.gz
 CHANGELOG=https://raw.githubusercontent.com/macaiport/auster/refs/heads/release/CHANGELOG.md   # updates.sh's fetch
+REGISTRY=https://raw.githubusercontent.com/macaiport/auster/refs/heads/release/registry.tsv    # and its second (U3)
 ENGINE_URL=https://github.com/ggml-org/llama.cpp/releases/download/b12359/llama-b12359-bin-macos-arm64.tar.gz
 ENGINE_CDN=https://objects.example.test/llama-engine
 REPO_A=unsloth/Mistral-Small-4-119B-2603-GGUF COMMIT_A=bd93c721735aa32c035c0f19e738cb3371fd56ff
@@ -58,6 +59,7 @@ install_env() { # -> W, a work folder; H, a home from make_home (a space, an apo
   install_tree "$FX/registry.tsv"
   commit_route heads/release "$COMMIT"
   curl_route GET "$CHANGELOG" 404 -   # as GitHub answers while there is no release branch (D3.9)
+  curl_route GET "$REGISTRY" 404 -
   curl_route GET "$ENGINE_URL" 302 - "Location: $ENGINE_CDN"
   curl_route GET "$ENGINE_CDN" 200 "$FX/engine.tar.gz"
   curl_route HEAD "$URL_A" 302 - "Location: https://cdn.example.test/a" "x-linked-size: 3400" "x-linked-etag: \"$SA\""

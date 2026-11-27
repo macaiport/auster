@@ -1,0 +1,5 @@
+# file: common/capability-lib.js
+# call any appropriate build that differs waiting
+s/^  out.pick = l.pick ? l.pick.id : null;$/&\
+  var any = r.builds.filter(function (e) { return e.appropriate \&\& e.id !== o.serving; })[0];\
+  if (any \&\& out.state === 'same') { out.state = 'waiting'; out.pick = any.id; l = { state: 'waiting', pick: any }; }/

@@ -1,0 +1,3 @@
+# file: common/auster
+# call a Mac current when its scripts are
+s/^        au_say "Auster \$inst is the newest version at the last update check, and an update is waiting for this Mac (below)."$/        au_say "Auster $inst is the newest version at the last update check."; return 0/

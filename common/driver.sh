@@ -18,7 +18,9 @@
 # before the stamp (D3.1, T43). U2 (2026-11-27): the records written here are read back by common/auster's
 # readers (its header lists them); step 3 refuses when any record of D3.1 is of a newer format, and when any folder
 # in the data root is not this account's alone; the stamp is read by the one-line reader; builds/local-name is
-# written with builds/mac (T6, T33, T36, T54, T55, T95, T116). What later steps complete is marked TODO:
+# written with builds/mac (T6, T33, T36, T54, T55, T95, T116). U3 (2026-11-27): step 3 also copies registry.js into
+# jobs/, which the rule file runs for each recipe's line; and au_bytes and its kin moved to common/auster.
+# What later steps complete is marked TODO:
 #   U4  `update`, and a run on a Mac that already serves the recipe (B3's update-only branches, D3.6);
 #   U5  the server check's callers other than a first install, exit code 4's tests, and kept/ (the switch).
 #
@@ -94,27 +96,7 @@ au_cleanup() {
 au_made() { AU_CREATED+=("$1"); }
 
 # --- small things -------------------------------------------------------------------------------------
-
-au_commas() { # N -> N with commas between thousands
-  local n=$1 out=
-  while [ ${#n} -gt 3 ]; do out=",${n: -3}$out"; n=${n:0:${#n}-3}; done
-  printf '%s' "$n$out"
-}
-
-au_tenths() { # NUMERATOR DENOMINATOR -> the quotient to one decimal place, rounded
-  local t=$(( ($1 * 10 + $2 / 2) / $2 ))
-  printf '%s.%s' $((t / 10)) $((t % 10))
-}
-
-au_bytes() { # BYTES -> a size as Finder gives it: GB and MB of 1,000, bytes below
-  if [ "$1" -ge 1000000000 ]; then printf '%s GB' "$(au_tenths "$1" 1000000000)"
-  elif [ "$1" -ge 1000000 ]; then printf '%s MB' "$(au_tenths "$1" 1000000)"
-  else printf '%s bytes' "$(au_commas "$1")"; fi
-}
-
-au_memory() { # MIB -> memory as About This Mac gives it: GB of 1,024 MiB
-  printf '%s GB' "$(au_tenths "$1" 1024)"
-}
+# (au_commas, au_tenths, au_bytes and au_memory are common/auster's since U3: `auster status` uses them too)
 
 au_duration() { # SECONDS -> roughly how long
   local m=$((($1 + 30) / 60))
@@ -233,6 +215,8 @@ au_step3_root() {
   au_program "$AU_TREE/common/registry-lib.js" "$AU_DATA/jobs/registry-lib.js" 644
   au_program "$AU_TREE/common/capability-lib.js" "$AU_DATA/jobs/capability-lib.js" 644
   au_program "$AU_TREE/common/capability.js" "$AU_DATA/jobs/capability.js" 644
+  # _update/updates.sh runs capability.js and registry.js from here for each recipe's line (U3, D3.3)
+  au_program "$AU_TREE/common/registry.js" "$AU_DATA/jobs/registry.js" 644
   au_program "$AU_TREE/tools/mint-id" "$AU_DATA/jobs/mint-id" 644   # for `auster key add` (B7, A2)
 }
 

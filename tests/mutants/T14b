@@ -1,0 +1,3 @@
+# file: common/updates.sh
+# fetch the registry only when a newer version shows
+s/^  rcode=\$("\$curl" /  auu_newer "$(auu_version_of "$tmp")" "$AUU_INSTALLED" \&\& rcode=$("$curl" /

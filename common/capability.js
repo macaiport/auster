@@ -12,6 +12,8 @@
 //   --loaded BUILD PEOPLE CONTEXT   a build loaded now, at its setting (C5); may be given more than once
 //   --held BUILD, --failed BUILD    a build in the recipe's `hold`, or in `failed/` (D3.7); each may be
 //                              given more than once
+//   --hold-unreadable          the recipe's `hold` cannot be read: every build is held (D3.1), so that the
+//                              recipe is passed over and the hold never taken as empty (U3)
 //   --mac FILE                 the `mac` record
 //   --list-devices FILE        the engine's --list-devices output (the GPU limit, measured)
 //   --ram BYTES                `sysctl -n hw.memsize` (the memory, measured)
@@ -66,9 +68,17 @@
 //   needs     <build id> <people> <context> <gpu MiB> <in all MiB> <gpu limit MiB> <memory MiB>
 //             with `refused fit`: the smallest build at the recipe's minimum context, and the GPU limit
 //             and memory a Mac needs for it
+//   line      <state> <build picked> <withdrawal> <reasons> <download bytes>
+//             with --serving and without --keep-build, whatever the exit code (U3): D3.3's line for the
+//             recipe (capability-lib.js's auCapRecipeLine). state: same, waiting, withdrawn, passed-over, or
+//             unreadable (the registry not read, or naming no such recipe). build picked: the build D3.7
+//             picks, or -, never for passed-over. withdrawal: of the build served, a reason A3 lists,
+//             `other`, or -. reasons: for passed-over and withdrawn, comma-separated: withdrawn, tier, held,
+//             failed, fit, room, or one refusal's code (figures, people); - otherwise. download: for waiting,
+//             the bytes the build picked would fetch that the disk holdings do not hold; - otherwise
 //
 // Lines come in this order: figures, build, then choice or refused, then disk, remove, room and needs
-// where they apply.
+// where they apply, then line.
 ObjC.import('Foundation');
 ObjC.import('stdlib');
 
@@ -96,7 +106,7 @@ function run(argv) {
   function usage(why) {
     auWrite(err, 'capability.js: ' + why + '\nusage: osascript -l JavaScript capability.js <registry.tsv> <recipe id> [--people N] ' +
       '[--serving BUILD] [--keep-build] [--loaded BUILD PEOPLE CONTEXT]... [--held BUILD]... [--failed BUILD]... ' +
-      '[--mac FILE] [--list-devices FILE] [--ram BYTES] [--df FILE] [--disk FILE]\n');
+      '[--hold-unreadable] [--mac FILE] [--list-devices FILE] [--ram BYTES] [--df FILE] [--disk FILE]\n');
     $.exit(2);
   }
   var P = AU_REG_PATTERNS, PEOPLE = /^[1-9][0-9]?$/, CONTEXT = /^(0|[1-9][0-9]{0,6})$/;
@@ -112,13 +122,14 @@ function run(argv) {
   }
   while (i < argv.length) {
     var a = argv[i++];
-    if (/^--(people|serving|keep-build|mac|list-devices|ram|df|disk)$/.test(a)) {
+    if (/^--(people|serving|keep-build|hold-unreadable|mac|list-devices|ram|df|disk)$/.test(a)) {
       if (once[a]) usage(a + ' is given twice');
       once[a] = true;
     }
     if (a === '--people') { o.people = parseInt(next(PEOPLE, 'people'), 10); if (o.people > 64) usage('people is over 64'); }
     else if (a === '--serving') o.serving = next(P.buildId, 'the build served');
     else if (a === '--keep-build') o.keepBuild = true;
+    else if (a === '--hold-unreadable') o.holdUnreadable = true;
     else if (a === '--loaded') {
       var lb = next(P.buildId, 'a loaded build'), lp = parseInt(next(PEOPLE, 'its people'), 10), lc = parseInt(next(CONTEXT, 'its context'), 10);
       if (lp > 64 || lc > 1048576) usage('a loaded setting is over its ceiling');
@@ -155,6 +166,8 @@ function run(argv) {
 
   var reg = auRegRead(argv[0]);
   var r = auCapChoose(reg, argv[1], o);
-  auWrite($.NSFileHandle.fileHandleWithStandardOutput, auCapReport(r).join('\n') + '\n');
+  var lines = auCapReport(r);
+  if (o.serving && !o.keepBuild) lines.push(auCapLineReport(auCapRecipeLine(reg, argv[1], o, r)));
+  auWrite($.NSFileHandle.fileHandleWithStandardOutput, lines.join('\n') + '\n');
   $.exit(r.ok ? 0 : 3);
 }

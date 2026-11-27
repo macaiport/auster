@@ -1,8 +1,8 @@
 # T1, its version half (D3.2): with no build waiting, a newer version on offer gives `ready` and the same or an
 # older one `current`. The fixture holds v0.10.0 and v0.9.0, which versions compared as text get wrong. The
-# half with a build waiting is U3's. With it, the cases of 1launcher's test of the rule file that still apply
-# here: a file's version, `newer`, each word of the state line in D3.2's order, and the records the state
-# reads, `scripts` and `offer`, counting as absent when they are a link, a folder, two lines, a field too many
+# half with a build waiting is t1-update-waiting.sh (U3). With it, the cases of 1launcher's test of the rule
+# file that still apply here: a file's version, `newer`, each word of the state line in D3.2's order, and the
+# records the state reads, `scripts` and `offer`, counting as absent when they are a link, a folder, two lines, a field too many
 # or too few, an empty field (runs of tabs), over 4,096 bytes, CRLF, a format field that is not
 # `auster-record 1`, or a value that fails its pattern, `a[$(touch f)]` among them (and f is never made); a
 # newer format's stamp gives `none` with the detail `newer`. And the file can be sourced twice under set -eu.

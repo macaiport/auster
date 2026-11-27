@@ -1,0 +1,3 @@
+# file: common/capability-lib.js
+# offer every build the registry lists, fit or not
+s/^    if (!n) codes.push('fit');$/    if (false) codes.push('fit');/

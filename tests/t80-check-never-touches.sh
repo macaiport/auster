@@ -1,21 +1,21 @@
 # T80: the check job never stops, starts or restarts the engine (B5, D2.2). A gate on the source: its program
-# and everything it loads (capability.js and the two files that file loads, and updates.sh once U1 adds it)
-# hold no launchctl, kill or pkill; the copies in jobs/ are the tree's. And the engine, started by launchd
-# (the stub launchctl and its hook), keeps its process after every probe: one that answers, one after the
-# address changed, one while it answers HTTP 500, one while it is open; the stub launchctl logs no call from
-# the check job. Mutant: tests/mutants/T80a.
+# and everything it loads (capability.js and the two files that file loads, updates.sh, and registry.js, which
+# updates.sh runs for each recipe's line since U3) hold no launchctl, kill or pkill; the copies in jobs/ are the
+# tree's. And the engine, started by launchd (the stub launchctl and its hook), keeps its process after every
+# probe: one that answers, one after the address changed, one while it answers HTTP 500, one while it is open;
+# the stub launchctl logs no call from the check job. Mutant: tests/mutants/T80a.
 . "$TESTS/lib.sh"
 . "$TESTS/helpers.sh"
 . "$TESTS/install-helpers.sh"
 . "$TESTS/job-helpers.sh"
 job_install
 export AU_CHECK_LIMIT=3
-for f in common/auster-check common/capability.js common/capability-lib.js common/registry-lib.js common/updates.sh; do
+for f in common/auster-check common/capability.js common/capability-lib.js common/registry-lib.js common/registry.js common/updates.sh; do
   [ -f "$ROOT/$f" ] || continue
   hits=$(grep -n -w -E 'launchctl|kill|pkill' "$ROOT/$f")
   same "$hits" "" "$f holds no launchctl, kill or pkill"
 done
-for f in auster-check capability.js capability-lib.js registry-lib.js; do
+for f in auster-check capability.js capability-lib.js registry-lib.js registry.js; do
   case "$f" in auster-check) src=$ROOT/common/auster-check ;; *) src=$ROOT/common/$f ;; esac
   cmp -s "$src" "$DATA/jobs/$f" && ok "jobs/$f is the tree's" || bad "jobs/$f differs from the tree's"
 done

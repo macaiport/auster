@@ -8,7 +8,8 @@
 #   path_of REC         where REC lives in D
 #   good REC FILE       REC in its form, as Auster writes it, into FILE
 #   readers_of REC      the readers of REC: `auster.*` common/auster's (the driver's and bin/auster's), `engine.*` and
-#                       `check.*` the jobs', `updates.*` the rule file's, `js.mac` section C's (capability-lib.js)
+#                       `check.*` the jobs', `updates.*` the rule file's (its descriptor and hold readers since U3),
+#                       `js.mac` section C's (capability-lib.js)
 #   read_with READER FILE   one word: ok (read, and equal to what `good` wrote), absent, newer, unreadable (a hold
 #                       that passes its recipe over), unknown (stopped, the reason unknown), or other
 #   make_case REC CASE FILE   FILE as one of T6's cases: link (to a good copy), folder, big (beyond its bound),
@@ -84,9 +85,9 @@ good() {
 
 readers_of() {
   case "$1" in
-    serving) echo auster.desc engine.serving check.serving ;;
-    kept|failed) echo auster.entry ;;
-    hold) echo auster.hold ;;
+    serving) echo auster.desc engine.serving check.serving updates.serving ;;
+    kept|failed) echo auster.entry updates.entry ;;
+    hold) echo auster.hold updates.hold ;;
     start) echo auster.start check.start ;;
     mac) echo auster.mac engine.mac check.mac js.mac ;;
     updating) echo auster.lock check.live ;;
@@ -137,8 +138,13 @@ read_with() {
     check.state) ( . "$W/check-readers.sh"; DATA=$D; state_read || exit 2; [ "$ST_RESULT:$ST_SPEED" = ok:36.9 ] ) > /dev/null 2>&1 || rc=$?; _tok $rc ;;
     js.mac) osascript -l JavaScript "$W/mac.js" "$ROOT" "$f" 2>/dev/null ;;
     updates.scripts)
-      o=$(_upd eval '_auu_state; printf "%s:%s" "$AUU_INSTALLED" "$AUU_DETAIL"')
+      o=$(_upd eval '_auu_state versions; printf "%s:%s" "$AUU_INSTALLED" "$AUU_DETAIL"')
       case "$o" in v0.1.0:*) echo ok ;; *:newer) echo newer ;; *) echo absent ;; esac ;;
+    updates.serving) _upd _auu_desc "$f" || rc=$?; _tok $rc ;;
+    updates.entry) _upd _auu_entry "$f" || rc=$?; _tok $rc ;;
+    updates.hold)
+      o=$(_upd eval "_auu_hold $IR; printf '%s:%s' \"\$AUU_HOLD\" \"\${AUU_HOLD_IDS[*]:-}\"")
+      case "$o" in "ok:$IB1 $IB2") echo ok ;; ok:*) echo other ;; *) echo "${o%%:*}" ;; esac ;;
     updates.offer) o=$(_upd _auu_offer) || rc=$?; [ "$rc:$o" = 0:v0.2.0 ] && echo ok || _tok $rc ;;
     updates.tried)
       o=$(_upd eval '_auu_read "$AU_UPDATE_DIR/tried" 1 || exit $?; [[ ${_AUU_F[0]} =~ $_AUU_TIME ]] || exit 1; printf %s "${_AUU_F[0]}"') || rc=$?

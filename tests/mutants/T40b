@@ -1,0 +1,3 @@
+# file: common/registry-lib.js
+# fail the whole file on an unknown kind
+s/^  if (!k) return auRegPass(ln, 'a kind this version does not know');$/  if (!k) throw new Error('a kind this version does not know');/

@@ -1,0 +1,3 @@
+# file: common/updates.sh
+# a build waiting does not make the word ready
+s/^  \[ "\$AUU_WAITING" = 0 \] || AUU_WORD=ready$/  :/

@@ -1,9 +1,10 @@
 # T43 (D3.1, D3.2): after an install, _update/updates.sh equals the tree's common/updates.sh byte for byte, mode
 # 0644 as the jobs' programs, written with the stamp (B3 step 15). The check job runs that copy, which takes
 # _update as its folder: with release's changelog naming a newer version, the check writes `tried` and `offer`
-# there. And a caller that uses only an earlier version's options and output fields still works: the caller
-# below is written against the contract as U1 leaves it (common/updates.sh's header), runs the deployed copy as
-# the check job does (no AU_UPDATE_DIR), and reads only the fields U1 prints, by position.
+# there (and, since U3, the registry, its second request). And a caller that uses only an earlier version's
+# options and output fields still works: the caller below is written against the contract as U1 leaves it
+# (common/updates.sh's header), runs the deployed copy as the check job does (no AU_UPDATE_DIR), and reads only
+# the fields U1 prints, by position.
 # Mutants: tests/mutants/T43a (deploy nothing) and T43b (rename an option).
 . "$TESTS/lib.sh"
 . "$TESTS/helpers.sh"
@@ -17,14 +18,17 @@ same "$(cut -f1,2 "$DATA/_update/scripts")" "auster-record 1	release" "  ...besi
 same "$(ls -A "$DATA/_update" | grep '^\.')" "" "  ...and nothing temporary left beside them"
 
 # --- the check job runs the deployed copy, in _update
-route_drop "$CHANGELOG"
+route_drop "$CHANGELOG"; route_drop "$REGISTRY"
 printf '# Changelog\n\n## Unreleased\n\n## v0.2.0 (2026-12-01)\n\n**Two.** Second.\n\n## v0.1.0 (2026-11-27)\n\nFirst.\n' > "$FX/changelog.md"
 curl_route GET "$CHANGELOG" 200 "$FX/changelog.md"
+install_registry "$FX/registry-v0.2.0.tsv" v0.2.0; curl_route GET "$REGISTRY" 200 "$FX/registry-v0.2.0.tsv"   # U3: the second request
 AU_CHECK_LIMIT=5 check_job
 grep -q 'the update check ran' "$W/check.out" && ok "the check job ran the update check" || bad "check.out: $(tail -n 5 "$W/check.out")"
 same "$(cut -f1,2 "$DATA/_update/offer" 2>/dev/null)" "auster-record 1	v0.2.0" "  ...which wrote offer in _update"
 same "$(cut -f1 "$DATA/_update/tried" 2>/dev/null)" "auster-record 1" "  ...and tried"
-same "$(requests raw.githubusercontent.com)" "GET $CHANGELOG" "  ...after one request, to release's changelog"
+same "$(requests raw.githubusercontent.com)" "GET $CHANGELOG
+GET $REGISTRY" "  ...after two requests, to release's changelog and registry"
+same "$(cmp -s "$DATA/_update/registry" "$FX/registry-v0.2.0.tsv" && echo same)" same "  ...and kept the registry in _update"
 
 # --- an earlier version's caller: U1's options, and only the fields U1 prints, by position
 WORDS=' off none manual unknown ready current '

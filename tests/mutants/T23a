@@ -1,0 +1,3 @@
+# file: common/updates.sh
+# use the registry whatever its version line
+s/^     \&\& \[ "\$(_auu_reg_version "\$reg")" = "\$ver" \]; then$/     ; then/

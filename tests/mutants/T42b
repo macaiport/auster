@@ -1,0 +1,3 @@
+# file: common/updates.sh
+# put tried back on the second request's no route too
+s/^  rcode=\$("\$curl" \(.*\) || rrc=\$?$/  rcode=$("$curl" \1 || rrc=$?; if [ "$rrc" = 6 ] || [ "$rrc" = 7 ]; then rm -f "$tmp" "$reg" "$AU_UPDATE_DIR\/tried"; return 0; fi/

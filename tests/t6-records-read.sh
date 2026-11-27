@@ -6,7 +6,7 @@
 # that cannot be read means stopped, the reason unknown. Each record's good form reads first, so that a case fails
 # for what it holds. An entry of kept/ or failed/ not named by its date and build is absent too, and a build line
 # with a field this version does not know still reads (A5). The records are made by hand (tests/records-helpers.sh).
-# Mutants: tests/mutants/T6a to T6d.
+# Mutants: tests/mutants/T6a to T6d, and T6g (the rule file's own hold reader, U3: an unreadable hold as no holds).
 . "$TESTS/lib.sh"
 . "$TESTS/helpers.sh"
 . "$TESTS/install-helpers.sh"

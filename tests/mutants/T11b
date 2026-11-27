@@ -1,0 +1,3 @@
+# file: common/registry-lib.js
+# ignore the tier
+s/^    if (!e.tierAllowed) e.why.push('tier');$/    if (false) e.why.push('tier');/

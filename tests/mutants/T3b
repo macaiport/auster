@@ -1,0 +1,3 @@
+# file: common/updates.sh
+# remove the size check after the registry's fetch
+s/ \&\& \[ "\$rsize" -le "\$_AUU_CAP" \] \\$/ \\/

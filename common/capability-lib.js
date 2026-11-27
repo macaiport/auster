@@ -126,6 +126,8 @@
 //     keepBuild,       true for `auster people`: the build served only, at the new setting (B6)
 //     loaded,          [{ build, people, context }]: what is loaded now (C5); [] at a first install
 //     held, failed,    build ids the recipe's `hold` and `failed/` name (D3.7); the judge adds them
+//     holdUnreadable,  true when the recipe's `hold` cannot be read: every build is judged `held`, so that
+//                      the recipe is passed over and the hold never taken as empty (D3.1; U3)
 //     holdings }       auCapParseDisk's answer, or null when nothing is on disk
 //
 // How the build is chosen. Every build in the recipe's latest order is judged (registry-lib.js's hook):
@@ -158,6 +160,16 @@
 //               recipe's minimum, and the GPU limit and memory a Mac needs for it (C3 turned round)
 //
 // auCapReport(result) -> the lines common/capability.js prints (its header describes them).
+//
+// auCapRecipeLine(reg, recipeId, o, result) -> D3.3's line for a recipe this Mac serves (U3), from auCapChoose's
+// result on an update (o.serving set, o.keepBuild not): { state, pick, withdrawn, reasons, download }. state is
+// registry-lib.js's auRegRecipeLine's (same, waiting, withdrawn or `passed over`), with its pick and its reasons,
+// judged with every code above; or `unreadable` when the registry was not read or names no such recipe (D3.3's
+// `passed over (cannot be read)`). Two refusals change it: a build waiting with no room on disk, even after the
+// removals the disk rule allows, is passed over with `room`; a refusal before any build is judged (figures, people)
+// passes the recipe over with that code. withdrawn is the withdrawal of the build served, whatever the state (D3.8);
+// download, for waiting, the bytes the build would fetch that the holdings do not hold.
+// auCapLineReport(line) -> its `line` record (common/capability.js's header).
 
 var AU_CAP_MIB = 1048576;
 var AU_CAP_GIB = 1073741824;
@@ -402,7 +414,7 @@ function auCapOnly(list, code) { // the entries ruled out by this code alone, in
 
 function auCapChoose(reg, recipeId, o) {
   var out = { ok: false, refused: null, detail: [], figures: o.figures, people: null, builds: [], choice: null,
-    disk: null, removals: [], room: [], needs: null };
+    disk: null, removals: [], room: [], needs: null, recipeLine: null };
   var st = auRegRecipeState(reg, recipeId);
   if (st === 'unreadable' || st === 'absent') return auCapRefuse(out, 'registry', [st]);
   var f = o.figures;
@@ -424,7 +436,7 @@ function auCapChoose(reg, recipeId, o) {
     var runs = auCapTop(e.model, recipe) >= recipe.contextMin;
     e.cap = { context: n, needs: n ? auCapNeeds(e.build, people, n) : runs ? auCapNeeds(e.build, people, recipe.contextMin) : null,
       download: auCapDownload(e, holdings) };
-    if ((o.held || []).indexOf(e.id) >= 0) codes.push('held');
+    if (o.holdUnreadable || (o.held || []).indexOf(e.id) >= 0) codes.push('held');
     if ((o.failed || []).indexOf(e.id) >= 0) codes.push('failed');
     if (!n) codes.push('fit');
     if (n && first && disk && f.diskFree - e.cap.download < floor) codes.push('room');   // BD13
@@ -440,7 +452,7 @@ function auCapChoose(reg, recipeId, o) {
     if (own.cap.context) pick = own;
     fitOnly = [own];
   } else {
-    if (o.serving) pick = auRegRecipeLine(reg, recipeId, o.serving, judge).pick;
+    if (o.serving) { out.recipeLine = auRegRecipeLine(reg, recipeId, o.serving, judge); pick = out.recipeLine.pick; }
     else pick = auRegFirstAppropriate(list);
     if (!pick) pick = auCapOnly(list, 'room')[0] || null;   // fits in memory: the disk rule below says why it cannot be fetched
     fitOnly = auCapOnly(list, 'fit');
@@ -515,4 +527,26 @@ function auCapReport(r) {
     out.push(['needs', s.id, s.people, s.context, s.gpuMiB, s.totalMiB, s.gpuLimitMiB, s.memoryMiB].join(T));
   }
   return out;
+}
+
+// --- D3.3's line for a recipe this Mac serves (U3; the header describes it) ----------------------------------
+
+function auCapRecipeLine(reg, recipeId, o, r) {
+  var w = o.serving && reg.ok && reg.withdrawn.hasOwnProperty(o.serving) ? reg.withdrawn[o.serving] : null;
+  var out = { state: 'passed over', pick: null, withdrawn: w, reasons: [], download: null };
+  if (r.refused === 'registry') { out.state = 'unreadable'; return out; }
+  var l = r.recipeLine;
+  if (!l) { out.reasons = [r.refused || 'figures']; return out; }   // refused before any build was judged
+  out.state = l.state;
+  out.reasons = l.reasons.slice();
+  out.pick = l.pick ? l.pick.id : null;
+  if (l.state === 'waiting' && r.refused === 'room') { out.state = 'passed over'; out.reasons = ['room']; out.pick = null; }
+  else if (l.state === 'waiting') out.download = l.pick.cap ? l.pick.cap.download : null;
+  return out;
+}
+
+function auCapLineReport(line) {
+  var w = line.withdrawn ? (line.withdrawn.known ? line.withdrawn.reason : 'other') : '-';
+  return ['line', line.state.replace(' ', '-'), line.pick || '-', w, line.reasons.length ? line.reasons.join(',') : '-',
+    line.download === null ? '-' : line.download].join('\t');
 }
