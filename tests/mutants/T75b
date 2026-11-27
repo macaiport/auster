@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# StartInterval in place of StartCalendarInterval
+s|"	<key>StartCalendarInterval</key>" "	<array>"|"	<key>StartInterval</key>" "	<integer>14400</integer>" "	<key>Firings</key>" "	<array>"|

@@ -1,0 +1,3 @@
+# file: common/auster-engine
+# pass the model by absolute path
+s|^exec env -i PATH="\$ENGINE_PATH" "\$root/\$program" -m "\$model"|exec env -i PATH="$ENGINE_PATH" "$root/$program" -m "$DATA/store/$model"|

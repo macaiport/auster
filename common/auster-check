@@ -1,10 +1,462 @@
 #!/bin/bash
 # jobs/auster-check: the check job's program (docs/plans/v0.1.md, B5), run by launchd as
-# `/bin/bash <data root>/jobs/auster-check`. Copied byte for byte from the tree's common/auster-check
-# (B3 step 3), and replaced by rename.
+# `/bin/bash <data root>/jobs/auster-check` with PATH=/usr/bin:/bin:/usr/sbin:/sbin, when it is loaded and at
+# seven minutes past every fourth hour. Copied byte for byte from the tree's common/auster-check (B3 step 3),
+# and replaced by rename; it loads section C from jobs/capability.js, copied beside it with the two files that
+# file loads.
 #
-# A placeholder written by V5 (2026-11-26) so that a first install has a program for its job file: it
-# does nothing and exits 0, which is also what the check job does whenever updates.sh is missing (D3.4).
-# TODO(V6): the update check, the engine probe on 127.0.0.1, the address, the figures, the logs and the
-# notification (B5), with their tests (T77 to T80, T105); U7 joins it to updates.sh.
+# Built by V6 (2026-11-26); its tests are T77 to T80 and T105, and T107's file for the probe's half of the
+# rule that the check fails closed. U7 joins it to updates.sh's output (the notifications of an update
+# waiting, TODO(U7)) and U8 to withdrawn builds (TODO(U8)).
+#
+# It only reads and records (D2.2, D3.4): it never stops, starts or restarts the engine, and its program and
+# everything it loads hold no command that could (T80 is a gate on the source). Its probe waits in line like
+# any request. Each run, B5's steps in order, every part with a time limit:
+#   1. the update check: `_update/updates.sh --refresh` (U1 deploys it); while it is absent, no update check,
+#      and the log says so;
+#   2. the engine probe on 127.0.0.1 (below);
+#   3. the address: the home address now, found as the engine job finds it (B4 step 5), against `start`'s;
+#   4. figures: whether the build served still fits this Mac (section C, common/capability.js) at its setting,
+#      with today's memory and the GPU limit in builds/mac;
+#   5. logs: a log in logs/ above 50 MB (50,000,000 bytes) is truncated in place, so that the engine, which
+#      launchd gave the file open for appending, writes its next line at its start (T105);
+#   6. notifications, in fixed words (D3.5), once for each change of state; then `_update/engine` is written.
+# With no `_update` (moved to the Trash, D3.1), or a data root not this account's alone, it does nothing.
+#
+# Time limits. Each request has curl's --max-time; each part also has a watchdog of this job's own, since
+# /usr/bin/timeout is not assumed (it may not exist before macOS 26, T79): the part runs in the background,
+# and a part still running at its limit is left behind and counted as failed. Nothing here signals it: when
+# the job ends, launchd ends what is left of its process group (launchd.plist, AbandonProcessGroup). Limits:
+# /health 10 s, the speed question 120 s, the request with no key 30 s, the probe 170 s in all; the update
+# check 60 s; the address 30 s, the figures 60 s, the logs 60 s, a notification 30 s. Test variable:
+# AU_CHECK_LIMIT, a whole number of seconds from 1, replaces the probe's three limits and the update
+# check's, and the probe's slack, so that a test of a hang ends in seconds.
+#
+# The probe (B5 step 2). Skipped, with the result `stopped` (never notified), while builds/stopped exists,
+# whatever it holds; skipped with nothing recorded while builds/updating or builds/paused names a live run of
+# Auster (an install, update or command that makes its own server check, B3 step 13), or serving cannot be
+# read. Otherwise, to http://127.0.0.1:<port>: /health; the speed question (A5) with Auster's own key
+# (keys/probe), passed in a header file and never on a command line; and the request with no key, the same
+# question asking for one token. Results:
+#   down     nothing listens (the question's connection is refused);
+#   open     the engine is up (/health 200, or the question answered 200) and the request with no key was not
+#            refused: refused is HTTP 401 or 403 and nothing else, and any other code, a time-out or no
+#            answer is open (B3 step 13: it fails closed);
+#   ok       the question answered 200 with a writing rate at least half this Mac's own baseline, the speed
+#            in serving's launch line (A5), or with any rate while that speed is 0;
+#   slow     a rate below half the baseline (never while it is 0);
+#   broken   /health 200 and the question HTTP 500, while the speed is not 0 (BD19);
+#   failed   anything else: another code, an answer with no rate, no answer within 120 s, a probe stopped
+#            by its watchdog, and /health 200 with HTTP 500 while the speed is 0.
+#
+# Notifications (B5 step 6), each one fixed sentence passed to osascript as an argument: `open` and `broken`
+# at once; `failed` or `down` on the second run in a row, or at once while the speed is 0, in a sentence
+# that names `auster rollback` when kept/ holds an entry and `auster status` when it does not; the address
+# changed; the build no longer fits. Each once for each change of state: `ok` or `slow` (and `stopped`)
+# clear the probe's, an address equal to `start`'s clears the address's, a build that fits clears the
+# figures'.
+#
+# `_update/engine` (D3.1), written to a temporary file and renamed. Seven lines, each ending in a newline,
+# exactly these keys in this order, one tab between fields; its reader takes nothing else (bound 1,024 bytes)
+# and treats anything else as absent (nothing notified, no failures counted):
+#   auster-record 1
+#   probe<TAB><result or ->        <TAB><speed or -><TAB><seconds since 1970, or ->   the last probe
+#   failures<TAB><n>               failed or down runs in a row
+#   address<TAB><address or ->     the home address the last run found
+#   told-probe<TAB><open|broken|failed|down|->   the probe's state already notified
+#   told-address<TAB><address or ->              the changed address already notified
+#   told-fit<TAB><yes|no>          whether "no longer fits" is already notified
+# A record of a newer format is left as it is, and nothing is notified.
+#
+# Its exit code is always 0 (D3.4: launchd's view of it is not used).
+set -u
+export LC_ALL=C
+T=$'\t'
+LOG_MAX=50000000
+L_HEALTH=10 L_QUESTION=120 L_NOKEY=30 L_UPDATE=60 SLACK=10
+if [[ ${AU_CHECK_LIMIT:-} =~ ^[1-9][0-9]{0,3}$ ]]; then
+  L_HEALTH=$AU_CHECK_LIMIT L_QUESTION=$AU_CHECK_LIMIT L_NOKEY=$AU_CHECK_LIMIT L_UPDATE=$AU_CHECK_LIMIT SLACK=$AU_CHECK_LIMIT
+fi
+L_PROBE=$((L_HEALTH + L_QUESTION + L_NOKEY + SLACK))
+L_ADDRESS=30 L_FIT=60 L_LOGS=60 L_NOTIFY=30
+
+here=$(cd "$(dirname "$0")" && pwd -P) || exit 0
+DATA=${here%/jobs}
+[ "$DATA" != "$here" ] || { echo "auster-check: not in a data root's jobs folder"; exit 0; }
+
+RE_SHA='^[0-9a-f]{64}$'
+RE_KEY='^[0-9a-f]{32}$'
+RE_RECIPE='^r[a-z2-7]{12}$'
+RE_BUILD='^b[a-z2-7]{12}$'
+RE_ENGINE='^e[a-z2-7]{12}$'
+RE_MODEL='^m[a-z2-7]{12}$'
+RE_NUM='^(0|[1-9][0-9]{0,8})$'
+RE_SIZE='^(0|[1-9][0-9]{0,14})$'
+RE_LABEL='^[a-z][a-z0-9-]{1,40}$'
+RE_UNIT='^(0(\.[0-9]{1,3})?|1(\.0{1,3})?)$'
+RE_SPEED='^(0|[1-9][0-9]{0,5})(\.[0-9]{1,3})?$'
+RE_PID='^[1-9][0-9]{0,9}$'
+RE_BOOT='^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$'
+RE_LSTART='^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [ 123][0-9] [0-2][0-9]:[0-5][0-9]:[0-5][0-9] [0-9]{4}$'
+RE_IPV4='^(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})$'
+RE_ROUTER='^[0-9a-f]{2}(:[0-9a-f]{2}){5}$'
+
+# The fixed sentences (D3.5). None holds text from a file or the network.
+S_OPEN="Auster's server on this Mac did not refuse a request that carried no key, so anyone on the home network may be able to use it. auster restart checks it again, and stops it if it is still open."
+S_BROKEN="Auster's server on this Mac is running but answers every question with an error. auster restart starts it again."
+S_FAILED="Auster's server on this Mac did not answer its check twice in a row. auster status says how the engine's last start went."
+S_NEW_KEPT="Auster's server on this Mac has not answered since its last change, which has not passed a check yet. auster rollback goes back to what it served before."
+S_NEW_ALONE="Auster's server on this Mac has not answered since it was installed or changed, and has not passed a check yet. auster status says how the engine's last start went."
+S_ADDRESS="This Mac's address on the home network has changed, so devices cannot reach Auster's server. auster restart moves the server to the new address."
+S_FIT="The build Auster serves no longer fits this Mac's memory. auster update chooses one that does."
+
+log() { printf '%s auster-check: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
+split() { local rest=$1; F=(); while :; do case "$rest" in *"$T"*) F+=("${rest%%"$T"*}"); rest=${rest#*"$T"} ;; *) F+=("$rest"); break ;; esac; done; }
+trim() { local s=$1; s=${s#"${s%%[![:space:]]*}"}; s=${s%"${s##*[![:space:]]}"}; printf '%s' "$s"; }
+size() { stat -f %z "$1" 2>/dev/null; }
+ends_in_newline() { [ "$(tail -c 1 "$1" | od -An -tx1 | tr -d ' \n')" = 0a ]; }
+milli() { local w=${1%%.*} f=; case "$1" in *.*) f=${1#*.} ;; esac; f=${f}000; printf '%s' $(( 10#$w * 1000 + 10#${f:0:3} )); }
+
+ME=$(id -u 2>/dev/null)
+dir_ok() { # DIR -> 0 when it is a folder, not a link, owned by this account, that nobody else may write (D3.1)
+  local s m
+  [ -d "$1" ] && [ ! -L "$1" ] || return 1
+  s=$(stat -f '%u %Lp' "$1" 2>/dev/null) || return 1
+  [ "${s%% *}" = "$ME" ] || return 1
+  m=00${s#* }; m=${m: -3}
+  case "${m:1:1}${m:2:1}" in *[2367]*) return 1 ;; esac
+}
+
+PART=0 PART_DIR=
+part() { # SECS NAME COMMAND... -> COMMAND run in the background, its output in $PART_DIR/out; 0 when it
+  # ended within SECS, 1 when it did not (it is then left behind: see the header)
+  local secs=$1 name=$2 i=0
+  shift 2
+  PART=$((PART + 1)) PART_DIR="$WORK/$PART-$name"
+  mkdir "$PART_DIR" || return 1
+  ( "$@" > "$PART_DIR/out" 2> "$PART_DIR/err"; echo $? > "$PART_DIR/.rc"; mv "$PART_DIR/.rc" "$PART_DIR/rc" ) < /dev/null &
+  while [ ! -f "$PART_DIR/rc" ]; do
+    if [ "$i" -ge $((secs * 10)) ]; then log "$name: still running after $secs s, so it is left behind"; return 1; fi
+    sleep 0.1
+    i=$((i + 1))
+  done
+}
+
+live() { # FILE AGE -> 0 when the record names a process of this boot that is alive (D3.1: builds/updating and
+  # builds/paused, each read by this reader of its own and never the generic one); AGE, when not 0, is the
+  # oldest in seconds the file may be
+  local f=$1 line s m
+  [ -f "$f" ] && [ ! -L "$f" ] && [ "$(size "$f")" -le 4096 ] || return 1
+  [ "$(wc -l < "$f" | tr -d ' ')" = 1 ] && ends_in_newline "$f" || return 1
+  IFS= read -r line < "$f" || return 1
+  split "$line"
+  [ "${#F[@]}" -eq 4 ] && [ "${F[0]}" = 'auster-record 1' ] || return 1
+  [[ ${F[1]} =~ $RE_PID ]] && [[ ${F[2]} =~ $RE_BOOT ]] && [[ ${F[3]} =~ $RE_LSTART ]] || return 1
+  if [ "$2" != 0 ]; then m=$(stat -f %m "$f" 2>/dev/null) || return 1; [ $(( $(date +%s) - m )) -le "$2" ] || return 1; fi
+  [ "${F[2]}" = "$(sysctl -n kern.bootsessionuuid 2>/dev/null)" ] || return 1
+  s=$(ps -p "${F[1]}" -o lstart= 2>/dev/null) || return 1
+  [ "$(trim "$s")" = "${F[3]}" ]
+}
+
+read_serving() { # FILE -> SV_* from the descriptor (A5), every field matched as the engine job matches it, or 1
+  local f=$1 l lines=()
+  [ -f "$f" ] && [ ! -L "$f" ] && [ "$(size "$f")" -le 8192 ] && ends_in_newline "$f" || return 1
+  while IFS= read -r l; do [ ${#l} -le 1000 ] || return 1; lines+=("$l"); done < "$f"
+  [ "${#lines[@]}" -eq 5 ] && [ "${lines[0]}" = 'auster-descriptor 1' ] || return 1
+  split "${lines[1]}"
+  [ "${#F[@]}" -ge 14 ] && [ "${F[0]}" = build ] || return 1
+  [[ ${F[1]} =~ $RE_BUILD ]] && [[ ${F[2]} =~ $RE_ENGINE ]] && [[ ${F[3]} =~ $RE_MODEL ]] || return 1
+  [[ ${F[4]} =~ $RE_SHA ]] && [[ ${F[5]} =~ $RE_SHA ]] && [[ ${F[6]} =~ $RE_SHA ]] || return 1
+  [[ ${F[7]} =~ $RE_NUM ]] && [[ ${F[8]} =~ $RE_NUM ]] && [[ ${F[9]} =~ $RE_NUM ]] && [[ ${F[10]} =~ $RE_NUM ]] || return 1
+  [[ ${F[11]} =~ $RE_UNIT ]] && [[ ${F[12]} =~ $RE_UNIT ]] && [[ ${F[13]} =~ $RE_LABEL ]] || return 1
+  SV_BUILD=${F[1]} SV_TEST=${F[6]}
+  local be=${F[2]} bm=${F[3]}
+  split "${lines[2]}"
+  [ "${#F[@]}" -ge 8 ] && [ "${F[0]}" = engine ] && [ "${F[1]}" = "$be" ] && [ "${F[2]}" = macos-arm64 ] || return 1
+  [[ ${F[3]} =~ ^b[0-9]{4,7}$ ]] && [[ ${F[4]} =~ ^llama-b[0-9]{4,7}-bin-macos-arm64\.(tar\.gz|zip)$ ]] || return 1
+  [[ ${F[5]} =~ $RE_SIZE ]] && [[ ${F[6]} =~ $RE_SHA ]] && [[ ${F[7]} =~ $RE_NUM ]] || return 1
+  split "${lines[3]}"
+  [ "${#F[@]}" -ge 10 ] && [ "${F[0]}" = model ] && [ "${F[1]}" = "$bm" ] || return 1
+  [[ ${F[2]} =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,95}/[A-Za-z0-9][A-Za-z0-9._-]{0,95}$ ]] && [[ ${F[3]} =~ ^[0-9a-f]{40}$ ]] || return 1
+  [[ ${F[4]} =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,200}\.gguf$ ]] && [[ ${F[5]} =~ $RE_SIZE ]] && [[ ${F[6]} =~ $RE_SHA ]] || return 1
+  [[ ${F[7]} =~ ^[a-z0-9.-]{2,30}$ ]] && [[ ${F[8]} =~ ^(publisher|endorsed|third-party)$ ]] && [[ ${F[9]} =~ $RE_NUM ]] || return 1
+  SV_TIER=${F[8]}
+  split "${lines[4]}"
+  [ "${#F[@]}" -eq 6 ] && [ "${F[0]}" = launch ] || return 1
+  [[ ${F[1]} =~ ^[1-9][0-9]?$ ]] && [ "${F[1]}" -le 64 ] || return 1
+  [[ ${F[2]} =~ ^[1-9][0-9]{0,6}$ ]] && [ "${F[2]}" -le 1048576 ] || return 1
+  [[ ${F[3]} =~ ^[1-9][0-9]{0,4}$ ]] && [ "${F[3]}" -le 65535 ] || return 1
+  [[ ${F[4]} =~ $RE_SHA ]] && [[ ${F[5]} =~ $RE_SPEED ]] || return 1
+  SV_PEOPLE=${F[1]} SV_CONTEXT=${F[2]} SV_PORT=${F[3]} SV_SPEED=${F[5]}
+  SV_LINES=("${lines[1]}" "${lines[2]}" "${lines[3]}")
+}
+
+mac_value() { # KEY -> its value in builds/mac (capability-lib.js's header gives the form), or 1
+  local f="$DATA/builds/mac" l n=0
+  [ -f "$f" ] && [ ! -L "$f" ] && [ "$(size "$f")" -le 1024 ] || return 1
+  while IFS= read -r l; do
+    n=$((n + 1))
+    if [ "$n" = 1 ]; then [ "$l" = 'auster-record 1' ] || return 1; continue; fi
+    case "$l" in "$1$T"*) printf '%s' "${l#"$1$T"}"; return 0 ;; esac
+  done < "$f"
+  return 1
+}
+
+start_address() { # RECIPE -> the address in builds/<recipe>/start when its code is starting (B4 step 6), or 1
+  local f="$DATA/builds/$1/start" l n=0 code= addr=
+  [ -f "$f" ] && [ ! -L "$f" ] && [ "$(size "$f")" -le 1024 ] || return 1
+  while IFS= read -r l; do
+    n=$((n + 1))
+    case "$n:$l" in
+      1:'auster-record 1') ;;
+      2:code"$T"*) code=${l#code"$T"} ;;
+      3:address"$T"*) addr=${l#address"$T"} ;;
+      4:boot"$T"*|5:time"$T"*) ;;
+      *) return 1 ;;
+    esac
+  done < "$f"
+  [ "$n" = 5 ] && [ "$code" = starting ] && [[ $addr =~ $RE_IPV4 ]] && printf '%s' "$addr"
+}
+
+# --- the parts --------------------------------------------------------------------------------------------
+
+probe() { # -> one line: the result and the rate (or -), as the header gives them
+  local key base health q qexit n rate=- f w fr
+  IFS= read -r key < "$DATA/keys/probe" && [[ $key =~ $RE_KEY ]] || { printf 'failed\t-\n'; return; }
+  ( umask 077; printf 'Authorization: Bearer %s\n' "$key" > "$WORK/probe-key" )
+  osascript -l JavaScript -e '
+function run(a) {
+  var d = $.NSData.dataWithContentsOfFile(a[0]);
+  if (d.isNil()) return "";
+  var s = $.NSString.alloc.initWithDataEncoding(d, $.NSUTF8StringEncoding);
+  if (s.isNil()) return "";
+  var t;
+  try { t = JSON.parse(ObjC.unwrap(s)); } catch (e) { return ""; }
+  var q = t && t.speed;
+  if (!q || typeof q.q !== "string" || q.temperature !== 0 || q.max_tokens !== Math.floor(q.max_tokens) ||
+      q.max_tokens < 1 || q.max_tokens > 32768) return "";
+  var m = [{ role: "user", content: q.q }];
+  return JSON.stringify({ messages: m, max_tokens: q.max_tokens, temperature: 0 }) + "\n" +
+    JSON.stringify({ messages: m, max_tokens: 1, temperature: 0 });
+}' "$DATA/store/$SV_TEST" > "$WORK/probe-bodies" 2>/dev/null
+  head -n 1 "$WORK/probe-bodies" > "$WORK/probe-body"; sed -n 2p "$WORK/probe-bodies" > "$WORK/probe-nokey"
+  [ -s "$WORK/probe-body" ] && [ -s "$WORK/probe-nokey" ] || { printf 'failed\t-\n'; return; }
+  f="http://127.0.0.1:$SV_PORT"
+  health=$(curl -q -s --max-time "$L_HEALTH" -o /dev/null -w '%{http_code}' "$f/health" 2>/dev/null)
+  q=$(curl -q -s --max-time "$L_QUESTION" -o "$WORK/probe-answer" -w '%{http_code}' -H @"$WORK/probe-key" \
+    -H 'Content-Type: application/json' --data-binary @"$WORK/probe-body" "$f/v1/chat/completions" 2>/dev/null)
+  qexit=$?
+  rm -f "$WORK/probe-key"
+  if [ "$qexit" = 7 ]; then printf 'down\t-\n'; return; fi
+  if [ "$health" = 200 ] || [ "$q" = 200 ]; then
+    n=$(curl -q -s --max-time "$L_NOKEY" -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' \
+      --data-binary @"$WORK/probe-nokey" "$f/v1/chat/completions" 2>/dev/null)
+    if [ "$n" != 401 ] && [ "$n" != 403 ]; then printf 'open\t-\n'; return; fi
+  fi
+  if [ "$q" = 200 ] && rate=$(plutil -extract timings.predicted_per_second raw -o - "$WORK/probe-answer" 2>/dev/null) &&
+     [[ $rate =~ ^[0-9]{1,6}(\.[0-9]+)?$ ]]; then
+    w=${rate%%.*} fr=
+    case "$rate" in *.*) fr=${rate#*.}; fr=${fr:0:3} ;; esac
+    while [ -n "$fr" ] && [ "${fr: -1}" = 0 ]; do fr=${fr%0}; done
+    rate=$((10#$w))${fr:+.$fr}
+    base=$SV_SPEED
+    if [ "$base" != 0 ] && [ $(( 2 * $(milli "$rate") )) -lt "$(milli "$base")" ]; then printf 'slow\t%s\n' "$rate"; else printf 'ok\t%s\n' "$rate"; fi
+    return
+  fi
+  if [ "$health" = 200 ] && [ "$q" = 500 ] && [ "$SV_SPEED" != 0 ]; then printf 'broken\t-\n'; return; fi
+  printf 'failed\t-\n'
+}
+
+address() { # -> the home address now (BD9, found as B4 step 5 finds it), or -
+  local r if_ gw a hw p parts=() router
+  r=$(route -n get default 2>/dev/null) || { echo -; return; }
+  if_=$(printf '%s\n' "$r" | awk '$1 == "interface:" { print $2; exit }')
+  gw=$(printf '%s\n' "$r" | awk '$1 == "gateway:" { print $2; exit }')
+  [[ $if_ =~ ^[a-z][a-z0-9]{0,15}$ ]] && [[ $gw =~ $RE_IPV4 ]] || { echo -; return; }
+  networksetup -listallhardwareports 2>/dev/null | grep -qxF "Device: $if_" || { echo -; return; }
+  a=$(ipconfig getifaddr "$if_" 2>/dev/null)
+  [[ $a =~ $RE_IPV4 ]] || { echo -; return; }
+  IFS=. read -r -a parts <<< "$a"
+  for p in "${parts[@]}"; do [ "$p" -le 255 ] || { echo -; return; }; done
+  case "$a" in 10.*|192.168.*|172.1[6-9].*|172.2[0-9].*|172.3[01].*) ;; *) echo -; return ;; esac
+  hw=$(arp -n "$gw" 2>/dev/null | awk '{ for (i = 1; i < NF; i++) if ($i == "at") { print $(i + 1); exit } }')
+  IFS=: read -r -a parts <<< "$hw"
+  [ "${#parts[@]}" -eq 6 ] || { echo -; return; }
+  router=
+  for p in "${parts[@]}"; do
+    [[ $p =~ ^[0-9a-fA-F]{1,2}$ ]] || { echo -; return; }
+    p=0$p; router+=${router:+:}$(printf '%s' "${p: -2}" | tr 'A-F' 'a-f')
+  done
+  [ "$(mac_value router)" = "$router" ] && [[ $router =~ $RE_ROUTER ]] || { echo -; return; }
+  printf '%s\n' "$a"
+}
+
+figures() { # -> yes, no or unknown: whether the build served still fits this Mac at its setting (section C).
+  # A registry of the served lines alone, whose recipe allows that setting only, given to capability.js
+  local reg="$WORK/fit.tsv" ram opts=() rc l
+  [ -f "$DATA/jobs/capability.js" ] && [ -f "$DATA/jobs/capability-lib.js" ] && [ -f "$DATA/jobs/registry-lib.js" ] || { echo unknown; return; }
+  { printf 'auster-registry\t1\tv0.1.0\n'
+    printf '%s\n' "${SV_LINES[1]}" "${SV_LINES[2]}" "${SV_LINES[0]}"
+    printf 'recipe\t%s\tserved\t%s\t%s\t%s\t%s\n' "$RECIPE" "$SV_TIER" "$SV_PEOPLE" "$SV_CONTEXT" "$SV_CONTEXT"
+    printf 'order\t%s\t%s\n' "$RECIPE" "$SV_BUILD"; } > "$reg"
+  ram=$(sysctl -n hw.memsize 2>/dev/null)
+  [[ $ram =~ ^[1-9][0-9]{0,14}$ ]] && opts=(--ram "$ram")
+  osascript -l JavaScript "$DATA/jobs/capability.js" "$reg" "$RECIPE" --serving "$SV_BUILD" --keep-build \
+    --people "$SV_PEOPLE" --mac "$DATA/builds/mac" ${opts[@]+"${opts[@]}"} > "$WORK/fit.out" 2>/dev/null
+  rc=$?
+  case "$rc" in
+    0) l=$(awk -F'\t' '$1 == "choice"' "$WORK/fit.out"); split "$l"
+       if [ "${F[1]:-}" = "$SV_BUILD" ] && [ "${F[3]:-}" = "$SV_CONTEXT" ]; then echo yes; else echo no; fi ;;
+    3) l=$(awk -F'\t' '$1 == "refused"' "$WORK/fit.out"); split "$l"
+       if [ "${F[1]:-}" = fit ]; then echo no; else echo unknown; fi ;;
+    *) echo unknown ;;
+  esac
+}
+
+logs() { # -> each log in logs/ above LOG_MAX bytes truncated in place, one line each
+  local f s
+  for f in "$DATA"/logs/*; do
+    [ -f "$f" ] && [ ! -L "$f" ] || continue
+    s=$(size "$f") || continue
+    if [ "$s" -gt "$LOG_MAX" ]; then : > "$f" && printf 'truncated %s, which held %s bytes\n' "${f##*/}" "$s"; fi
+  done
+}
+
+notify() { # SENTENCE -> one notification: a fixed sentence, passed as an argument, never in the script (D3.5)
+  part "$L_NOTIFY" notify osascript -e 'on run argv' -e 'display notification (item 1 of argv) with title "Auster"' -e 'end run' "$1" ||
+    return 0
+  log "notified: $1"
+}
+
+# --- `_update/engine` ---------------------------------------------------------------------------------------
+
+state_read() { # -> ST_* from _update/engine; absent gives the empty state; 1 when it is a newer version's
+  local f="$DATA/_update/engine" first l n=0 keys=(probe failures address told-probe told-address told-fit)
+  ST_RESULT=- ST_SPEED=- ST_TIME=- ST_FAILURES=0 ST_ADDRESS=- ST_TOLD_PROBE=- ST_TOLD_ADDRESS=- ST_TOLD_FIT=no
+  [ -f "$f" ] && [ ! -L "$f" ] || return 0
+  first=$(head -c 4096 "$f" | head -n 1)
+  case "$first" in
+    'auster-record 1') ;;
+    'auster-record '*) [[ ${first#auster-record } =~ ^[1-9][0-9]{0,8}$ ]] && [ "${first#auster-record }" -gt 1 ] && return 1; return 0 ;;
+    *) return 0 ;;
+  esac
+  [ "$(size "$f")" -le 1024 ] && [ "$(wc -l < "$f" | tr -d ' ')" = 7 ] && ends_in_newline "$f" || return 0
+  local v=()
+  while IFS= read -r l; do
+    n=$((n + 1)); [ "$n" -gt 1 ] || continue
+    split "$l"
+    [ "${F[0]}" = "${keys[$((n - 2))]}" ] || return 0
+    v+=("${F[@]:1}")
+    case "${F[0]}" in probe) [ "${#F[@]}" -eq 4 ] || return 0 ;; *) [ "${#F[@]}" -eq 2 ] || return 0 ;; esac
+  done < "$f"
+  [[ ${v[0]} =~ ^(ok|slow|open|broken|failed|down|stopped|-)$ ]] && { [ "${v[1]}" = - ] || [[ ${v[1]} =~ $RE_SPEED ]]; } || return 0
+  { [ "${v[2]}" = - ] || [[ ${v[2]} =~ ^[1-9][0-9]{0,11}$ ]]; } && [[ ${v[3]} =~ ^(0|[1-9][0-9]{0,5})$ ]] || return 0
+  { [ "${v[4]}" = - ] || [[ ${v[4]} =~ $RE_IPV4 ]]; } && [[ ${v[5]} =~ ^(open|broken|failed|down|-)$ ]] || return 0
+  { [ "${v[6]}" = - ] || [[ ${v[6]} =~ $RE_IPV4 ]]; } && [[ ${v[7]} =~ ^(yes|no)$ ]] || return 0
+  ST_RESULT=${v[0]} ST_SPEED=${v[1]} ST_TIME=${v[2]} ST_FAILURES=${v[3]} ST_ADDRESS=${v[4]}
+  ST_TOLD_PROBE=${v[5]} ST_TOLD_ADDRESS=${v[6]} ST_TOLD_FIT=${v[7]}
+}
+
+state_write() { # -> _update/engine from ST_*, by rename
+  local t="$DATA/_update/.engine.new.$$"
+  printf 'auster-record 1\nprobe\t%s\t%s\t%s\nfailures\t%s\naddress\t%s\ntold-probe\t%s\ntold-address\t%s\ntold-fit\t%s\n' \
+    "$ST_RESULT" "$ST_SPEED" "$ST_TIME" "$ST_FAILURES" "$ST_ADDRESS" "$ST_TOLD_PROBE" "$ST_TOLD_ADDRESS" "$ST_TOLD_FIT" > "$t" &&
+    mv -f "$t" "$DATA/_update/engine"
+}
+
+# --- the run ------------------------------------------------------------------------------------------------
+
+[[ $ME =~ ^[1-9][0-9]*$ ]] || { log "it does not run as root, nor as an account it cannot name"; exit 0; }
+dir_ok "$DATA" && [ "$(stat -f %Lp "$DATA" 2>/dev/null)" = 700 ] && [ -f "$DATA/.auster-data-root" ] ||
+  { log "$DATA is not a data root that only this account owns, so nothing is done"; exit 0; }
+dir_ok "$DATA/_update" || { log "no _update folder: the checks are off until the installer line is pasted again"; exit 0; }
+WORK=$(mktemp -d "${TMPDIR:-/tmp}/auster-check.XXXXXX") || exit 0
+trap 'rm -rf "$WORK"' EXIT
+NEWER=0
+state_read || NEWER=1
+
+# 1. The update check (D3.3), U1's rule file. Its exit code is not used. TODO(U7): read what it concludes,
+# and notify an update waiting once for each version (D3.5); TODO(U8): a build withdrawn, the same way.
+if [ -f "$DATA/_update/updates.sh" ] && [ ! -L "$DATA/_update/updates.sh" ]; then
+  part "$L_UPDATE" update /bin/bash "$DATA/_update/updates.sh" --refresh && log "the update check ran"
+else
+  log "no _update/updates.sh yet, so no update check"
+fi
+
+RECIPE=
+for s in "$DATA"/builds/r*/serving; do
+  r=${s%/serving}; r=${r##*/}
+  [[ $r =~ $RE_RECIPE ]] && [ -f "$s" ] && [ ! -L "$s" ] && { RECIPE=$r; break; }
+done
+SERVING=0
+[ -n "$RECIPE" ] && read_serving "$DATA/builds/$RECIPE/serving" && SERVING=1
+
+# 2. The engine probe.
+probed=0
+if [ -e "$DATA/builds/stopped" ] || [ -L "$DATA/builds/stopped" ]; then
+  ST_RESULT=stopped ST_SPEED=- ST_TIME=$(date +%s) probed=1
+  log "the engine is stopped (builds/stopped), so it is not probed"
+elif live "$DATA/builds/updating" 0 || live "$DATA/builds/paused" 1800; then
+  log "a run of Auster holds builds/ and makes its own check, so the engine is not probed"
+elif [ "$SERVING" = 0 ]; then
+  log "nothing that serves can be read, so the engine is not probed"
+else
+  if part "$L_PROBE" probe probe && IFS="$T" read -r ST_RESULT ST_SPEED < "$PART_DIR/out" &&
+     [[ $ST_RESULT =~ ^(ok|slow|open|broken|failed|down)$ ]]; then :; else ST_RESULT=failed ST_SPEED=-; fi
+  [ -n "$ST_SPEED" ] || ST_SPEED=-
+  ST_TIME=$(date +%s) probed=1
+  log "probe: $ST_RESULT, speed $ST_SPEED"
+fi
+
+# 3. The address.
+found=-
+part "$L_ADDRESS" address address && IFS= read -r found < "$PART_DIR/out" && [[ $found =~ $RE_IPV4 ]] || found=-
+ST_ADDRESS=$found
+
+# 4. The figures.
+fits=unknown
+if [ "$SERVING" = 1 ]; then part "$L_FIT" figures figures && IFS= read -r fits < "$PART_DIR/out" || fits=unknown; fi
+
+# 5. The logs.
+if dir_ok "$DATA/logs"; then
+  part "$L_LOGS" logs logs && while IFS= read -r l; do log "$l"; done < "$PART_DIR/out"
+fi
+
+# 6. Notifications, once for each change of state; then the record.
+if [ "$NEWER" = 1 ]; then
+  log "_update/engine was written by a newer version of Auster, so this one leaves it as it is and notifies nothing"
+  exit 0
+fi
+if [ "$probed" = 1 ]; then
+  case "$ST_RESULT" in
+    ok|slow|stopped) ST_FAILURES=0 ST_TOLD_PROBE=- ;;
+    open|broken)
+      ST_FAILURES=0
+      if [ "$ST_TOLD_PROBE" != "$ST_RESULT" ]; then
+        if [ "$ST_RESULT" = open ]; then notify "$S_OPEN"; else notify "$S_BROKEN"; fi
+        ST_TOLD_PROBE=$ST_RESULT
+      fi ;;
+    failed|down)
+      ST_FAILURES=$((ST_FAILURES + 1))
+      if { [ "$ST_FAILURES" -ge 2 ] || [ "$SV_SPEED" = 0 ]; } && [ "$ST_TOLD_PROBE" != "$ST_RESULT" ]; then
+        if [ "$SV_SPEED" != 0 ]; then notify "$S_FAILED"
+        elif [ -n "$(ls -A "$DATA/builds/$RECIPE/kept" 2>/dev/null)" ]; then notify "$S_NEW_KEPT"
+        else notify "$S_NEW_ALONE"; fi
+        ST_TOLD_PROBE=$ST_RESULT
+      fi ;;
+  esac
+fi
+was=
+[ -z "$RECIPE" ] || was=$(start_address "$RECIPE")
+if [ "$found" != - ] && [ -n "$was" ] && [ "$found" != "$was" ]; then
+  log "the home address is now $found; the engine started on $was"
+  if [ "$ST_TOLD_ADDRESS" != "$found" ]; then notify "$S_ADDRESS"; ST_TOLD_ADDRESS=$found; fi
+elif [ "$found" != - ] && [ "$found" = "$was" ]; then
+  ST_TOLD_ADDRESS=-
+fi
+case "$fits" in
+  no) if [ "$ST_TOLD_FIT" != yes ]; then notify "$S_FIT"; ST_TOLD_FIT=yes; fi ;;
+  yes) ST_TOLD_FIT=no ;;
+esac
+state_write || log "_update/engine could not be written"
 exit 0

@@ -1,0 +1,3 @@
+# file: common/auster-engine
+# bind to the default route's address, whatever its interface: no hardware-port check
+s/^  networksetup -listallhardwareports 2>\/dev\/null | grep -qxF "Device: \$if_" || return 1$/  :/

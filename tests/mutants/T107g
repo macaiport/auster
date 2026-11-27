@@ -1,0 +1,3 @@
+# file: common/auster
+# the request with no key asks for the whole answer, not one token
+s/au_speed_request "\$AU_DATA\/store\/\$AU_SV_TEST" "\$w\/nokey" 1 ||/au_speed_request "$AU_DATA\/store\/$AU_SV_TEST" "$w\/nokey" ||/

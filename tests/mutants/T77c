@@ -1,0 +1,3 @@
+# file: common/auster-check
+# skip the request with no key
+s/^  if \[ "\$health" = 200 \] || \[ "\$q" = 200 \]; then$/  if false; then/

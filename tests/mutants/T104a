@@ -1,0 +1,3 @@
+# file: common/auster-engine
+# write not-home for both
+s/^  r=\$(route -n get default 2>\/dev\/null) || { WHY=no-network; return 1; }$/  r=$(route -n get default 2>\/dev\/null) || { WHY=not-home; return 1; }/

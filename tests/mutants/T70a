@@ -1,0 +1,3 @@
+# file: common/auster-engine
+# build the arguments by unquoted expansion
+s|^exec env -i PATH="\$ENGINE_PATH" "\$root/\$program" -m "\$model" --alias "\$build" \\$|exec env -i PATH=$ENGINE_PATH $root/$program -m $model --alias $build \\|

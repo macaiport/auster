@@ -1,0 +1,5 @@
+# file: common/auster-check
+# notify on every run
+s/ && \[ "\$ST_TOLD_PROBE" != "\$ST_RESULT" \]//
+s/if \[ "\$ST_TOLD_ADDRESS" != "\$found" \]; then/if true; then/
+s/if \[ "\$ST_TOLD_PROBE" != "\$ST_RESULT" \]; then/if true; then/

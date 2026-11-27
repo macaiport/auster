@@ -1,0 +1,5 @@
+# file: common/auster-engine
+# read serving before waiting
+/^# 1\. Wait while builds\/paused/i\
+read_serving "$B/serving" || fault engine-hash "builds/$recipe/serving cannot be read."
+/   # step 2$/d

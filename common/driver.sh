@@ -14,7 +14,8 @@
 #   U4  `update`, and a run on a Mac that already serves the recipe (B3's update-only branches, D3.6);
 #   U2  the readers of the records written here, and the records' own tests;
 #   U5  the server check's callers other than a first install, and exit code 4's tests;
-#   V6  the engine job's program and the two job files' tests; V7 the keys' commands and the QR code.
+#   V7  the keys' commands and the QR code. (V6 built the jobs' programs, common/auster-engine and
+#       common/auster-check, which step 3 copies with the check job's section C into jobs/.)
 #
 # Exit codes (B3): 0 done; 1 refused or answered no, and nothing of this run is left; 2 usage; 3 not
 # everything was updated (here only: a run that U4 must handle); 4 the server is down; 5 stopped after
@@ -224,6 +225,10 @@ au_step3_root() {
   au_program "$AU_TREE/common/auster" "$AU_DATA/bin/auster" 755
   au_program "$AU_TREE/common/auster-engine" "$AU_DATA/jobs/auster-engine" 644
   au_program "$AU_TREE/common/auster-check" "$AU_DATA/jobs/auster-check" 644
+  # The check job's section C (B5 step 4): capability.js and the two files it loads from its own folder
+  au_program "$AU_TREE/common/registry-lib.js" "$AU_DATA/jobs/registry-lib.js" 644
+  au_program "$AU_TREE/common/capability-lib.js" "$AU_DATA/jobs/capability-lib.js" 644
+  au_program "$AU_TREE/common/capability.js" "$AU_DATA/jobs/capability.js" 644
 }
 
 au_program() { # SOURCE DEST MODE -> written by rename, unless already equal byte for byte
@@ -797,7 +802,7 @@ au_step13_check() { # the server check (B3 step 13): passed goes on; open and no
   case "$AU_CHECK" in
     passed) au_say "The server answered, at $AU_CHECK_SPEED tokens a second, and refused a request with no key." ;;
     open)
-      au_say "The server answered a request that carried no key, so Auster stopped it. It stays stopped until \`auster start\`."
+      au_say "The server did not refuse a request that carried no key, so Auster stopped it. It stays stopped until \`auster start\`."
       au_say "The device keys are made but not shown, and the install is not finished. Remove it with: \"$AU_DATA/bin/auster\" remove"
       exit 4 ;;
     *)

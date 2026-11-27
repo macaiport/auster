@@ -1,0 +1,3 @@
+# file: common/auster-engine
+# skip the router check
+s/^  recorded=\$(mac_value router) && .*$/  :/

@@ -1,0 +1,4 @@
+# file: common/auster-check
+# wait for a second run on broken
+s/^    open|broken)$/    open)/
+s/^    failed|down)$/    failed|down|broken)/

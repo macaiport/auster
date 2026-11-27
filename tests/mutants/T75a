@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# KeepAlive on the check job
+s|"	<key>RunAtLoad</key>" "	<true/>" \\$|"	<key>RunAtLoad</key>" "	<true/>" "	<key>KeepAlive</key>" "	<true/>" \\|

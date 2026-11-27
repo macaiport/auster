@@ -1,0 +1,3 @@
+# file: common/auster-check
+# compare with a fixed figure (phase 1's, as a registry would carry it), not this Mac's own baseline
+s/^    base=\$SV_SPEED$/    base=36.9/

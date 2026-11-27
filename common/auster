@@ -293,7 +293,7 @@ au_serving_speed() { # RECIPE SPEED -> serving with that speed in its launch lin
 au_start_read() { # RECIPE -> AU_ST_CODE, AU_ST_ADDR, AU_ST_TIME from builds/<recipe>/start, written by the
   # engine job (B4 step 6), or 1. Its form: `auster-record 1`, then code, address, boot and time lines,
   # each a key, a tab and a value (the address - when the job stopped before it found one).
-  # TODO(U2, V6): the record's own reader and its tests.
+  # The engine job (common/auster-engine, V6) writes it in this form. TODO(U2): its reader's own tests.
   local f="$AU_DATA/builds/$1/start" l n=0 k v
   AU_ST_CODE= AU_ST_ADDR= AU_ST_TIME=
   [ -f "$f" ] && [ ! -L "$f" ] && [ "$(au_size "$f")" -le 1024 ] || return 1
@@ -317,7 +317,8 @@ au_stopped_write() { # REASON -> builds/stopped (D3.1), by rename
   printf 'auster-record 1\t%s\t%s\n' "$1" "$(au_now)" > "$t" && mv -f "$t" "$AU_DATA/builds/stopped"
 }
 
-au_speed_request() { # TEST-FILE OUT -> the speed question (A5) as a request body, from the recipe's test file
+au_speed_request() { # TEST-FILE OUT [TOKENS] -> the speed question (A5) as a request body, from the recipe's
+  # test file; with TOKENS, the same question asking for that many tokens (the request with no key asks for 1)
   osascript -l JavaScript -e '
 function run(a) {
   var d = $.NSData.dataWithContentsOfFile(a[0]);
@@ -326,8 +327,9 @@ function run(a) {
   var s = t.speed;
   if (!s || typeof s.q !== "string" || s.temperature !== 0 || s.max_tokens !== Math.floor(s.max_tokens) ||
       s.max_tokens < 1 || s.max_tokens > 32768) return "";
-  return JSON.stringify({ messages: [{ role: "user", content: s.q }], max_tokens: s.max_tokens, temperature: 0 });
-}' "$1" > "$2" 2>/dev/null && [ -s "$2" ]
+  var n = a.length > 1 ? Number(a[1]) : s.max_tokens;
+  return JSON.stringify({ messages: [{ role: "user", content: s.q }], max_tokens: n, temperature: 0 });
+}' "$1" ${3:+"$3"} > "$2" 2>/dev/null && [ -s "$2" ]
 }
 
 au_rate() { # ANSWER-FILE -> the writing rate it reports (timings.predicted_per_second), as A5 keeps it
@@ -345,6 +347,9 @@ au_rate() { # ANSWER-FILE -> the writing rate it reports (timings.predicted_per_
 au_server_check() { # RECIPE T0 -> AU_CHECK: passed, open or unanswered (B3 step 13). Never exits.
   # From this Mac to its home address, within 180 s of T0 (this run's start of the engine), the speed
   # question with a household key must be answered; only then must a request with no key be refused.
+  # Refused is HTTP 401 or 403 and nothing else: that request asks for one token, so that an open server
+  # answers it at once, and any other code, a time-out or no answer is open (it fails closed; V6). Its
+  # limit is what is left of the 180 s, at least 5 s and at most 30 s.
   # passed writes the speed into serving when it holds 0; open stops the engine (disable, then bootout)
   # and writes builds/stopped with the reason open; unanswered does nothing. AU_CHECK_WHY says why.
   local r=$1 t0=$2 w key kf now i=0 code left
@@ -359,7 +364,8 @@ au_server_check() { # RECIPE T0 -> AU_CHECK: passed, open or unanswered (B3 step
   [ -n "${key:-}" ] || { AU_CHECK_WHY="no household key could be read"; return 0; }
   w=$(mktemp -d "${TMPDIR:-/tmp}/auster-check.XXXXXX") || { AU_CHECK_WHY="no temporary folder"; return 0; }
   ( umask 077; printf 'Authorization: Bearer %s\n' "$key" > "$w/key" )
-  au_speed_request "$AU_DATA/store/$AU_SV_TEST" "$w/body" || { rm -rf "$w"; AU_CHECK_WHY="the recipe's test file cannot be read"; return 0; }
+  au_speed_request "$AU_DATA/store/$AU_SV_TEST" "$w/body" && au_speed_request "$AU_DATA/store/$AU_SV_TEST" "$w/nokey" 1 ||
+    { rm -rf "$w"; AU_CHECK_WHY="the recipe's test file cannot be read"; return 0; }
   while :; do
     now=$(date +%s)
     left=$((t0 + AU_CHECK_SECS - now))
@@ -383,13 +389,16 @@ au_server_check() { # RECIPE T0 -> AU_CHECK: passed, open or unanswered (B3 step
     fi
     return 0
   fi
-  code=$(curl -q -sS --max-time 30 -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' \
-    --data-binary @"$w/body" "http://$AU_ST_ADDR:$AU_SV_PORT/v1/chat/completions" 2>/dev/null)
+  left=$((t0 + AU_CHECK_SECS - $(date +%s)))
+  [ "$left" -le 30 ] || left=30
+  [ "$left" -ge 5 ] || left=5
+  code=$(curl -q -sS --max-time "$left" -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' \
+    --data-binary @"$w/nokey" "http://$AU_ST_ADDR:$AU_SV_PORT/v1/chat/completions" 2>/dev/null)
   rm -rf "$w"
-  if [ "$code" = 200 ]; then
+  if [ "$code" != 401 ] && [ "$code" != 403 ]; then
     au_engine_stop
     au_stopped_write open
-    AU_CHECK=open AU_CHECK_WHY="it answered a request that carried no key"
+    AU_CHECK=open AU_CHECK_WHY="it did not refuse a request that carried no key (it gave ${code:-no answer})"
     return 0
   fi
   [ "$AU_SV_SPEED" = 0 ] && au_serving_speed "$r" "$AU_CHECK_SPEED"

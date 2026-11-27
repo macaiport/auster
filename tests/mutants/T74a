@@ -1,0 +1,4 @@
+# file: common/auster-engine
+# check the process number only
+s/^  \[ -n "\$BOOT" \] && \[ "\${F\[2\]}" = "\$BOOT" \] || return 1$/  :/
+s/^  \[ "\$(trim "\$s")" = "\${F\[3\]}" \]$/  true/

@@ -3,116 +3,257 @@
 # `/bin/bash <data root>/jobs/auster-engine` with PATH=/usr/bin:/bin:/usr/sbin:/sbin and nothing else.
 # Copied byte for byte from the tree's common/auster-engine (B3 step 3), and replaced by rename.
 #
-# Written by V5 (2026-11-26) only so that a first install can start the engine and make its server
-# check: it follows B4's steps, but V6 builds this program and its tests (T70 to T76, T97's start half,
-# T103, T104), and may change anything here. TODO(V6): every test of it.
+# Built by V6 (2026-11-26), from V5's first version; its tests are T70 to T76, T97's start half, T103's
+# engine half and T104. It starts what builds/<recipe id>/serving names, and nothing else (D3.4): it reads
+# no `_update`, calls no updates.sh, fetches nothing, and runs no Auster program but osascript for the UI
+# config. It loads nothing from bin/auster either, so that a fault in the command cannot stop the server.
 #
-# It starts what builds/<recipe id>/serving names, and nothing else. It reads no `_update`, fetches
-# nothing, and runs no Auster program but osascript for the UI config.
+# Each start, B4's steps in order:
+#   1. waits while builds/paused names a live process of this boot (D3.1), at most 30 minutes;
+#   2. reads serving after the wait, every field matched against its pattern (A3, A5);
+#   3. checks keys/engine.keys (B7): `keys`;
+#   4. checks the engine's files against its list, and the template and the system prompt against their
+#      sha256s in the build line (AD13): `engine-hash`. An unreadable serving is `engine-hash` too;
+#   5. finds the home address (BD9): `no-network` with no default route, `not-home` otherwise;
+#   6. writes builds/<recipe id>/start: `starting`, the address, the boot session and the time;
+#   7. keeps the Mac awake while the engine runs, on the household's yes in builds/mac (BD10);
+#   8. writes the UI config and execs the engine with an empty environment and a fixed set of options.
+# A fault (steps 3 to 5) writes its code into `start`, waits 60 s and exits 1, so that launchd, which keeps
+# the job alive, starts it at most once a minute (T76).
+#
+# The `start` record, read by `auster status` and the check job: `auster-record 1`, then four lines, each a
+# key, a tab and a value: `code` (starting, keys, engine-hash, not-home, no-network), `address` (the home
+# address, or - when the job stopped before it found one), `boot` (kern.bootsessionuuid) and `time`
+# (seconds since 1970). Written to a temporary file and renamed.
 set -u
 export LC_ALL=C
 T=$'\t'
+ENGINE_PATH=/usr/bin:/bin:/usr/sbin:/sbin   # B4: the only variable the engine is given
+FAULT_SECS=60                               # B4 steps 3 to 5: the wait before a fault exits
+PAUSE_SECS=1800                             # B4 step 1, D3.1: the longest wait on `paused`, and its age limit
 here=$(cd "$(dirname "$0")" && pwd -P) || exit 1
 DATA=${here%/jobs}
 [ "$DATA" != "$here" ] || { echo "auster-engine: not in a data root's jobs folder" >&2; exit 1; }
+
 RE_SHA='^[0-9a-f]{64}$'
 RE_KEY='^[0-9a-f]{32}$'
+RE_RECIPE='^r[a-z2-7]{12}$'
+RE_BUILD='^b[a-z2-7]{12}$'
+RE_ENGINE='^e[a-z2-7]{12}$'
+RE_MODEL='^m[a-z2-7]{12}$'
+RE_NUM='^(0|[1-9][0-9]{0,8})$'
+RE_SIZE='^(0|[1-9][0-9]{0,14})$'
+RE_LABEL='^[a-z][a-z0-9-]{1,40}$'
+RE_UNIT='^(0(\.[0-9]{1,3})?|1(\.0{1,3})?)$'
+RE_SPEED='^(0|[1-9][0-9]{0,5})(\.[0-9]{1,3})?$'
+RE_PID='^[1-9][0-9]{0,9}$'
+RE_BOOT='^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$'
 RE_LSTART='^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [ 123][0-9] [0-2][0-9]:[0-5][0-9]:[0-5][0-9] [0-9]{4}$'
-BOOT=$(sysctl -n kern.bootsessionuuid 2>/dev/null)
+RE_IPV4='^(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})$'
+RE_ROUTER='^[0-9a-f]{2}(:[0-9a-f]{2}){5}$'
 
+say() { printf '%s auster-engine: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >&2; }
 split() { local rest=$1; F=(); while :; do case "$rest" in *"$T"*) F+=("${rest%%"$T"*}"); rest=${rest#*"$T"} ;; *) F+=("$rest"); break ;; esac; done; }
+trim() { local s=$1; s=${s#"${s%%[![:space:]]*}"}; s=${s%"${s##*[![:space:]]}"}; printf '%s' "$s"; }
 sha() { local o; o=$(openssl dgst -sha256 "$1" 2>/dev/null) || return 1; o=${o##*= }; [[ $o =~ $RE_SHA ]] && printf '%s' "$o"; }
+size() { stat -f %z "$1" 2>/dev/null; }
+
+ME=$(id -u 2>/dev/null)
+[[ $ME =~ ^[1-9][0-9]*$ ]] || { say "it does not run as root, nor as an account it cannot name"; sleep "$FAULT_SECS"; exit 1; }
+BOOT=$(sysctl -n kern.bootsessionuuid 2>/dev/null)
+[[ $BOOT =~ $RE_BOOT ]] || BOOT=
+
+dir_ok() { # DIR -> 0 when it is a folder, not a link, owned by this account, that nobody else may write (D3.1)
+  local s m
+  [ -d "$1" ] && [ ! -L "$1" ] || return 1
+  s=$(stat -f '%u %Lp' "$1" 2>/dev/null) || return 1
+  [ "${s%% *}" = "$ME" ] || return 1
+  m=00${s#* }; m=${m: -3}
+  case "${m:1:1}${m:2:1}" in *[2367]*) return 1 ;; esac
+}
 
 recipe=
-for s in "$DATA"/builds/r*/serving; do [ -f "$s" ] && [ ! -L "$s" ] && { recipe=${s%/serving}; recipe=${recipe##*/}; break; }; done
-[ -n "$recipe" ] || { echo "auster-engine: nothing is serving" >&2; sleep 60; exit 1; }
+for s in "$DATA"/builds/r*/serving; do
+  r=${s%/serving}; r=${r##*/}
+  [[ $r =~ $RE_RECIPE ]] && [ -f "$s" ] && [ ! -L "$s" ] && { recipe=$r; break; }
+done
+[ -n "$recipe" ] || { say "nothing is serving"; sleep "$FAULT_SECS"; exit 1; }
 B="$DATA/builds/$recipe"
+dir_ok "$DATA" && dir_ok "$DATA/builds" && dir_ok "$B" ||
+  { say "$B must be a folder that only this account owns and can write, so nothing is written or started"; sleep "$FAULT_SECS"; exit 1; }
 
 start_record() { # CODE ADDRESS -> builds/<recipe>/start (B4 step 6), by rename
   local t="$B/.start.new.$$"
-  printf 'auster-record 1\ncode\t%s\naddress\t%s\nboot\t%s\ntime\t%s\n' "$1" "$2" "$BOOT" "$(date +%s)" > "$t" && mv -f "$t" "$B/start"
+  printf 'auster-record 1\ncode\t%s\naddress\t%s\nboot\t%s\ntime\t%s\n' "$1" "$2" "${BOOT:--}" "$(date +%s)" > "$t" && mv -f "$t" "$B/start"
 }
-fault() { start_record "$1" -; echo "auster-engine: $1" >&2; sleep 60; exit 1; }   # B4: wait 60 s, then exit
+fault() { # CODE SENTENCE -> `start` says CODE; the job waits 60 s, then exits (B4, T76)
+  start_record "$1" -
+  say "$1: $2 It waits $FAULT_SECS s, then exits, and launchd starts it again."
+  sleep "$FAULT_SECS"
+  exit 1
+}
+
+paused_live() { # -> 0 while builds/paused names a process of this boot that is alive (D3.1), and is not
+  # older than 30 minutes. Its own reader: one line of at most 4,096 bytes, `auster-record 1`, the process
+  # number, the boot session and the process's start time; anything else is absent.
+  local f="$DATA/builds/paused" line s m
+  [ -f "$f" ] && [ ! -L "$f" ] || return 1
+  [ "$(size "$f")" -le 4096 ] || return 1
+  [ "$(wc -l < "$f" | tr -d ' ')" = 1 ] && [ "$(tail -c 1 "$f" | od -An -tx1 | tr -d ' \n')" = 0a ] || return 1
+  IFS= read -r line < "$f" || return 1
+  split "$line"
+  [ "${#F[@]}" -eq 4 ] && [ "${F[0]}" = 'auster-record 1' ] || return 1
+  [[ ${F[1]} =~ $RE_PID ]] && [[ ${F[2]} =~ $RE_BOOT ]] && [[ ${F[3]} =~ $RE_LSTART ]] || return 1
+  m=$(stat -f %m "$f" 2>/dev/null) || return 1
+  [ $(( $(date +%s) - m )) -le "$PAUSE_SECS" ] || return 1
+  [ -n "$BOOT" ] && [ "${F[2]}" = "$BOOT" ] || return 1
+  s=$(ps -p "${F[1]}" -o lstart= 2>/dev/null) || return 1
+  [ "$(trim "$s")" = "${F[3]}" ]
+}
+
+read_serving() { # FILE -> the descriptor (A5), every field matched, or 1. Five lines: `auster-descriptor 1`,
+  # the build, engine and model lines as the registry has them (a trailing field this version does not know
+  # is kept and not read, A3), and the launch line
+  local f=$1 l lines=()
+  [ -f "$f" ] && [ ! -L "$f" ] && [ "$(size "$f")" -le 8192 ] || return 1
+  [ "$(tail -c 1 "$f" | od -An -tx1 | tr -d ' \n')" = 0a ] || return 1
+  while IFS= read -r l; do [ ${#l} -le 1000 ] || return 1; lines+=("$l"); done < "$f"
+  [ "${#lines[@]}" -eq 5 ] && [ "${lines[0]}" = 'auster-descriptor 1' ] || return 1
+  split "${lines[1]}"
+  [ "${#F[@]}" -ge 14 ] && [ "${F[0]}" = build ] || return 1
+  [[ ${F[1]} =~ $RE_BUILD ]] && [[ ${F[2]} =~ $RE_ENGINE ]] && [[ ${F[3]} =~ $RE_MODEL ]] || return 1
+  [[ ${F[4]} =~ $RE_SHA ]] && [[ ${F[5]} =~ $RE_SHA ]] && [[ ${F[6]} =~ $RE_SHA ]] || return 1
+  [[ ${F[7]} =~ $RE_NUM ]] && [[ ${F[8]} =~ $RE_NUM ]] && [[ ${F[9]} =~ $RE_NUM ]] && [[ ${F[10]} =~ $RE_NUM ]] || return 1
+  [[ ${F[11]} =~ $RE_UNIT ]] && [[ ${F[12]} =~ $RE_UNIT ]] && [[ ${F[13]} =~ $RE_LABEL ]] || return 1
+  build=${F[1]} b_engine=${F[2]} b_model=${F[3]} template=${F[4]} system=${F[5]} temp=${F[11]} topp=${F[12]}
+  split "${lines[2]}"
+  [ "${#F[@]}" -ge 8 ] && [ "${F[0]}" = engine ] && [ "${F[1]}" = "$b_engine" ] && [ "${F[2]}" = macos-arm64 ] || return 1
+  [[ ${F[3]} =~ ^b[0-9]{4,7}$ ]] && [[ ${F[4]} =~ ^llama-b[0-9]{4,7}-bin-macos-arm64\.(tar\.gz|zip)$ ]] || return 1
+  [[ ${F[5]} =~ $RE_SIZE ]] && [[ ${F[6]} =~ $RE_SHA ]] && [[ ${F[7]} =~ $RE_NUM ]] || return 1
+  engine=${F[6]}
+  split "${lines[3]}"
+  [ "${#F[@]}" -ge 10 ] && [ "${F[0]}" = model ] && [ "${F[1]}" = "$b_model" ] || return 1
+  [[ ${F[2]} =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,95}/[A-Za-z0-9][A-Za-z0-9._-]{0,95}$ ]] && [[ ${F[3]} =~ ^[0-9a-f]{40}$ ]] || return 1
+  [[ ${F[4]} =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,200}\.gguf$ ]] && [[ ${F[5]} =~ $RE_SIZE ]] && [[ ${F[6]} =~ $RE_SHA ]] || return 1
+  [[ ${F[7]} =~ ^[a-z0-9.-]{2,30}$ ]] && [[ ${F[8]} =~ ^(publisher|endorsed|third-party)$ ]] && [[ ${F[9]} =~ $RE_NUM ]] || return 1
+  model=${F[6]}
+  split "${lines[4]}"
+  [ "${#F[@]}" -eq 6 ] && [ "${F[0]}" = launch ] || return 1
+  [[ ${F[1]} =~ ^[1-9][0-9]?$ ]] && [ "${F[1]}" -le 64 ] || return 1
+  [[ ${F[2]} =~ ^[1-9][0-9]{0,6}$ ]] && [ "${F[2]}" -le 1048576 ] || return 1
+  [[ ${F[3]} =~ ^[1-9][0-9]{0,4}$ ]] && [ "${F[3]}" -le 65535 ] || return 1
+  [[ ${F[4]} =~ $RE_SHA ]] && [[ ${F[5]} =~ $RE_SPEED ]] || return 1
+  people=${F[1]} context=${F[2]} port=${F[3]} list=${F[4]}
+}
+
+mac_value() { # KEY -> its value in builds/mac (capability-lib.js's header gives the form), or 1
+  local f="$DATA/builds/mac" l n=0
+  [ -f "$f" ] && [ ! -L "$f" ] && [ "$(size "$f")" -le 1024 ] || return 1
+  while IFS= read -r l; do
+    n=$((n + 1))
+    if [ "$n" = 1 ]; then [ "$l" = 'auster-record 1' ] || return 1; continue; fi
+    case "$l" in "$1$T"*) printf '%s' "${l#"$1$T"}"; return 0 ;; esac
+  done < "$f"
+  return 1
+}
+
+home_address() { # -> ADDR, the home address (BD9, B4 step 5); or the start code that says why there is none
+  local r if_ gw hw p parts=() router recorded
+  ADDR=
+  r=$(route -n get default 2>/dev/null) || { WHY=no-network; return 1; }
+  if_=$(printf '%s\n' "$r" | awk '$1 == "interface:" { print $2; exit }')
+  gw=$(printf '%s\n' "$r" | awk '$1 == "gateway:" { print $2; exit }')
+  [ -n "$if_" ] || { WHY=no-network; return 1; }
+  WHY=not-home
+  [[ $if_ =~ ^[a-z][a-z0-9]{0,15}$ ]] && [[ $gw =~ $RE_IPV4 ]] || return 1
+  networksetup -listallhardwareports 2>/dev/null | grep -qxF "Device: $if_" || return 1
+  ADDR=$(ipconfig getifaddr "$if_" 2>/dev/null)
+  [[ $ADDR =~ $RE_IPV4 ]] || { ADDR=; return 1; }
+  IFS=. read -r -a parts <<< "$ADDR"
+  for p in "${parts[@]}"; do [ "$p" -le 255 ] || { ADDR=; return 1; }; done
+  case "$ADDR" in 10.*|192.168.*|172.1[6-9].*|172.2[0-9].*|172.3[01].*) ;; *) ADDR=; return 1 ;; esac
+  hw=$(arp -n "$gw" 2>/dev/null | awk '{ for (i = 1; i < NF; i++) if ($i == "at") { print $(i + 1); exit } }')
+  IFS=: read -r -a parts <<< "$hw"
+  router=
+  [ "${#parts[@]}" -eq 6 ] || { ADDR=; return 1; }
+  for p in "${parts[@]}"; do
+    [[ $p =~ ^[0-9a-fA-F]{1,2}$ ]] || { ADDR=; return 1; }
+    p=0$p; router+=${router:+:}$(printf '%s' "${p: -2}" | tr 'A-F' 'a-f')
+  done
+  recorded=$(mac_value router) && [[ $recorded =~ $RE_ROUTER ]] && [ "$recorded" = "$router" ] || { ADDR=; return 1; }
+}
 
 # 1. Wait while builds/paused names a live process of this boot (D3.1), at most 30 minutes.
-waited=0
-while [ -f "$DATA/builds/paused" ] && [ ! -L "$DATA/builds/paused" ] && [ "$waited" -lt 360 ]; do
-  IFS= read -r line < "$DATA/builds/paused" || break
-  split "$line"
-  [ "${#F[@]}" -eq 4 ] && [ "${F[0]}" = 'auster-record 1' ] && [ "${F[2]}" = "$BOOT" ] || break
-  [[ ${F[3]} =~ $RE_LSTART ]] || break
-  s=$(ps -p "${F[1]}" -o lstart= 2>/dev/null) || break
-  s=${s%"${s##*[![:space:]]}"}
-  [ "$s" = "${F[3]}" ] || break
-  sleep 5
-  waited=$((waited + 1))
+deadline=$(( $(date +%s) + PAUSE_SECS )) n=0
+while paused_live; do
+  [ "$n" != 0 ] || say "waiting: builds/paused names a run of Auster that is still alive"
+  [ "$(date +%s)" -lt "$deadline" ] && [ "$n" -lt "$PAUSE_SECS" ] || break
+  sleep 1
+  n=$((n + 1))
 done
 
-# 2. Read serving, after the wait.
-lines=()
-while IFS= read -r l; do lines+=("$l"); done < "$B/serving"
-[ "${#lines[@]}" -eq 5 ] && [ "${lines[0]}" = 'auster-descriptor 1' ] || fault engine-hash
-split "${lines[1]}"; build=${F[1]}; template=${F[4]}; system=${F[5]}; temp=${F[11]}; topp=${F[12]}
-split "${lines[2]}"; engine=${F[6]}
-split "${lines[3]}"; model=${F[6]}
-split "${lines[4]}"; people=${F[1]}; context=${F[2]}; port=${F[3]}; list=${F[4]}
-for v in "$template" "$system" "$engine" "$model" "$list"; do [[ $v =~ $RE_SHA ]] || fault engine-hash; done
-[[ $people =~ ^[1-9][0-9]?$ ]] && [[ $context =~ ^[1-9][0-9]{0,6}$ ]] && [[ $port =~ ^[1-9][0-9]{0,4}$ ]] || fault engine-hash
+# 2. Read serving, after the wait, so that the job starts what the last switch wrote.
+read_serving "$B/serving" || fault engine-hash "builds/$recipe/serving cannot be read."   # step 2
 
-# 3. The key file: a regular file, not a link, mode 0600, one to 64 lines, each a key and nothing else.
+# 3. The key file (B7): a regular file, not a link, of this account, mode 0600, one to 64 lines, each a
+# key and nothing else. The engine takes an empty file, or one of blank or comment lines, as no key at all.
 kf="$DATA/keys/engine.keys"
-[ -f "$kf" ] && [ ! -L "$kf" ] && [ "$(stat -f %Lp "$kf")" = 600 ] || fault keys
+[ -f "$kf" ] && [ ! -L "$kf" ] && [ "$(stat -f '%u %Lp' "$kf" 2>/dev/null)" = "$ME 600" ] ||
+  fault keys "keys/engine.keys is not a file of mode 0600 of this account."
+ks=$(size "$kf")
+[ "$ks" -ge 33 ] && [ "$ks" -le $((64 * 33)) ] || fault keys "keys/engine.keys holds no key, or too many."
 n=0
-while IFS= read -r k || [ -n "$k" ]; do n=$((n + 1)); [[ $k =~ $RE_KEY ]] || fault keys; done < "$kf"
-[ "$n" -ge 1 ] && [ "$n" -le 64 ] || fault keys
+while IFS= read -r k; do n=$((n + 1)); [[ $k =~ $RE_KEY ]] || fault keys "keys/engine.keys holds a line that is not a key."; done < "$kf"
+[ "$n" -ge 1 ] && [ "$n" -le 64 ] && [ "$ks" = $((n * 33)) ] || fault keys "keys/engine.keys is not one key a line."
 
-# 4. The engine and the template against their sha256s: the file list is made again and must be the same.
+# 4. The engine and the template: the engine's file list is made again and must be the one the launch line
+# names (every file by its sha256), and the template and the system prompt must have the build line's.
 root="$DATA/engines/$engine/root"
-[ -d "$root" ] && [ ! -L "$root" ] || fault engine-hash
+[ -d "$root" ] && [ ! -L "$root" ] || fault engine-hash "the engine's folder is missing."
 listing=$(cd "$root" && find . \( -type f -o -type l \) -print | sed 's|^\./||' | LC_ALL=C sort | while IFS= read -r p; do
   if [ -L "$p" ]; then printf '%s\tlink\t%s\n' "$p" "$(readlink "$p")"; else printf '%s\t%s\t%s\n' "$p" "$(stat -f %z "$p")" "$(sha "$p")"; fi
 done)
-[ "$(printf '%s\n' "$listing" | shasum -a 256 | cut -c1-64)" = "$list" ] || fault engine-hash
-[ "$(sha "$DATA/store/$template")" = "$template" ] || fault engine-hash
+[ -n "$listing" ] && [ "$(printf '%s\n' "$listing" | shasum -a 256 | cut -c1-64)" = "$list" ] ||
+  fault engine-hash "the engine's files are not the ones its list names."
 program=$(printf '%s\n' "$listing" | awk -F'\t' '$2 != "link" && ($1 == "llama-server" || $1 ~ /\/llama-server$/) { print $1 }')
-[ -n "$program" ] && [ "$(printf '%s\n' "$program" | wc -l | tr -d ' ')" = 1 ] && [ -x "$root/$program" ] || fault engine-hash
+[ -n "$program" ] && [ "$(printf '%s\n' "$program" | wc -l | tr -d ' ')" = 1 ] && [ -x "$root/$program" ] ||
+  fault engine-hash "the engine holds no single program named llama-server."
+[ "$(sha "$DATA/store/$template")" = "$template" ] || fault engine-hash "the template is not the one the build names."
+[ "$(sha "$DATA/store/$system")" = "$system" ] || fault engine-hash "the system prompt is not the one the build names."
 
-# 5. The home address: the default route's interface is a hardware port, its IPv4 address is private,
-# and the router's hardware address is the one recorded in builds/mac (BD9).
-r=$(route -n get default 2>/dev/null) || fault no-network
-if_=$(printf '%s\n' "$r" | awk '$1 == "interface:" { print $2 }')
-gw=$(printf '%s\n' "$r" | awk '$1 == "gateway:" { print $2 }')
-[ -n "$if_" ] && [ -n "$gw" ] || fault no-network
-networksetup -listallhardwareports 2>/dev/null | grep -qx "Device: $if_" || fault not-home
-addr=$(ipconfig getifaddr "$if_" 2>/dev/null)
-case "$addr" in 10.*|192.168.*|172.1[6-9].*|172.2[0-9].*|172.3[01].*) ;; *) fault not-home ;; esac
-mac=$(arp -n "$gw" 2>/dev/null | awk '{ for (i = 1; i < NF; i++) if ($i == "at") { print $(i + 1); exit } }')
-router=
-IFS=: read -r -a parts <<< "$mac"
-[ "${#parts[@]}" -eq 6 ] || fault not-home
-for p in "${parts[@]}"; do [[ $p =~ ^[0-9a-fA-F]{1,2}$ ]] || fault not-home; p=0$p; router+=${router:+:}$(printf '%s' "${p: -2}" | tr 'A-F' 'a-f'); done
-[ "$(sed -n 's/^router	//p' "$DATA/builds/mac" 2>/dev/null)" = "$router" ] || fault not-home
+# 5. The home address (BD9): the default route's interface is a hardware port, never a tunnel, its IPv4
+# address is private, and the router's hardware address is the one recorded in builds/mac.
+home_address || fault "$WHY" "this Mac is not on the home network Auster was installed on, and the engine listens nowhere else."
 
 # 6. The start record.
-start_record starting "$addr"
+start_record starting "$ADDR"
 
-# 7. Keep the Mac awake while the engine runs, if the household said yes (BD10).
-[ "$(sed -n 's/^keep-awake	//p' "$DATA/builds/mac" 2>/dev/null)" = yes ] && caffeinate -i -w $$ &
+# 7. Keep the Mac awake while the engine runs, if the household said yes (BD10). -w names this process,
+# which the engine replaces below.
+if [ "$(mac_value keep-awake)" = yes ]; then caffeinate -i -w $$ > /dev/null 2>&1 & fi
 
-# 8. The UI config, by JSON.stringify with one key, then the engine with an empty environment.
+# 8. The UI config, by JSON.stringify with one key (B4), then the engine, with an empty environment, its
+# working folder store/, every path relative to it, and options no registry field can change.
 name=$(scutil --get LocalHostName 2>/dev/null)
 [[ $name =~ ^[A-Za-z0-9-]{1,63}$ ]] || name=
 osascript -l JavaScript -e '
 function run(a) {
   var d = $.NSData.dataWithContentsOfFile(a[0]);
-  var s = ObjC.unwrap($.NSString.alloc.initWithDataEncoding(d, $.NSUTF8StringEncoding));
-  return JSON.stringify({ systemMessage: s });
-}' "$DATA/store/$system" > "$B/.ui-config.new.$$" 2>/dev/null && mv -f "$B/.ui-config.new.$$" "$B/ui-config.json" || fault engine-hash
-cors="http://$addr:$port"
+  if (d.isNil()) return "";
+  var s = $.NSString.alloc.initWithDataEncoding(d, $.NSUTF8StringEncoding);
+  if (s.isNil()) return "";
+  return JSON.stringify({ systemMessage: ObjC.unwrap(s) });
+}' "$DATA/store/$system" > "$B/.ui-config.new.$$" 2>/dev/null
+case "$(head -c 18 "$B/.ui-config.new.$$" 2>/dev/null)" in
+  '{"systemMessage":"') mv -f "$B/.ui-config.new.$$" "$B/ui-config.json" ;;
+  *) rm -f "$B/.ui-config.new.$$"; fault engine-hash "the UI config could not be written from the system prompt." ;;
+esac
+cors="http://$ADDR:$port"
 [ -z "$name" ] || cors="$cors,http://$name.local:$port"
-cd "$DATA/store" || fault engine-hash
-exec env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin "$root/$program" -m "$model" --alias "$build" \
-  -c $((people * context)) -np "$people" --host "127.0.0.1,$addr" --port "$port" \
+cd "$DATA/store" || fault engine-hash "store/ cannot be entered."
+say "starting build $build on 127.0.0.1 and $ADDR, port $port"
+exec env -i PATH="$ENGINE_PATH" "$root/$program" -m "$model" --alias "$build" \
+  -c $((people * context)) -np "$people" --host "127.0.0.1,$ADDR" --port "$port" \
   --api-key-file ../keys/engine.keys --offline --no-slots --no-webui-mcp-proxy --cors-origins "$cors" \
   --jinja --chat-template-file "$template" --ui-config-file "../builds/$recipe/ui-config.json" \
   --temp "$temp" --top-p "$topp" --fit off -ngl all

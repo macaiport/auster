@@ -1,0 +1,3 @@
+# file: common/auster-engine
+# the engine job always keeps the Mac awake
+s/^if \[ "\$(mac_value keep-awake)" = yes \]; then caffeinate/if true; then caffeinate/

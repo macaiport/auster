@@ -1,0 +1,3 @@
+# file: common/auster-check
+# only 200 counts as open: the probe does not fail closed
+s/if \[ "\$n" != 401 \] && \[ "\$n" != 403 \]; then/if [ "$n" = 200 ]; then/

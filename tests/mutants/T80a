@@ -1,0 +1,4 @@
+# file: common/auster-check
+# launchctl kickstart on an address change
+/^  log "the home address is now \$found; the engine started on \$was"$/a\
+  launchctl kickstart -k "gui/$(id -u)/local.auster.engine"

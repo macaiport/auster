@@ -1,0 +1,3 @@
+# file: common/auster
+# only 200 counts as open: the server check fails open
+s/if \[ "\$code" != 401 \] && \[ "\$code" != 403 \]; then/if [ "$code" = 200 ]; then/

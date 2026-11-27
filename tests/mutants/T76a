@@ -1,0 +1,3 @@
+# file: common/auster-engine
+# exit at once after a fault
+s/^  sleep "\$FAULT_SECS"$/  :/

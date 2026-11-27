@@ -1,0 +1,3 @@
+# file: common/auster-engine
+# -c set to the context per person
+s|^  -c \$((people \* context)) -np "\$people"|  -c "$context" -np "$people"|

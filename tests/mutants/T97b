@@ -1,0 +1,3 @@
+# file: common/auster-engine
+# hash only the archive, not the engine's files
+/^\[ -n "\$listing" \] && /s#.*#[ "$(sha "$DATA/store/$engine")" = "$engine" ] ||#

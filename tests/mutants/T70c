@@ -1,0 +1,3 @@
+# file: common/auster-engine
+# inherit the environment
+s|^exec env -i PATH="\$ENGINE_PATH"|exec env PATH="$ENGINE_PATH"|
