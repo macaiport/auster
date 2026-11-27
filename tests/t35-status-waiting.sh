@@ -4,11 +4,12 @@
 # though no newer version is out, and the recipe's line names the recipe by its label, the build it serves and
 # the one waiting (by id and model file), the download (only what store/ does not hold: model A, 3,400 bytes), and
 # that this Mac can run it, for how many people, at what context and with how much memory. A person who does not
-# update leaves it waiting: after `auster update` (U4's; it changes nothing here) and after another check that
-# finds the same version, status still shows it, and --noted names nothing (D3.3: no notification for a build
-# that waits for a reason on the Mac). With a newer version, the version and its date are named. A build that no
-# longer waits says `the same`; a hold that cannot be read, passed over (held); a build served that is withdrawn,
-# with nothing else offered, withdrawn. Mutant: tests/mutants/T35a (call a Mac current when its scripts are).
+# update leaves it waiting: after `auster update` (U4: it opens the update in Terminal, which this test does not
+# run; t35-update-again.sh answers it no) and after another check that finds the same version, status still shows
+# it, and --noted names nothing (D3.3: no notification for a build that waits for a reason on the Mac). With a newer
+# version, the version and its date are named. A build that no longer waits says `the same`; a hold that cannot be
+# read, passed over (held); a build served that is withdrawn, with nothing else offered, withdrawn.
+# Mutant: tests/mutants/T35a (call a Mac current when its scripts are).
 . "$TESTS/lib.sh"
 . "$TESTS/helpers.sh"
 . "$TESTS/install-helpers.sh"
@@ -34,8 +35,8 @@ waiting "status"
 none_of() { if grep -qF -- "$1" "$W/out"; then bad "$2: $(cat "$W/out")"; else ok "$2"; fi; }
 none_of "is released; this Mac has" "  ...and no newer version is said to be out"
 
-auster update; same "$RC" 3 "auster update (U4's) changes nothing here: exit 3"
-auster status; waiting "after auster update did nothing"
+auster update; same "$RC" 0 "auster update (U4) hands the update to Terminal, which does not run it here: exit 0"
+auster status; waiting "after auster update, with nothing run"
 
 route_drop "$CHANGELOG"; route_drop "$REGISTRY"
 printf '# Changelog\n\n## v0.1.0 (2026-11-27)\n\nFirst.\n' > "$FX/changelog-1.md"

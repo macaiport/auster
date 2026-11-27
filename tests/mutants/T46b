@@ -1,0 +1,4 @@
+# file: common/auster-engine
+# make the engine job read _update: it starts nothing without the stamp
+/^# 1\. Wait while builds\/paused names a live process/i\
+[ -f "$DATA/_update/scripts" ] || exit 0

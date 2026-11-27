@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# reset people to the recipe's default: the update does not carry the household's number over
+s/^  opts=(--serving "\$AU_JNOW" --people "\$AU_JP0")$/  opts=(--serving "$AU_JNOW")/

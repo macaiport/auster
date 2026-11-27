@@ -1,0 +1,4 @@
+# file: common/driver.sh
+# record the router at every update: the update's step 4 reads the home network and writes its router into builds/mac
+/^  AU_DISKARGS=() AU_NODISK=()$/i\
+  au_home_network; awk -F'\\t' -v OFS='\\t' -v r="$AU_ROUTER" '$1 == "router" { $2 = r } { print }' "$AU_DATA/builds/mac" > "$AU_RUN/mac" && cat "$AU_RUN/mac" > "$AU_DATA/builds/mac"

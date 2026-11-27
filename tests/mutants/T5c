@@ -1,0 +1,3 @@
+# file: common/auster
+# go on for a checkout: auster update opens the update on a stamp that is not release's
+/^au_cmd_update()/,/^}/s/^    ready) ;;$/    ready|manual) ;;/

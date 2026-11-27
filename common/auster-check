@@ -16,7 +16,8 @@
 # It only reads and records (D2.2, D3.4): it never stops, starts or restarts the engine, and its program and
 # everything it loads hold no command that could (T80 is a gate on the source). Its probe waits in line like
 # any request. Each run, B5's steps in order, every part with a time limit:
-#   1. the update check: `_update/updates.sh --refresh` (U1 deploys it); while it is absent, no update check,
+#   1. the update check: `_update/updates.sh --refresh` (U1 deploys it); while it is absent, or while
+#      builds/updating names a live run (U4, T26: no check changes `offer` during an update), no update check,
 #      and the log says so;
 #   2. the engine probe on 127.0.0.1 (below);
 #   3. the address: the home address now, found as the engine job finds it (B4 step 5), against `start`'s;
@@ -404,7 +405,11 @@ state_read || NEWER=1
 
 # 1. The update check (D3.3), U1's rule file. Its exit code is not used. TODO(U7): read what it concludes,
 # and notify an update waiting once for each version (D3.5); TODO(U8): a build withdrawn, the same way.
-if [ -f "$DATA/_update/updates.sh" ] && [ ! -L "$DATA/_update/updates.sh" ]; then
+# U4: not while builds/updating names a live run, so that a check never changes `offer` during an update (T26);
+# `tried` is then left as it is, and the next firing checks.
+if live "$DATA/builds/updating" 0; then
+  log "a run of Auster holds builds/, so no update check now"
+elif [ -f "$DATA/_update/updates.sh" ] && [ ! -L "$DATA/_update/updates.sh" ]; then
   part "$L_UPDATE" update /bin/bash "$DATA/_update/updates.sh" --refresh && log "the update check ran"
 else
   log "no _update/updates.sh yet, so no update check"

@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# show only the keys minted in this run, as a first install's step 14 does: a run that finishes an install shows none
+s/^  \[ "\$AU_HAD_STAMP" = 1 \] || au_update_keys$/  :/

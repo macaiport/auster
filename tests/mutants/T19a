@@ -1,0 +1,3 @@
+# file: common/updates.sh
+# start the update from --refresh when ready: the check opens the update itself
+s/^      auu_refresh "\${2:-}"; _auu_state$/      auu_refresh "${2:-}"; _auu_state; [ "$AUU_WORD" != ready ] || auu_open > \/dev\/null/

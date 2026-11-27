@@ -1,0 +1,4 @@
+# file: common/driver.sh
+# rewrite and reload the jobs: a second run writes the job files again and loads the engine's job anew
+/^  au_update_check$/i\
+  au_jobs_write; launchctl bootout "gui/$AU_UID/$AU_LABEL_ENGINE"; au_job_load "$AU_LABEL_ENGINE"

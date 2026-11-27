@@ -20,15 +20,19 @@
 # in the data root is not this account's alone; the stamp is read by the one-line reader; builds/local-name is
 # written with builds/mac (T6, T33, T36, T54, T55, T95, T116). U3 (2026-11-27): step 3 also copies registry.js into
 # jobs/, which the rule file runs for each recipe's line; and au_bytes and its kin moved to common/auster.
-# What later steps complete is marked TODO:
-#   U4  `update`, and a run on a Mac that already serves the recipe (B3's update-only branches, D3.6);
-#   U5  the server check's callers other than a first install, exit code 4's tests, and kept/ (the switch).
+# U4 (2026-11-27): `update`, and a second paste on a Mac that serves the recipe, run the update (D3.6, below "the
+# update"): step 3 takes the lock and writes no program, step 4 measures with the engine in engines/, each recipe is
+# judged and printed OK, held, passed over or withdrawn, and a change of build or setting goes to the question; with
+# nothing to change, steps 13 to 15 (T5, T7, T26, T35, T38, T44, T46, T54, T65, T84, T91). What later steps complete is
+# marked TODO:
+#   U5  everything after the update's yes (Auster's programs, the download, the test, the switch), the server
+#       check's callers other than a first install and an update that changes nothing, exit code 4's tests, and kept/.
 #
 # Exit codes (B3): 0 done; 1 refused or answered no, and nothing of this run is left; 2 usage; 3 not
-# everything was updated (here only: a run that U4 must handle); 4 the server is down; 5 stopped after
-# writing: what is left is listed, and `auster remove` removes it. Before the yes every stop is 1 and
-# removes what this run created; after it every stop but 4 is 5 and keeps what was written, so that
-# pasting the line again goes on from there.
+# everything was updated (D3.6: a recipe passed over; and, until U5, a yes to the update's question); 4 the
+# server is down; 5 stopped after writing: what is left is listed, and `auster remove` removes it. Before
+# the yes every stop is 1 and removes what this run created; after it every stop but 4 is 5 and keeps what
+# was written, so that pasting the line again goes on from there.
 #
 # Test variables: those of section C (AU_GPU_MIB, AU_RAM_BYTES, AU_DISK_FREE_BYTES, AU_DISK_TOTAL_BYTES,
 # which common/capability.js reads), and common/auster's: AU_TTY, the file a test answers the questions in;
@@ -50,7 +54,11 @@ AU_RE_ENTRY='^[A-Za-z0-9._+@-]+(/[A-Za-z0-9._+@-]+)*/?$'
 AU_AWAKE=no AU_DEVICE= AU_LOCKED=0 AU_ROOT_NEW=0 AU_MADE_ROOT=0 AU_CANDIDATE= AU_CREATED=()
 AU_FETCH_SECS=0 AU_FETCH_BYTES=0 AU_WITHDRAWALS=
 
-au_usage() { au_say "usage: driver.sh install|check <recipe id> --commit C --line release|tag --version V [--withdrawals FILE]" >&2; exit 2; }
+au_usage() {
+  { au_say "usage: driver.sh install|check <recipe id> --commit C --line release|tag --version V [--withdrawals FILE]"
+    au_say "       driver.sh update|remove --commit C --line release --version V"; } >&2
+  exit 2
+}
 
 # --- how a run ends -----------------------------------------------------------------------------------
 
@@ -180,7 +188,17 @@ au_bd14() { # -> refuses when the Mac already serves another recipe (BD14), befo
 
 # --- step 3: the lock and the data root ---------------------------------------------------------------
 
-au_step3_root() {
+# Auster's own programs (B3 steps 3 and 6), each `tree path:data-root path:mode`: bin/auster, the two jobs'
+# programs, the check job's section C (capability.js and the two files it loads from its own folder, B5 step 4),
+# registry.js, which _update/updates.sh runs from jobs/ for each recipe's line (U3, D3.3), and the id minter for
+# `auster key add` (B7, A2). An update compares them (au_programs_differ) and changes none before its yes.
+AU_PROGRAMS="common/auster:bin/auster:755 common/auster-engine:jobs/auster-engine:644
+common/auster-check:jobs/auster-check:644 common/registry-lib.js:jobs/registry-lib.js:644
+common/capability-lib.js:jobs/capability-lib.js:644 common/capability.js:jobs/capability.js:644
+common/registry.js:jobs/registry.js:644 tools/mint-id:jobs/mint-id:644"
+
+au_step3_root() { # -> the data root (made at a first install), its folders, the lock, and no record of a newer format;
+  # the same for an install and an update, which writes no program here (au_step3_programs is a first install's)
   local sub
   au_root_check "$AU_DATA" || exit 1
   if [ "$AU_ROOT_NEW" = 1 ]; then
@@ -196,28 +214,21 @@ au_step3_root() {
     au_refuse "${AU_NEWER[0]} was written by a newer version of Auster, so this one leaves it as it is." \
       "Paste the installer line from the guide to update, or remove Auster with: \"$AU_DATA/bin/auster\" remove"
   fi
-  if [ -e "$AU_DATA/builds/$AU_RECIPE/serving" ] || [ -L "$AU_DATA/builds/$AU_RECIPE/serving" ]; then
-    # TODO(U4): D3.6's procedure, B3 steps 4 to 15 on a Mac that serves; with it, finishing a first
-    # install whose server check failed (B3 step 13: the server check again, then the keys and the stamp)
-    if [ -e "$AU_DATA/_update/scripts" ]; then
-      au_say "This Mac already serves this recipe. Installing over it is the update, which comes with a later version (U4); nothing was changed."
-    else
-      au_say "An earlier install of this recipe did not finish: its server check failed. Finishing it by pasting the line again comes with a later version (U4); nothing was changed."
-      au_say "\"$AU_DATA/bin/auster\" status says how the engine's last start went, and \"$AU_DATA/bin/auster\" remove removes it."
-    fi
-    au_undo
-    exit 3
-  fi
-  au_program "$AU_TREE/common/auster" "$AU_DATA/bin/auster" 755
-  au_program "$AU_TREE/common/auster-engine" "$AU_DATA/jobs/auster-engine" 644
-  au_program "$AU_TREE/common/auster-check" "$AU_DATA/jobs/auster-check" 644
-  # The check job's section C (B5 step 4): capability.js and the two files it loads from its own folder
-  au_program "$AU_TREE/common/registry-lib.js" "$AU_DATA/jobs/registry-lib.js" 644
-  au_program "$AU_TREE/common/capability-lib.js" "$AU_DATA/jobs/capability-lib.js" 644
-  au_program "$AU_TREE/common/capability.js" "$AU_DATA/jobs/capability.js" 644
-  # _update/updates.sh runs capability.js and registry.js from here for each recipe's line (U3, D3.3)
-  au_program "$AU_TREE/common/registry.js" "$AU_DATA/jobs/registry.js" 644
-  au_program "$AU_TREE/tools/mint-id" "$AU_DATA/jobs/mint-id" 644   # for `auster key add` (B7, A2)
+}
+
+au_step3_programs() { # -> Auster's own programs written into the data root (B3 step 3, a first install)
+  local p
+  for p in $AU_PROGRAMS; do
+    au_program "$AU_TREE/${p%%:*}" "$AU_DATA/$(printf '%s' "$p" | cut -d: -f2)" "${p##*:}"
+  done
+}
+
+au_programs_differ() { # -> 0 when one of Auster's own programs in this tree is not, byte for byte, the one in the data root
+  local p
+  for p in $AU_PROGRAMS; do
+    cmp -s "$AU_TREE/${p%%:*}" "$AU_DATA/$(printf '%s' "$p" | cut -d: -f2)" || return 0
+  done
+  return 1
 }
 
 au_program() { # SOURCE DEST MODE -> written by rename, unless already equal byte for byte
@@ -527,9 +538,10 @@ au_zprofile_question() { # -> on a yes, the line that lets Terminal find `auster
 }
 
 au_mac_record() { # -> builds/mac (C1, capability-lib.js's header gives its form), by rename; and builds/local-name,
-  # the `.local` name the question gave the household's devices (common/auster's header; B6, T116). TODO(U4): an
-  # update keeps the router of the record it replaces, and leaves local-name as it is, as `auster network` alone
-  # changes both
+  # the `.local` name the question gave the household's devices (common/auster's header; B6, T116). A first install's
+  # only: an update (U4) records neither the router nor the name again, so that only `auster network` changes them
+  # (T100), and writes no `mac` before its yes. TODO(U5): after the yes, once Auster's programs pass, the update
+  # writes `mac` with its new figures and the router and keep-awake of the record it replaces
   local t="$AU_DATA/builds/.mac.new.$$"
   [ -e "$AU_DATA/builds/mac" ] || au_made "$AU_DATA/builds/mac"
   printf 'auster-record 1\ngpu-mib\t%s\nmemory-bytes\t%s\nmacos\t%s\nmeasured\t%s\nrouter\t%s\nkeep-awake\t%s\n' \
@@ -799,8 +811,10 @@ au_step14_show() { # each new device's key as a QR code (B7), only after a passe
 
 au_step15_stamp() { # the stamp (D3.1): the line followed, the version, the commit and the time, by rename;
   # left as it is when the line, the version and the commit are the same. The rule file that reads it is
-  # copied into _update first (D3.2, T43), so that the two are of one version once a run has finished
+  # copied into _update first (D3.2, T43), so that the two are of one version once a run has finished. AU_STAMP_NEW
+  # says whether the stamp was written (1) or left as it was (0)
   local f="$AU_DATA/_update/scripts" t
+  AU_STAMP_NEW=0
   au_mkdir "$AU_DATA/_update" || au_stop "$AU_DATA/_update could not be made."
   au_put "$AU_TREE/common/updates.sh" "$AU_DATA/_update/updates.sh" 644 || au_stop "$AU_DATA/_update/updates.sh could not be written."
   if au_line_read "$f" 4 && [ "${AU_LF[0]}" = "$AU_LINE" ] && [ "${AU_LF[1]}" = "$AU_VERSION" ] &&
@@ -810,6 +824,360 @@ au_step15_stamp() { # the stamp (D3.1): the line followed, the version, the comm
   t="$AU_DATA/_update/.scripts.new.$$"
   printf 'auster-record 1\t%s\t%s\t%s\t%s\n' "$AU_LINE" "$AU_VERSION" "$AU_COMMIT" "$(au_now)" > "$t" && mv -f "$t" "$f" ||
     au_stop "The stamp could not be written."
+  AU_STAMP_NEW=1
+}
+
+# --- the update (D3.6; U4) -------------------------------------------------------------------------------
+# `update` (install.sh update, which `auster update` runs) and a second paste of the installer line on a Mac that serves
+# the recipe (T65) run B3's steps for recipes already installed. Step 3 takes the lock and writes no program: Auster's
+# own programs change only after the yes (B3 step 6, BD18). Step 4 measures with the engine already in engines/ and
+# fetches nothing; it records neither the router nor the `.local` name, chooses no port and writes no `mac` (T65,
+# T100). Every size and sha256 comes from the registry in this tree (AU_REG), never from _update/registry. Each recipe
+# that has `serving` is judged by section C with the household's number of people carried over (C4) and is OK (its
+# build and setting are the ones served), held, passed over (and why) or withdrawn, one line each; or its build or
+# setting would change, and it goes to the question (D3.6 step 2), after its template, system prompt and test are
+# found in store/ or this tree's assets/ (step 8's lookup, made before the question so that no yes is asked for a
+# build this tree cannot install: T54). A no leaves everything as it was and the build waiting (T7, T35); a yes ends
+# at TODO(U5). With nothing to change and Auster's programs unchanged, the run makes the server check when a `serving`
+# has a speed of 0 (B3 step 13), shows the devices' keys when the Mac had no stamp (an install that never finished,
+# T65), and writes step 15, with _update's registry, notes and offer when the stamp moved (U4: so that each recipe's
+# line is not `unknown` until the next check). No record is written before the question but the lock, and step 15 is
+# reached only when Auster's programs are byte for byte this tree's, so no record of a format the programs in use do
+# not read is ever written by a run that has not changed them (D3.1; the row "a record's format and rollback").
+
+au_later() { # X Y -> 0 when version X is later than version Y, both matched to AU_RE_VERSION, compared as numbers (D3.2)
+  local x=${1#v} y=${2#v} i a b
+  for i in 1 2 3; do
+    a=${x%%.*} b=${y%%.*}; x=${x#*.} y=${y#*.}
+    [ "$a" -gt "$b" ] && return 0
+    [ "$a" -lt "$b" ] && return 1
+  done
+  return 1
+}
+
+au_update_measure() { # -> B3 step 4 on an update (D3.6): AU_FIGURES, AU_DISKARGS and AU_NODISK, what section C is given.
+  # The GPU limit from --list-devices of the engine already in engines/ that serving names, or, when that engine is not
+  # the one its list names, the `mac` record's; the memory measured; the disk holdings as the rule file makes them, and
+  # no disk figures at all when a descriptor cannot be read (D3.3)
+  local r dir prog=
+  AU_RAM=$(sysctl -n hw.memsize 2>/dev/null)
+  [[ $AU_RAM =~ ^[1-9][0-9]{0,14}$ ]] || au_refuse "This Mac's memory cannot be read (sysctl hw.memsize), so nothing was changed."
+  AU_FIGURES=(--mac "$AU_DATA/builds/mac" --ram "$AU_RAM")
+  AU_SV_ENGINE=
+  for r in "${AU_URECIPES[@]}"; do au_serving_read "$r" && break; AU_SV_ENGINE=; done
+  dir="$AU_DATA/engines/${AU_SV_ENGINE:-none}"
+  if [ -n "$AU_SV_ENGINE" ] && au_engine_intact "$dir" && prog=$(au_program_in "$dir"); then
+    au_say "Measuring this Mac with the engine already on it; nothing is fetched before the question."
+    au_limited 120 "$AU_RUN/list-devices.txt" /bin/bash -c 'cd "$1" && exec env -i PATH="$2" "$3" --list-devices' _ "$AU_RUN" "$AU_ENGINE_PATH" "$dir/root/$prog"
+    AU_FIGURES+=(--list-devices "$AU_RUN/list-devices.txt")
+  else
+    au_say "The engine this Mac serves with is not the one its list names, so the figures recorded at install (builds/mac) are used."
+  fi
+  AU_DISKARGS=() AU_NODISK=()
+  if df -k "$AU_DATA" > "$AU_RUN/df.txt" 2>/dev/null &&
+     ( AU_UPDATE_DIR="$AU_DATA/_update"; . "$AU_TREE/common/updates.sh"; _auu_holdings "$AU_RUN/disk" ) > /dev/null 2>&1; then
+    AU_DISKARGS=(--df "$AU_RUN/df.txt" --disk "$AU_RUN/disk")
+  else
+    AU_NODISK=(-u AU_DISK_FREE_BYTES -u AU_DISK_TOTAL_BYTES)
+  fi
+}
+
+au_reason_words() { # CODES -> D3.3's reasons, comma-separated codes, in words
+  local c x words=
+  for c in ${1//,/ }; do
+    case "$c" in
+      fit) x='does not fit' ;; room) x='no room on disk' ;; held) x=held ;; failed) x='failed here' ;;
+      unreadable) x='cannot be read' ;; tier) x='above its trust tiers' ;; withdrawn) x=withdrawn ;;
+      serving) x='what it serves cannot be read' ;; figures) x="this Mac's figures cannot be read" ;; *) continue ;;
+    esac
+    words+="${words:+, }$x"
+  done
+  printf '%s' "${words:-no build can be used}"
+}
+
+au_update_assets() { # BUILD -> 0 when store/ or this tree's assets/ hold the template, the system prompt and the test the build
+  # names, each by its sha256, as step 8 finds them; otherwise AU_MISSING names the first that neither holds
+  local what sha f found
+  for what in 8:template 9:system-prompt 10:test; do
+    sha=$(au_build_field "$1" "${what%%:*}")
+    au_store_has "$sha" && continue
+    found=
+    for f in "$AU_TREE"/assets/*; do
+      [ -f "$f" ] && [ ! -L "$f" ] || continue
+      if [ "$(au_sha "$f")" = "$sha" ]; then found=$f; break; fi
+    done
+    [ -n "$found" ] || { AU_MISSING=${what#*:}; return 1; }
+  done
+}
+
+au_update_judge() { # RECIPE -> AU_J: ok, held, passed, withdrawn or change, with AU_J_SAY, its line; for a change, AU_JK
+  # (build or setting) and the figures the question gives. Section C (capability.js) is given this tree's registry, the
+  # build served, the household's number of people from its launch line (C4), its `hold` (unreadable: every build held,
+  # D3.1) and failed/, the build loaded when the engine's job is loaded (C5), and the figures of step 4
+  local r=$1 l f id seen=0 held= lf=() cf=() opts=()
+  AU_J=passed AU_J_SAY= AU_JK= AU_JREMOVE=() AU_JNAME="This Mac's recipe" AU_JLABEL=
+  AU_REGOUT="$AU_RUN/registry-$r.out"
+  osascript -l JavaScript "$AU_TREE/common/registry.js" "$AU_REG" "$r" > "$AU_REGOUT" 2>/dev/null
+  l=$(awk -F'\t' '$1 == "recipe"' "$AU_REGOUT"); au_split "$l"
+  if [[ ${AU_F[4]:-} =~ ^[a-z][a-z0-9-]{1,40}$ ]]; then AU_JLABEL=${AU_F[4]} AU_JNAME="The recipe ${AU_F[4]}"; fi
+  if ! au_serving_read "$r"; then
+    AU_J_SAY="$AU_JNAME: what it serves (builds/$r/serving) cannot be read, so it is not updated."
+    return 0
+  fi
+  AU_JNOW=$AU_SV_BUILD AU_JNOWFILE=$AU_SV_MODEL_FILE AU_JP0=$AU_SV_PEOPLE AU_JC0=$AU_SV_CONTEXT
+  opts=(--serving "$AU_JNOW" --people "$AU_JP0")
+  au_hold_read "$r"
+  case "$AU_HOLD" in
+    absent) ;;
+    ok) for id in ${AU_HOLD_IDS[@]+"${AU_HOLD_IDS[@]}"}; do opts+=(--held "$id"); done ;;
+    *) opts+=(--hold-unreadable) ;;
+  esac
+  for f in "$AU_DATA/builds/$r"/failed/*; do
+    { [ -e "$f" ] || [ -L "$f" ]; } && au_entry_read "$f" && opts+=(--failed "$AU_SV_BUILD")
+  done
+  if au_job_loaded "$AU_LABEL_ENGINE"; then opts+=(--loaded "$AU_JNOW" "$AU_JP0" "$AU_JC0"); fi
+  env ${AU_NODISK[@]+"${AU_NODISK[@]}"} osascript -l JavaScript "$AU_TREE/common/capability.js" "$AU_REG" "$r" "${opts[@]}" \
+    "${AU_FIGURES[@]}" ${AU_DISKARGS[@]+"${AU_DISKARGS[@]}"} > "$AU_RUN/choice-$r.out" 2>/dev/null
+  while IFS= read -r l; do
+    au_split "$l"
+    case "${AU_F[0]}" in
+      figures) AU_JMEM=${AU_F[2]:--} ;;
+      line) lf=("${AU_F[@]}") ;;
+      choice) cf=("${AU_F[@]}") ;;
+      remove) AU_JREMOVE+=("$l") ;;
+      build)   # a build earlier in the order than the one served, ruled out by its hold alone
+        if [ "${AU_F[2]:-}" = "$AU_JNOW" ]; then seen=1
+        elif [ "$seen" = 0 ] && [ -z "$held" ] && [ "${AU_F[3]:-}" = held ]; then held=${AU_F[2]}; fi ;;
+    esac
+  done < "$AU_RUN/choice-$r.out"
+  [[ ${AU_JMEM:-} =~ ^[1-9][0-9]{0,14}$ ]] || AU_JMEM=$AU_RAM
+  AU_JWD=${lf[3]:--}
+  if [ "${#cf[@]}" -ge 8 ]; then AU_JP=${cf[2]} AU_JC=${cf[3]} AU_JGPU=${cf[4]} AU_JALL=${cf[5]} AU_JWAY=${cf[6]}; fi
+  case "${lf[1]:-}" in
+    same)
+      if [ "${#cf[@]}" -ge 8 ] && [ "${cf[1]}" = "$AU_JNOW" ] && { [ "$AU_JP" != "$AU_JP0" ] || [ "$AU_JC" != "$AU_JC0" ]; }; then
+        AU_J=change AU_JK=setting AU_JPICK=$AU_JNOW AU_JDL=0
+      elif [ -n "$held" ]; then
+        AU_J=held AU_J_SAY="$AU_JNAME: build $held is held on this Mac, so it stays on build $AU_JNOW, and nothing changes."
+      else
+        AU_J=ok AU_J_SAY="$AU_JNAME: OK. Build $AU_JNOW serves it, for $AU_JP0 people at $(au_commas "$AU_JC0") tokens each."
+      fi ;;
+    waiting)
+      if [[ ${lf[2]} =~ $AU_RE_BUILD ]] && [ "${#cf[@]}" -ge 8 ] && [ "${cf[1]}" = "${lf[2]}" ]; then
+        AU_J=change AU_JK=build AU_JPICK=${lf[2]} AU_JDL=${lf[5]}
+        [[ $AU_JDL =~ ^(0|[1-9][0-9]{0,14})$ ]] || AU_JDL=0
+        if ! au_update_assets "$AU_JPICK"; then
+          AU_J=passed AU_J_SAY="This version of Auster holds no $AU_MISSING with the sha256 build $AU_JPICK names. $AU_JNAME is not updated: it keeps serving build $AU_JNOW."
+        fi
+      else
+        AU_J_SAY="$AU_JNAME: what an update would change cannot be worked out, so it is not updated: it keeps serving build $AU_JNOW."
+      fi ;;
+    withdrawn)   # TODO(U8): the words of the reason, calm for superseded and corrected (D3.8)
+      AU_J=withdrawn AU_J_SAY="$AU_JNAME: the build it serves, $AU_JNOW, has been withdrawn, and no other build is offered for this Mac; it keeps serving." ;;
+    passed-over) AU_J_SAY="$AU_JNAME: passed over ($(au_reason_words "${lf[4]:-}")), so it is not updated: it keeps serving build $AU_JNOW." ;;
+    unreadable) AU_J_SAY="$AU_JNAME: passed over (cannot be read), so it is not updated: it keeps serving build $AU_JNOW." ;;
+    *) AU_J_SAY="$AU_JNAME: section C gave no answer for it, so it is not updated: it keeps serving build $AU_JNOW." ;;
+  esac
+}
+
+au_update_question() { # -> 0 on a yes, 1 on a no (D3.6 step 2), for the recipe au_update_judge judged a change: what will
+  # change, in figures, with the household's number of people carried over (C4); the download; the earlier builds the
+  # disk rule would remove; which way the switch goes on this Mac and how long the server will not answer; and whether
+  # Auster's own programs change. Nothing has been fetched, and nothing is written whatever the answer
+  local file= repo= parts= l n=0 m_sha e_sha
+  au_say ""
+  if [ "$AU_JK" = build ]; then
+    au_say "$AU_JNAME: an update is waiting. Nothing has been fetched, and nothing changes without a yes."
+    file=$(au_build_field "$AU_JPICK" 28) repo=$(au_build_field "$AU_JPICK" 26)
+  else
+    au_say "$AU_JNAME: its setting would change, on the build it serves. Nothing changes without a yes."
+  fi
+  au_say ""
+  au_say "  Now         build $AU_JNOW${AU_JNOWFILE:+ ($AU_JNOWFILE)}, $AU_JP0 people at a time, each with a context of $(au_commas "$AU_JC0") tokens."
+  if [ "$AU_JK" = build ]; then
+    au_say "  After       build $AU_JPICK${file:+ ($file)}, $AU_JP people at a time, each with a context of $(au_commas "$AU_JC") tokens,"
+  else
+    au_say "  After       the same build, $AU_JP people at a time, each with a context of $(au_commas "$AU_JC") tokens,"
+  fi
+  au_say "              holding $(au_memory "$AU_JALL") of this Mac's $(au_memory $((AU_JMEM / 1048576))) of memory, $(au_memory "$AU_JGPU") of it on the GPU."
+  if [ "$AU_JP" = "$AU_JP0" ]; then au_say "  People      The household's number of people, $AU_JP, is kept."
+  else au_say "  People      The recipe now allows at most $AU_JP people at a time, so the household's $AU_JP0 is lowered to $AU_JP."; fi
+  if [ "$AU_JK" = setting ]; then
+    au_say "  Download    Nothing: it is the build this Mac serves, with its files already here."
+  elif [ "$AU_JDL" = 0 ]; then
+    au_say "  Download    Nothing: the files it needs are already on this Mac."
+  else
+    m_sha=$(au_build_field "$AU_JPICK" 30) e_sha=$(au_build_field "$AU_JPICK" 23)
+    [ -f "$AU_DATA/store/$m_sha" ] || parts="$file from Hugging Face ($repo)"
+    [ -f "$AU_DATA/store/$e_sha" ] || parts+="${parts:+, and }the engine $(au_build_field "$AU_JPICK" 20) from GitHub"
+    au_say "  Download    $(au_bytes "$AU_JDL")${parts:+: $parts}."
+  fi
+  for l in ${AU_JREMOVE[@]+"${AU_JREMOVE[@]}"}; do
+    au_split "$l"
+    n=$((n + 1))
+    [ "$n" != 1 ] || au_say "  Removed     To make room, these earlier builds are removed, and they stay removed if the download then fails:"
+    case "${AU_F[2]:-}" in
+      failed) au_say "              build ${AU_F[4]:-}, which failed its test here on ${AU_F[3]%%T*};" ;;
+      *) if [ "${AU_F[5]:-}" = yes ]; then
+           au_say "              build ${AU_F[4]:-}, kept since ${AU_F[3]%%T*}: the one before the build in use, so \`auster rollback\` could no longer go back to it;"
+         else au_say "              build ${AU_F[4]:-}, kept since ${AU_F[3]%%T*};"; fi ;;
+    esac
+  done
+  if [ "$AU_JK" = setting ]; then
+    au_say "  Switch      Nothing is fetched or tested: the server restarts once on the new setting, and does not answer for a few seconds."
+  elif [ "$AU_JWAY" = side-by-side ]; then
+    au_say "  Switch      This Mac can hold both builds at once: the new one is tested beside the one serving, which keeps answering"
+    au_say "              (a test that fails restarts it: a few seconds without answers). The server then restarts once on the new"
+    au_say "              build and does not answer for a few seconds, up to about 15 s when the model is read from disk."
+  else
+    au_say "  Switch      This Mac cannot hold both builds at once: the server does not answer while the new build is tested,"
+    au_say "              up to about 3 minutes, and then restarts on it."
+  fi
+  [ "$AU_JWD" = - ] || au_say "  Withdrawn   The build it serves now has been withdrawn."
+  if [ "$AU_PROGRAMS_CHANGE" = 1 ]; then
+    au_say "  Programs    Auster's own programs change too (${AU_FROM:+from $AU_FROM }to $AU_VERSION): they are put in place first, before"
+    au_say "              anything is downloaded, and the server restarts once to check them."
+  fi
+  au_say ""
+  au_yes "Update ${AU_JLABEL:-this recipe} now?" && return 0
+  if [ "$AU_JK" = build ]; then
+    au_say "Nothing was changed: build $AU_JPICK stays waiting, and \`auster update\` offers it again."
+  else
+    au_say "Nothing was changed: the setting stays as it is, and \`auster update\` offers the change again."
+  fi
+  return 1
+}
+
+au_update_programs_question() { # -> 0 on a yes, 1 on a no: Auster's own programs change and no recipe does (B3 step 6)
+  au_say ""
+  au_say "Auster's own programs change (${AU_FROM:+from $AU_FROM }to $AU_VERSION), and every recipe on this Mac serves what it should."
+  au_say "  Programs    They are put in place, and the server restarts once to check them: a few seconds without answers."
+  au_say ""
+  au_yes "Update Auster's programs now?" && return 0
+  au_say "Nothing was changed, and \`auster update\` offers this again."
+  return 1
+}
+
+au_update_yes() { # TODO(U5): what follows the yes (D3.6 steps 3 to 6, B3 steps 6 to 15): Auster's programs first when they
+  # change, on the build already serving (BD18, T94), then `mac` (au_mac_record), the download, the isolated test, the
+  # switch either way, the server check and exit code 4. Until then the run stops here, having changed nothing
+  au_undo
+  au_say "Making this change comes with a later version of Auster (U5), so nothing was changed."
+  exit 3
+}
+
+au_update_check() { # B3 step 13 on a run that changes nothing: a recipe whose serving has a speed of 0 has not passed a server
+  # check since its switch (A5), so the engine is started again, as `auster start` starts it, and checked before step 15
+  # writes the stamp. Passed goes on; open and not answered end the run with exit 4 and no stamp
+  local r need=()
+  for r in "${AU_URECIPES[@]}"; do au_serving_read "$r" && [ "$AU_SV_SPEED" = 0 ] && need+=("$r"); done
+  [ "${#need[@]}" -gt 0 ] || return 0
+  au_say "The server has not passed a check since its build was last switched, so it is started again and checked on the home network..."
+  if ! au_engine_start; then
+    au_say "launchd did not start Auster's engine job, so the server was not checked. \`auster status\` says why."
+    au_update_unfinished "${need[0]}"
+    exit 4
+  fi
+  for r in "${need[@]}"; do
+    au_server_check "$r" "$AU_T0"
+    case "$AU_CHECK" in
+      passed) au_say "The server answered, at $AU_CHECK_SPEED tokens a second, and refused a request with no key." ;;
+      open)
+        au_say "The server did not refuse a request that carried no key, so Auster stopped it. It stays stopped until \`auster start\`."
+        au_update_unfinished "$r"
+        exit 4 ;;
+      *)
+        au_say "The server did not answer its check within $AU_CHECK_SECS s: $AU_CHECK_WHY. \`auster status\` says how the engine's last start went."
+        au_update_unfinished "$r"
+        exit 4 ;;
+    esac
+  done
+}
+
+au_update_unfinished() { # RECIPE -> after a server check that failed, what is not done and the way on (B3 step 13)
+  if [ "$AU_HAD_STAMP" = 0 ]; then
+    au_say "The device keys are made but not shown, and the install is not finished: paste the line again to check again and finish, or remove it with: \"$AU_DATA/bin/auster\" remove"
+  elif [ -n "$(ls -A "$AU_DATA/builds/$1/kept" 2>/dev/null)" ]; then
+    au_say "\`auster rollback\` goes back to the build before, with no download; pasting the line again checks again."
+  else
+    au_say "Pasting the line again checks again."
+  fi
+}
+
+au_update_keys() { # B3 step 14 for a run that finishes an install: with no stamp when the run began, the install that made the
+  # devices' keys did not finish, and step 14 shows a key only after a passed check, just before the stamp; so each device's
+  # key is shown now, after the check above (T65). A Mac whose _update was moved to the Trash shows them again
+  local i
+  au_key_list
+  for ((i = 0; i < ${#AU_KEY_IDS[@]}; i++)); do
+    au_say "The install is finished: the key for the device ${AU_KEY_NAMES[$i]} is shown now."
+    au_qr_show "${AU_KEY_NAMES[$i]}" "${AU_KEY_IDS[$i]}" || true
+  done
+}
+
+au_update_known() { # -> after a run that wrote a new stamp on the release line: _update/registry, notes.md and offer from this
+  # tree, as a check that found this version writes them (D3.3: the registry, then notes.md, then offer, each by rename,
+  # and only when the tree's changelog names the version its registry does), so that each recipe's line is judged at once
+  # rather than `unknown` until the next check (the rule file uses no registry older than the scripts). An offer of a
+  # later version is never lowered, and nothing is written for a named version, which is offered nothing
+  local u="$AU_DATA/_update" cl="$AU_TREE/CHANGELOG.md" v t="$AU_DATA/_update/.offer.new.$$"
+  [ "$AU_LINE" = release ] || return 0
+  [ -f "$cl" ] && [ ! -L "$cl" ] && [ "$(au_size "$cl")" -le 1048576 ] || return 0
+  v=$(sed -n -E 's/^## (v(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})) \(.*/\1/p' "$cl" | head -n 1)
+  [ "$v" = "$AU_VERSION" ] || return 0
+  if au_line_read "$u/offer" 2 && [[ ${AU_LF[0]} =~ $AU_RE_VERSION ]] && au_later "${AU_LF[0]}" "$AU_VERSION"; then return 0; fi
+  rm -f "$t"
+  if ! { au_put "$AU_TREE/registry.tsv" "$u/registry" 600 && au_put "$cl" "$u/notes.md" 600 &&
+         printf 'auster-record 1\t%s\t%s\n' "$AU_VERSION" "$(date +%s)" > "$t" && chmod 600 "$t" && mv -f "$t" "$u/offer"; }; then
+    rm -f "$t"
+    au_say "_update's registry and offer could not be written, so each recipe's line in \`auster status\` waits for the next check."
+  fi
+}
+
+au_update() { # -> the update (D3.6; the comment above): exits. 0 when nothing needed changing; 1 refused or answered no; 3 a
+  # recipe passed over, or, until U5, a yes; 4 the server check failed
+  local s r no=0 short=0
+  au_refuse_stopped || au_refuse   # B6: while builds/stopped exists, whatever it holds, the update refuses
+  AU_URECIPES=()
+  for s in "$AU_DATA"/builds/r*/serving; do
+    [ -e "$s" ] || [ -L "$s" ] || continue
+    r=${s%/serving}; r=${r##*/}
+    [[ $r =~ $AU_RE_RECIPE ]] && AU_URECIPES+=("$r")
+  done
+  [ "${#AU_URECIPES[@]}" -gt 0 ] ||
+    au_refuse "Nothing serves on this Mac yet: its install stopped before its server. Paste the installer line from the guide to go on, or remove it with: \"$AU_DATA/bin/auster\" remove"
+  AU_HAD_STAMP=0 AU_FROM=
+  if au_line_read "$AU_DATA/_update/scripts" 4; then
+    AU_HAD_STAMP=1
+    [[ ${AU_LF[1]} =~ $AU_RE_VERSION ]] && AU_FROM=${AU_LF[1]}
+  fi
+  au_update_measure
+  AU_PROGRAMS_CHANGE=0
+  if au_programs_differ; then AU_PROGRAMS_CHANGE=1; fi
+  for r in "${AU_URECIPES[@]}"; do
+    au_update_judge "$r"
+    case "$AU_J" in
+      ok|held) au_say "$AU_J_SAY" ;;
+      change) if au_update_question; then au_update_yes; fi; no=1 ;;
+      *) au_say "$AU_J_SAY"; short=1 ;;
+    esac
+  done
+  if [ "$no" = 0 ] && [ "$AU_PROGRAMS_CHANGE" = 1 ]; then
+    if au_update_programs_question; then au_update_yes; fi
+    no=1
+  fi
+  if [ "$no" = 1 ]; then au_undo; exit 1; fi
+  au_update_check
+  [ "$AU_HAD_STAMP" = 1 ] || au_update_keys
+  au_step15_stamp
+  [ "$AU_STAMP_NEW" = 0 ] || au_update_known
+  au_say ""
+  if [ "$short" = 1 ]; then
+    au_say "Auster $AU_VERSION is on this Mac, but not everything was updated: the lines above say why."
+    exit 3
+  fi
+  au_say "Auster $AU_VERSION is on this Mac, and nothing else needed changing."
+  exit 0
 }
 
 # --- the run ---------------------------------------------------------------------------------------------
@@ -836,6 +1204,7 @@ au_args() {
   done
   [ -n "$AU_COMMIT" ] && [ -n "$AU_LINE" ] && [ -n "$AU_VERSION" ] || au_usage
   [ "$AU_LINE" = tag ] || [ -z "$AU_WITHDRAWALS" ] || au_usage
+  [ "$AU_MODE" != update ] || [ "$AU_LINE" = release ] || au_usage   # an update follows release (D3.6)
 }
 
 au_main() {
@@ -844,7 +1213,6 @@ au_main() {
   AU_HOME_DATA=$AU_DATA
   case "$AU_MODE" in
     remove) au_remove; exit $? ;;   # B8, for an install that stopped before bin/auster was written
-    update) au_say "The update comes with a later version of Auster (U4); nothing was changed."; exit 3 ;;   # TODO(U4)
   esac
   AU_RUN=$(mktemp -d "${TMPDIR:-/tmp}/auster-run.XXXXXX") || exit 1
   trap au_cleanup EXIT
@@ -852,9 +1220,19 @@ au_main() {
   trap 'exit 143' TERM
   [ "$AU_MODE" != check ] || AU_DATA="$AU_RUN/data"   # --check: every step in a temporary folder (B2)
   au_root_check "$AU_HOME_DATA" || exit 1   # before anything is read from it or written (D3.1)
+  if [ "$AU_MODE" = update ]; then   # D3.6, from `auster update` (install.sh update)
+    [ "$AU_ROOT_NEW" = 0 ] || au_refuse "Auster is not installed on this Mac, so there is nothing to update. To install it, paste the installer line from the guide."
+    AU_REG="$AU_TREE/registry.tsv"   # D3.6: every size and sha256 from this tree's registry, never _update's copy
+    au_step3_root
+    au_update
+  fi
   au_registry
   au_bd14
   au_step3_root
+  if [ -e "$AU_DATA/builds/$AU_RECIPE/serving" ] || [ -L "$AU_DATA/builds/$AU_RECIPE/serving" ]; then
+    au_update   # a second paste on a Mac that serves the recipe is the update (B3, T65)
+  fi
+  au_step3_programs
   au_step4_measure
   au_step5_choose
   if [ "$AU_MODE" = check ]; then

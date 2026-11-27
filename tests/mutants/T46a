@@ -1,0 +1,6 @@
+# file: common/auster
+# keep the lock in _update (made when absent)
+s|^  local f="\$AU_DATA/builds/updating" t$|  local f="$AU_DATA/_update/updating" t|
+s|^  t="\$AU_DATA/builds/.updating.\$\$"$|  mkdir -p "$AU_DATA/_update"; t="$AU_DATA/_update/.updating.$$"|
+s|^  local f="\$AU_DATA/builds/updating"$|  local f="$AU_DATA/_update/updating"|
+s|^  au_lock_read "\$AU_DATA/builds/updating"$|  au_lock_read "$AU_DATA/_update/updating"|

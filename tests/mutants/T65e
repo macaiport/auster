@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# update while stopped: a paste on a Mac whose engine is stopped goes on as if it served
+s/^  au_refuse_stopped || au_refuse   # B6: .*$/  :/

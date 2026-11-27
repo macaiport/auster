@@ -1,0 +1,4 @@
+# file: common/driver.sh
+# start the download before the question
+/^  au_yes "Update \${AU_JLABEL:-this recipe} now?" && return 0$/i\
+  AU_CH_BUILD=$AU_JPICK; au_step7_model

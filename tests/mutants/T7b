@@ -1,0 +1,4 @@
+# file: common/driver.sh
+# remove earlier builds before the question: each one the disk rule names is deleted as the question is asked
+/^  au_yes "Update \${AU_JLABEL:-this recipe} now?" && return 0$/i\
+  for l in ${AU_JREMOVE[@]+"${AU_JREMOVE[@]}"}; do au_split "$l"; rm -f "$AU_DATA/builds/${AU_F[1]}/${AU_F[2]}/${AU_F[3]}-${AU_F[4]}"; done

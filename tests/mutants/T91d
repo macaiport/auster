@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# never say that Auster's programs change
+s/^  if au_programs_differ; then AU_PROGRAMS_CHANGE=1; fi$/  :/

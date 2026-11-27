@@ -111,14 +111,17 @@ install_registry() { # OUT [VERSION [ORDER...]] -> a registry in format 1 of the
 }
 
 install_tree() { # REGISTRY [COMMIT [PAX-COMMIT [FOLDER]]] -> the tree of COMMIT (default $COMMIT), with that
-  # registry, at its codeload address; its pax header records PAX-COMMIT, its folder is FOLDER
-  # (auster-<commit> by default, as codeload names it)
+  # registry and a CHANGELOG.md whose newest heading is the registry's version (U4: an update that moves the stamp
+  # takes _update's notes from it), at its codeload address; its pax header records PAX-COMMIT, its folder is
+  # FOLDER (auster-<commit> by default, as codeload names it)
   local reg=$1 c=${2:-$COMMIT}
   local pax=${3:-$c} folder=${4:-auster-$c} src="$FX/tree-src-$c"
   rm -rf "$src"; mkdir -p "$src"
   cp "$ROOT/install.sh" "$src/"
   cp -R "$ROOT/common" "$ROOT/tools" "$FX/assets" "$src/"
   cp "$reg" "$src/registry.tsv"
+  printf '# Changelog\n\n## Unreleased\n\n## %s (2026-11-27)\n\n**The tree of %s.** Made by the tests.\n' \
+    "$(head -n 1 "$reg" | cut -f3)" "$c" > "$src/CHANGELOG.md"
   tree_archive "$src" "$folder" "$pax" "$FX/tree-$c.tar.gz"
   curl_route GET "$CODELOAD/$c" 200 "$FX/tree-$c.tar.gz"
 }

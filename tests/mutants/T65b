@@ -1,0 +1,4 @@
+# file: common/driver.sh
+# regenerate keys: a second run makes Auster's own key again and writes the engine's key file
+/^  au_update_check$/i\
+  au_key_new "$AU_DATA/keys/probe"; au_keys_write

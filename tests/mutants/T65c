@@ -1,0 +1,4 @@
+# file: common/driver.sh
+# choose the port again: the update's step 4 tests the ports as a first install does and serves on the one it finds
+/^  AU_DISKARGS=() AU_NODISK=()$/i\
+  au_home_network; au_port; for r in "${AU_URECIPES[@]}"; do awk -F'\\t' -v OFS='\\t' -v p="$AU_PORT" 'NR == 5 { $4 = p } { print }' "$AU_DATA/builds/$r/serving" > "$AU_RUN/s" && mv "$AU_RUN/s" "$AU_DATA/builds/$r/serving"; done

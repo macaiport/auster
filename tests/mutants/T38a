@@ -1,0 +1,3 @@
+# file: common/auster
+# always open Terminal: over SSH too, the update's file is handed to the Mac's screen
+s/^au_ssh() { \[ -n "\${SSH_CONNECTION:-}" \] || \[ -n "\${SSH_TTY:-}" \]; }/au_ssh() { false; }/

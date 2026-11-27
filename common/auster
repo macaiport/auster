@@ -13,9 +13,10 @@
 # command that writes runs first (au_ready); the update check's state in `status`, from updates.sh; and
 # builds/local-name, the `.local` name the household's devices were given, which `status` compares with
 # the Mac's name now and `network` records anew (T5, T6, T95, T116). U3 (2026-11-27): each recipe's line in
-# `status`, from the rule file's --recipes, with what a build waiting would change (B6, D3.3; T35). Still to come,
-# each marked TODO below:
-#   U4  `update`;  U5  `people`'s change of setting, and T107's rows for these commands;
+# `status`, from the rule file's --recipes, with what a build waiting would change (B6, D3.3; T35). U4 (2026-11-27):
+# `update`, which opens the update's .command file in Terminal at the Mac's screen and runs it in the session over
+# SSH (D3.6; T5, T26, T35, T38). Still to come, each marked TODO below:
+#   U5  `people`'s change of setting, `update --retry`, and T107's rows for these commands;
 #   U6  `rollback`, `unhold` and `cleanup`;  U8  the words of each withdrawal's reason in `status`.
 #
 # The readers (D3.1, Reading). Each checks the format first, from the first field of the first 4,096 bytes
@@ -53,7 +54,10 @@
 #   people <n>                   the number checked, then TODO(U5)
 #   key add|revoke|show <name>   B7, below
 #   remove                       B8, and `install.sh remove`'s through the driver
-#   update, rollback, unhold, cleanup   TODO(U4, U6)
+#   update                       the update (D3.6): its .command file opened in Terminal at the Mac's screen,
+#                                or run in this session over SSH (SSH_CONNECTION or SSH_TTY set); refused
+#                                while stopped or locked and unless the rule file's word is ready
+#   rollback, unhold, cleanup    TODO(U6)
 # Each that stops or starts the engine or writes a record takes the lock. While builds/stopped exists,
 # whatever it holds and whether or not it can be read, `update`, `people`, `restart`, `key add` and `key
 # revoke` refuse and name `auster start`; `start`, `rollback`, `status`, `key show`, `verify`, `network`
@@ -953,15 +957,79 @@ au_cmd_people() { # N -> C4, B6: refused while stopped. TODO(U5): the change of 
   return 3
 }
 
-au_cmd_later() { # COMMAND -> 3: a command of B6 that comes with a later version; `update` refuses while stopped first
-  if [ "$1" = update ]; then
-    au_ready || return 1
-    au_refuse_stopped || return 1
-    au_say "auster update comes with a later version of Auster (U4); nothing was changed."   # TODO(U4)
-    return 3
-  fi
+au_cmd_later() { # COMMAND -> 3: a command of B6 that comes with a later version
   au_say "auster $1 comes with a later version of Auster (U6); nothing was changed."   # TODO(U6): rollback, unhold, cleanup
   return 3
+}
+
+au_ssh() { [ -n "${SSH_CONNECTION:-}" ] || [ -n "${SSH_TTY:-}" ]; }   # -> 0 when this command came over SSH (T38)
+
+au_command_ok() { # PATH -> 0 when it is the update's .command file as the rule file writes it: an absolute path ending
+  # in "/Update Auster.command", a regular file of this account's, not a link, in a folder of mode 0700 of this account's
+  local p=$1 d
+  case "$p" in /*'/Update Auster.command') ;; *) return 1 ;; esac
+  d=${p%/*}
+  [ -f "$p" ] && [ ! -L "$p" ] && [ -d "$d" ] && [ ! -L "$d" ] || return 1
+  [ "$(stat -f %u "$p" 2>/dev/null)" = "$AU_UID" ] && [ "$(stat -f '%u %Lp' "$d" 2>/dev/null)" = "$AU_UID 700" ]
+}
+
+au_cmd_update() { # -> D3.6, B6: the update. At the Mac's own screen, the deployed rule file's --open writes the update's
+  # .command file and hands it to Terminal, so that the person sees every line: 0. Over SSH, the same file (its
+  # --command) runs in this session, so that the questions are asked where the person is (T38), and its exit code is
+  # this command's. Either way it fetches release's install.sh into a file and runs it with `update`; typing this
+  # command is the yes before the fetched installer runs (D3.10), whose own question comes after. Refused (1) while
+  # builds/stopped exists (B6), while a run holds the lock (D3.1), and unless the rule file's word is ready: so with
+  # update checks off, on a checkout or a named version (`manual`, T5), before the first check, and with nothing
+  # waiting unless the scripts are behind (D3.3). It takes no lock itself: the driver it runs takes it
+  local u="$AU_DATA/_update" out
+  au_ready || return 1
+  au_refuse_stopped || return 1
+  au_lock_read "$AU_DATA/builds/updating"
+  if [ "$AU_LOCK" = held ] && au_alive "$AU_LOCK_PID" "$AU_LOCK_BOOT" "$AU_LOCK_START"; then
+    au_say "Another run of Auster (process $AU_LOCK_PID) is installing, updating or changing the server. Wait for it to end, then try again."
+    return 1
+  fi
+  if [ ! -d "$u" ] || [ -L "$u" ] || [ ! -f "$u/updates.sh" ] || [ -L "$u/updates.sh" ]; then
+    au_say "Update checks are off on this Mac (_update holds no updates.sh), so no update is known to be waiting. Pasting the installer line from the guide updates Auster and turns them on again."
+    return 1
+  fi
+  out=$(AU_UPDATE_DIR=$u /bin/bash "$u/updates.sh" 2>/dev/null | head -n 1)
+  au_split "$out"
+  case "${AU_F[0]:-}" in
+    ready) ;;
+    off) au_say "Update checks are off (_update/off exists), so no update is offered. Deleting that file turns them on again."; return 1 ;;
+    none) au_say "There is no record of what installed Auster (_update/scripts), so no update is offered. Pasting the installer line from the guide updates Auster."; return 1 ;;
+    manual)
+      case "${AU_F[3]:-}" in
+        checkout) au_say "Auster was installed from a checkout, which is never offered an update, so nothing was changed." ;;
+        tag) au_say "Auster was installed as a named version (${AU_F[1]:-}), which is never offered an update, so nothing was changed." ;;
+        *) au_say "Auster was not installed from its release line, so it is never offered an update, and nothing was changed." ;;
+      esac
+      au_say "Pasting the installer line from the guide moves it to the release line."
+      return 1 ;;
+    unknown) au_say "No update check has been made yet, so no update is known to be waiting. The check job makes one soon after the Mac starts, then once a day."; return 1 ;;
+    current) au_say "Nothing is waiting: Auster ${AU_F[1]:-} is the newest version at the last update check, and this Mac serves the build for it."; return 1 ;;
+    *) au_say "Whether an update is waiting cannot be read (_update/updates.sh gave no state), so nothing was changed."; return 1 ;;
+  esac
+  if au_ssh; then
+    out=$(AU_UPDATE_DIR=$u /bin/bash "$u/updates.sh" --command 2>/dev/null | head -n 1)
+    au_split "$out"
+    if [ "${AU_F[0]:-}" = written ] && [ "${#AU_F[@]}" = 2 ] && au_command_ok "${AU_F[1]}"; then
+      au_say "Over SSH, the update runs here, in this session, and asks its questions here."
+      exec /bin/bash "${AU_F[1]}"
+    fi
+    [ "${AU_F[0]:-}" != failed ] || [ -z "${AU_F[1]:-}" ] || au_say "${AU_F[1]}"
+    au_say "The update could not be started here, so nothing was changed. Pasting the installer line from the guide updates Auster."
+    return 1
+  fi
+  out=$(AU_UPDATE_DIR=$u /bin/bash "$u/updates.sh" --open 2>/dev/null | head -n 1)
+  au_split "$out"
+  case "${AU_F[0]:-}" in
+    opened) au_say "The update opens in a Terminal window on this Mac's screen, which shows every step and asks its questions there."; return 0 ;;
+    failed) [ -z "${AU_F[1]:-}" ] || au_say "${AU_F[1]}" ;;
+  esac
+  au_say "The update could not be started, so nothing was changed. Pasting the installer line from the guide updates Auster."
+  return 1
 }
 
 # --- keys and the QR code (B7) ---------------------------------------------------------------------------
@@ -1441,7 +1509,7 @@ au_status() { # -> B6: what serves, the engine job's last start, why the engine 
 }
 
 au_usage() {
-  au_say "usage: auster status | stop | start | restart | network | verify | people <n> | remove" \
+  au_say "usage: auster status | update | stop | start | restart | network | verify | people <n> | remove" \
     "              auster key add <name> | key revoke <name> | key show <name>" >&2
   return 2
 }
@@ -1470,7 +1538,10 @@ auster_main() {
         show) au_cmd_key_show "$3"; rc=$? ;;
         *) au_usage ;;
       esac ;;
-    update:*|rollback:*|unhold:*|cleanup:*) au_cmd_later "$1"; rc=$? ;;
+    update:1) au_cmd_update; rc=$? ;;
+    update:2)   # TODO(U5): --retry, a build in failed/ offered again (D3.7, BD12)
+      if [ "$2" = --retry ]; then au_say "auster update --retry comes with a later version of Auster (U5); nothing was changed."; rc=3; else au_usage; fi ;;
+    rollback:*|unhold:*|cleanup:*) au_cmd_later "$1"; rc=$? ;;
     *) au_usage ;;
   esac
   exit "$rc"

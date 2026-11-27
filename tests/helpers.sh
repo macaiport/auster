@@ -10,7 +10,7 @@ stub_env() { # puts the stubs first on PATH, with fresh state folders; stops stu
   export STUB_LOG="$STUB_DIR/log" STUB_CURL_DIR="$STUB_DIR/curl" STUB_ENGINE_DIR="$STUB_DIR/engine"
   export STUB_LAUNCHCTL_DIR="$STUB_DIR/launchctl" STUB_PS_TABLE="$STUB_DIR/ps-table"
   export STUB_NOTIFY_LOG="$STUB_DIR/notify" STUB_CMD_DIR="$STUB_DIR/cmd"
-  export AU_CURL="$TESTS/stubs/curl"
+  export AU_CURL="$TESTS/stubs/curl" AU_OPEN="$TESTS/stubs/open"   # and AU_OPEN, so that no test opens Terminal (U4)
   mkdir -p "$STUB_CURL_DIR" "$STUB_ENGINE_DIR" "$STUB_LAUNCHCTL_DIR" "$STUB_CMD_DIR"
   : > "$STUB_LOG"; : > "$STUB_CURL_DIR/routes"; : > "$STUB_PS_TABLE"; : > "$STUB_NOTIFY_LOG"
   trap stub_cleanup EXIT

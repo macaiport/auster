@@ -12,7 +12,6 @@
 #
 # Built by U1 (2026-11-27); its tests are T1, T3, T4, T5, T14, T41, T42 and T43 (their halves that U1
 # builds), with the cases of 1launcher's test that still apply. What later steps add is marked TODO:
-#   U4  --open: the update's .command file, handed to Terminal (D3.6); until then it refuses;
 #   U5  partial downloads among the disk holdings of a recipe's line (where U5 keeps them);
 #   U7  the check job's notification, which reads --noted.
 # U2 (2026-11-27) made auu_own the ownership rule over the whole data root (D3.1; tests/t6-records-own.sh), and
@@ -25,6 +24,18 @@
 # a build waiting. Its own readers of a descriptor and of `hold` follow common/auster's (D3.1), since this file
 # sources nothing, and T6's and T95's tables run them too. Its tests: T1, T3, T4, T14, T42 (their registry
 # halves), T11, T22 (the update's half), T23, T35 (with bin/auster's status), T40 and T44 (the recipe half).
+# U4 (2026-11-27): --open, the update's .command file handed to Terminal, and --command, the same file for a caller
+# that runs it itself (`auster update` over SSH); the driver also sources this file for _auu_holdings, the disk
+# holdings, when it judges an update (common/driver.sh). Its tests: T38, T19 (the check never starts an update) and
+# T43 (--open in the contract's form).
+#
+# The update's .command file (D3.6; --open and --command), "Update Auster.command" in a new folder that only this
+# account can read (mktemp -d: mode 0700), mode 0700 itself. It holds constants only: curl's path, which is AU_CURL
+# when that is a plain absolute path (a test's stub) and /usr/bin/curl otherwise, and release's install.sh address.
+# It fetches that install.sh into a file beside itself, never into a pipe, at most 1 MiB, HTTPS only and the
+# person's curl settings ignored; runs it as the pasted line runs it (`bash -c "<install.sh>" auster-install
+# update`) only when curl exited 0 with the code 200; says in one line what happened, by the installer's exit code;
+# and removes itself and its folder when it ends. Both options refuse unless the word is ready.
 #
 # Its folder, AU_UPDATE_DIR (<data root>/_update), holds (D3.1):
 #   scripts   the stamp, written by the installer and never here: auster-record 1 TAB <line> TAB <version or
@@ -54,9 +65,12 @@
 #                                      skipped (--now: the check is made whatever `tried` says)
 #   bash updates.sh --notes            the fetched notes of every version newer than the stamp's, cleaned
 #   bash updates.sh --noted            the offered version, at most twice for one version, or nothing
-#   bash updates.sh --open             opened, or failed TAB <one sentence> (TODO(U4): it always refuses)
+#   bash updates.sh --open             opened, after it wrote the update's .command file and handed it to Terminal
+#                                      (AU_OPEN -a Terminal <file>); or failed TAB <one sentence> (U4)
 #   bash updates.sh --version-of <f>   that file's version, or nothing
 #   bash updates.sh --recipes          the state line, then one `recipe` line for each recipe this Mac serves (U3)
+#   bash updates.sh --command          written TAB <the .command file's path>, after it wrote that file as --open
+#                                      does, for a caller that runs it itself; or failed TAB <one sentence> (U4)
 # Every call exits 0 when it could answer and says the outcome in its output; a usage error exits 2.
 # The words, the first that applies (D3.2): off (the file `off` exists) | none (no stamp that this version can
 # read; <detail> is `newer` when the stamp is of a newer format) | manual (the stamp's line is not release;
@@ -92,7 +106,7 @@
 # alone give `current`, without the names; --noted, --notes and the check's own start read the versions alone.
 #
 # Sourced (`. updates.sh` defines functions and constants only, and may be sourced twice), with
-# AU_UPDATE_DIR set first: auu_state, auu_refresh [--now], auu_notes, auu_noted, auu_open, auu_own,
+# AU_UPDATE_DIR set first: auu_state, auu_refresh [--now], auu_notes, auu_noted, auu_open, auu_command, auu_own,
 # auu_version_of <file>, auu_newer <x> <y>, auu_recipes. Run, it uses AU_UPDATE_DIR if set and otherwise the
 # folder it lies in, which for the deployed copy is _update itself.
 #
@@ -121,9 +135,10 @@
 # where the rest is.
 #
 # Test variables (D3.2): AU_UPDATE_DIR; AU_UPDATE_NOW, seconds since 1970 that stand for now; AU_CURL
-# (default /usr/bin/curl) and AU_OPEN (for U4's --open), the two programs a test replaces. AU_CURL must be an
-# absolute path of plain characters; any other value fetches nothing. Every function that runs a program
-# sets PATH itself, so that what comes first on the caller's PATH is never run.
+# (default /usr/bin/curl) and AU_OPEN (default /usr/bin/open, for --open), the two programs a test replaces.
+# Each must be an absolute path of plain characters; with any other value AU_CURL fetches nothing and is written
+# into no .command file, and AU_OPEN opens nothing. Every function that runs a program sets PATH itself, so that
+# what comes first on the caller's PATH is never run.
 
 _AUU_T=$'\t'
 _AUU_VER='^v(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$'
@@ -137,6 +152,7 @@ _AUU_PROG='^/[A-Za-z0-9._/-]{1,250}$'
 _AUU_CAP=1048576
 _AUU_URL='https://raw.githubusercontent.com/macaiport/auster/refs/heads/release/CHANGELOG.md'
 _AUU_REG_URL='https://raw.githubusercontent.com/macaiport/auster/refs/heads/release/registry.tsv'
+_AUU_INSTALL_URL='https://raw.githubusercontent.com/macaiport/auster/refs/heads/release/install.sh'
 _AUU_MORE='More: https://github.com/macaiport/auster/blob/release/CHANGELOG.md'
 _AUU_RECIPE='^r[a-z2-7]{12}$'
 _AUU_BUILD='^b[a-z2-7]{12}$'
@@ -681,12 +697,81 @@ auu_noted() {
   printf '%s\n' "$AUU_OFFERED"
 }
 
-# TODO(U4): the update's .command file, written into a new folder only the person can read and handed to
-# Terminal with AU_OPEN (D3.6). Until then it writes nothing and refuses, in the contract's form.
-auu_open() {
+# -> AUU_COMMAND, the path of the update's .command file (the header gives it), written into a new folder that only
+# this account can read; or AUU_WHY, one sentence, and 1, leaving nothing. Only when the word is ready
+_auu_command() {
+  local PATH=/usr/bin:/bin:/usr/sbin:/sbin d= f curl=/usr/bin/curl
+  AUU_COMMAND= AUU_WHY=
   _auu_state
-  if [ "$AUU_WORD" != ready ]; then printf 'failed\t%s\n' "No update is waiting."; return 0; fi
-  printf 'failed\t%s\n' "This version of Auster cannot start the update from here. Paste the installer line from the guide instead."
+  if [ "$AUU_WORD" != ready ]; then AUU_WHY="No update is waiting."; return 1; fi
+  if [ -n "${AU_CURL:-}" ]; then
+    [[ $AU_CURL =~ $_AUU_PROG ]] || { AUU_WHY="The update's file was not written: AU_CURL is not a plain absolute path."; return 1; }
+    curl=$AU_CURL
+  fi
+  d=$(mktemp -d "${TMPDIR:-/tmp}/auster-update.XXXXXX" 2>/dev/null) && [ "$(stat -f %Lp "$d" 2>/dev/null)" = 700 ] || {
+    [ -z "$d" ] || rm -rf "$d"
+    AUU_WHY="A folder for the update's file could not be made, so nothing was changed. Paste the installer line from the guide instead."
+    return 1
+  }
+  f="$d/Update Auster.command"
+  if ! { printf '#!/bin/bash\n'; printf "CURL='%s'\n" "$curl"; printf "URL='%s'\n" "$_AUU_INSTALL_URL"; cat << 'EOS'
+# Written by Auster (updates.sh --open or --command): the update (docs/plans/v0.1.md, D3.6). It holds constants
+# only. It fetches release's install.sh into a file beside itself, never into a pipe, runs it with `update` only
+# when GitHub answered 200, says in one line what happened, and removes itself and its folder when it ends.
+case "$0" in /*) ;; *) echo "Run this file by its full path."; exit 1 ;; esac
+D=${0%/*}
+F="$D/install.sh"
+trap 'rm -f "$0" "$F"; rmdir "$D" 2>/dev/null' EXIT
+echo "Fetching Auster's installer from github.com/macaiport/auster ..."
+code=$("$CURL" -q --proto '=https' --proto-redir '=https' --tlsv1.2 -sS -L --max-time 60 --max-filesize 1048576 -o "$F" -w '%{http_code}' "$URL" 2>/dev/null)
+rc=$?
+if [ "$rc" = 0 ] && [ "$code" = 200 ] && [ -f "$F" ] && [ ! -L "$F" ]; then
+  /bin/bash -c "$(cat "$F")" auster-install update
+  rc=$?
+  echo
+  case "$rc" in
+    0) echo "The update is finished. You can close this window." ;;
+    1) echo "Nothing was changed. You can close this window." ;;
+    3) echo "Not everything was updated: the lines above say why. You can close this window." ;;
+    4) echo "The server is down: the lines above say what to do. You can close this window." ;;
+    *) echo "The update did not finish: the lines above say why. You can close this window." ;;
+  esac
+  exit "$rc"
+fi
+echo
+if [ "$code" = 404 ]; then echo "GitHub has no installer on Auster's release line, so nothing was changed. You can close this window."
+else echo "GitHub could not be reached (curl exit $rc, answer ${code:-none}), so nothing was changed. Check the network, then run auster update again."; fi
+exit 1
+EOS
+  } > "$f" 2>/dev/null || ! chmod 700 "$f" 2>/dev/null; then
+    rm -rf "$d"
+    AUU_WHY="The update's file could not be written, so nothing was changed. Paste the installer line from the guide instead."
+    return 1
+  fi
+  AUU_COMMAND=$f
+}
+
+# The update's .command file for a caller that runs it itself (`auster update` over SSH, D3.6): written TAB its path,
+# or failed TAB one sentence
+auu_command() {
+  if _auu_command; then printf 'written\t%s\n' "$AUU_COMMAND"; else printf 'failed\t%s\n' "$AUU_WHY"; fi
+}
+
+# The update at the Mac's own screen (D3.6): its .command file written and handed to Terminal with AU_OPEN, then
+# `opened`; or failed TAB one sentence, leaving nothing. It refuses unless the word is ready
+auu_open() {
+  local PATH=/usr/bin:/bin:/usr/sbin:/sbin open=/usr/bin/open
+  if [ -n "${AU_OPEN:-}" ]; then
+    [[ $AU_OPEN =~ $_AUU_PROG ]] || { printf 'failed\t%s\n' "Terminal was not opened: AU_OPEN is not a plain absolute path."; return 0; }
+    open=$AU_OPEN
+  fi
+  _auu_command || { printf 'failed\t%s\n' "$AUU_WHY"; return 0; }
+  if ! "$open" -a Terminal "$AUU_COMMAND" > /dev/null 2>&1; then
+    rm -rf "${AUU_COMMAND%/*}"
+    printf 'failed\t%s\n' "Terminal could not be opened for the update. Run auster update again, or paste the installer line from the guide."
+    return 0
+  fi
+  echo opened
 }
 
 if [ "${BASH_SOURCE[0]:-$0}" = "$0" ]; then
@@ -699,9 +784,10 @@ if [ "${BASH_SOURCE[0]:-$0}" = "$0" ]; then
     --notes) auu_notes ;;
     --noted) auu_noted ;;
     --open) auu_open ;;
+    --command) auu_command ;;
     --version-of) auu_version_of "${2:-}" || true ;;
     --recipes) auu_recipes ;;
-    *) echo "usage: updates.sh [--refresh [--now] | --notes | --noted | --open | --version-of <file> | --recipes]" >&2; exit 2 ;;
+    *) echo "usage: updates.sh [--refresh [--now] | --notes | --noted | --open | --command | --version-of <file> | --recipes]" >&2; exit 2 ;;
   esac
   exit 0
 fi

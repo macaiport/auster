@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# no refresh of _update's registry, notes and offer after an update that moved the stamp
+s/^  \[ "\$AU_STAMP_NEW" = 0 \] || au_update_known$/  :/

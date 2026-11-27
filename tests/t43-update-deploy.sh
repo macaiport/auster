@@ -53,8 +53,8 @@ same "$(field 5)" skipped "  ...field 5: skipped, since the check job tried toda
 early --refresh --now; same "$RC:$(field 5)" "0:fetched" "--refresh --now: exit 0, field 5 fetched"
 early --notes; same "$RC:$LINE" "0:v0.2.0 (2026-12-01)" "--notes: exit 0, the newer version's section first"
 early --noted; same "$RC:$LINE" "0:v0.2.0" "--noted: exit 0, the offered version"
-early --open; same "$RC:$(field 1)" "0:failed" "--open: exit 0, failed (U1 opens nothing)"
-[ -n "$(field 2)" ] && ok "  ...with a sentence" || bad "--open: [$LINE]"
+early --open; same "$RC:$LINE" "0:opened" "--open: exit 0, opened (U4: the update's file handed to Terminal)"
+same "$(cat "$STUB_DIR"/opened/*/app 2>/dev/null)" Terminal "  ...the stub open asked to open it with Terminal"
 early --version-of "$FX/changelog.md"; same "$RC:$LINE" "0:v0.2.0" "--version-of: exit 0, the file's version"
 early --no-such-option; same "$RC" 2 "an option no version has: exit 2"
 done_

@@ -1,0 +1,22 @@
+#!/bin/bash
+# Stub open (docs/plans/v0.1.md, D6; U4): opens nothing. `open [-a APP] FILE...`, as common/updates.sh --open hands the
+# update's .command file to Terminal (AU_OPEN, which tests/helpers.sh stub_env sets to this file). Each call is logged as
+# every stub's is (STUB_LOG), and each FILE that exists is recorded in STUB_DIR/opened/NNNN/: `path`, the path it was
+# given, `app`, the -a value (or -), and `file`, a copy of it as it was then, since the update's file removes itself
+# once a test has run it as Terminal would. Exit 0, or what STUB_CMD_DIR/open says.
+. "$(dirname "$0")/../stub-lib.sh"
+stub_begin "$@"
+app=-
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -a) app=${2:-}; shift ;;
+    -*) ;;
+    *)
+      if [ -f "$1" ]; then
+        d=$(stub_new_dir "${STUB_DIR:?stub open: STUB_DIR is not set}/opened")
+        printf '%s\n' "$1" > "$d/path"; printf '%s\n' "$app" > "$d/app"; cp -p "$1" "$d/file"
+      fi ;;
+  esac
+  shift
+done
+exit 0

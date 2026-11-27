@@ -1,15 +1,18 @@
 # T84: no key leaves the Mac (B7). After an install, a check (the check job's probe, and a notification), a
-# `key add` and a `key revoke`, every key any engine was given (the devices', Auster's own, the install's test
-# key: each start's keys, as the stub engine recorded them) is searched for in every stub's logged arguments
-# (STUB_LOG), in the headers and bodies of every request the stub curl sent anywhere but to the engine's own
-# addresses, in logs/, in the check job's output, in the notifier's arguments, in what each command printed, and
-# in every file under the home folder but keys/, and found nowhere. The row's update waits for U4.
+# `key add`, a `key revoke` and two updates (U4: `auster update` over SSH, its question answered no; and a second
+# paste that checks a server whose speed is 0 and shows the key of an install that never finished), every key any
+# engine was given (the devices', Auster's own, the install's test key: each start's keys, as the stub engine
+# recorded them) is searched for in every stub's logged arguments (STUB_LOG), in the headers and bodies of every
+# request the stub curl sent anywhere but to the engine's own addresses, in logs/, in the check job's output, in
+# the notifier's arguments, in what each command printed, and in every file under the home folder but keys/, and
+# found nowhere.
 # Mutant: tests/mutants/T84a.
 . "$TESTS/lib.sh"
 . "$TESTS/helpers.sh"
 . "$TESTS/install-helpers.sh"
 . "$TESTS/job-helpers.sh"
 . "$TESTS/command-helpers.sh"
+. "$TESTS/update-run-helpers.sh"
 cmd_install
 cp "$W/out" "$W/printed"
 engine_up
@@ -25,6 +28,17 @@ same "$RC" 0 "key add: passed"
 cat "$W/out" >> "$W/printed"
 auster key revoke ipad
 same "$RC" 0 "key revoke: passed"
+cat "$W/out" >> "$W/printed"
+curl_route GET "$INSTALL_SH" 200 "$ROOT/install.sh"
+waiting_b1
+ANSWERS=$'no\n' SSH_CONNECTION='10.0.0.9 50111 10.0.0.5 22' auster update
+same "$RC" 1 "auster update over SSH, its question answered no: exit 1"
+cat "$W/out" >> "$W/printed"
+cp "$W/pristine/store/$SA" "$DATA/store/$SA"; cp "$W/pristine/builds/$IR/serving" "$DATA/builds/$IR/serving"
+speed_set 0; rm -f "$DATA/_update/scripts"
+repaste $'\n'
+same "$RC" 0 "a second paste, serving's speed 0 and no stamp: its check passes"
+grep -q 'is shown now' "$W/out" && ok "  ...and it shows the device's key" || bad "  ...no key shown: $(tail -n 5 "$W/out")"
 cat "$W/out" >> "$W/printed"
 
 cat "$STUB_ENGINE_DIR"/starts/*/keys "$DATA"/keys/k* "$DATA/keys/probe" 2>/dev/null | grep -E '^[0-9a-f]{32}$' | sort -u > "$W/keys"

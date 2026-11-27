@@ -1,0 +1,4 @@
+# file: common/driver.sh
+# a no holds the build: the build the person said no to is written into the recipe's hold
+/^  au_yes "Update \${AU_JLABEL:-this recipe} now?" && return 0$/a\
+  printf 'auster-record 1\\n%s\\n' "$AU_JPICK" > "$AU_DATA/builds/$r/hold"
