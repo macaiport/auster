@@ -118,6 +118,26 @@ Build `b12359` offers `--models-dir`, `--models-preset` (an INI file of per-mode
 mode, and nothing in V6, V7 or U5 rests on how it behaves; that test waits for the phase that would use
 it.
 
+### 9. How much irrelevant memory a build takes (for the local-layer plan)
+
+Phase 1's 56 household questions, asked with the recipe's system prompt followed by "Things the household
+has asked you to remember:" and 0, 20, 80 or 300 invented facts about invented relatives and neighbours
+(their colours, cars, hobbies, books, foods, plants, teams, cats, allergies and instruments). The facts
+avoid weekdays, times, numbers and every subject of the questions, so none can help or bear on an answer.
+About 0, 165, 610 and 2,260 words. Each model served at four people × 32K with fitting off, temperature
+0, one run each. A reply "names a remembered fact" when it contains one of 78 words found only in the facts.
+
+| Facts added | none | 20 | 80 | 300 |
+|---|---|---|---|---|
+| Order 2, Magistral Small | 53 | 52 | 53 | 53 |
+| Order 1, Mistral Small 4 | 50 | 52 | 43 | 47 |
+
+No reply named a remembered fact. Order 1's losses at 80 facts were all in the answer's form: correct
+answers without the requested `Answer:` line (questions 3, 4, 7, 52), a JSON list instead of an object
+(38), and the literal `<answer>` (53). Its score with no facts, 50, differs from this morning's 53 on the
+same questions (section 3) on questions 9, 22 and 23: one run is not enough to compare builds closely.
+The facts, the system prompts, the replies and the word list are in the workspace's `runs/p2-memory/`.
+
 ### Still open, and why
 
 These need the owner, another device or another Mac, or a lasting change to this Mac:
