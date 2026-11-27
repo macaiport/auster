@@ -168,6 +168,15 @@ The list of providers is curated like models (`local-layer.md`, C2): what qualif
 data, a stated retention, an OpenAI-style API), how often it is reviewed, and when one is removed. A
 household can add its own endpoint, marked as not curated.
 
+**Where a provider is, and who bills, are shown for each** (the owner, 2026-11-27). Many households in
+the US would rather pay a US company: a card issuer may flag a payment to a merchant abroad, or charge a
+fee on it, and some prefer US law. Others choose a provider abroad for its privacy law. So the list gives,
+for each provider, the company that bills and its country, the currency, and where the requests are
+answered, and a household can narrow the list by them. The list should hold at least one provider that
+bills in US dollars from a US company and meets the criteria, so that a US household has a choice at home
+without Auster in the middle. Which providers meet the criteria is to be read from their terms, not
+assumed.
+
 ### E5. A central service, if there is ever one
 
 The owner, thinking aloud (2026-11-27): hybrid models exist, where a central party carries messages and
@@ -188,7 +197,11 @@ that passes this, is off until a person turns it on, and shows what it sends is 
 - **A way through to data centers** (one account, one bill, switching providers, and traffic pooled so
   that a provider cannot tell which household asked) necessarily sees every request, since the provider
   must read it. "No logs" cannot be proven from outside. It also brings back what E3a found: money, a
-  provider's terms on reselling, a legal entity, a service to keep up.
+  provider's terms on reselling, a legal entity, a service to keep up. **Where it is decides who can
+  reach it:** some US households would pay a US go-between gladly (E4), and a US go-between is within
+  reach of US legal process for whatever it holds, as a Swiss one is of Swiss law. Holding nothing is
+  what limits that, whichever the country. A list that shows each provider's country and billing (E4)
+  meets most of the wish without a go-between.
 
 **Proton, which the owner names among the concept's inspirations (read 2026-11-27):**
 - **Lumo**, its AI assistant, is the nearest example of a central AI service built for privacy. Proton
