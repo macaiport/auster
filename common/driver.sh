@@ -14,7 +14,8 @@
 # common/auster-check, which step 3 copies with the check job's section C into jobs/. V7 added the question
 # about ~/.zprofile (B6), asked with the question; the keys made by common/auster's functions, which
 # `auster key add` uses too (step 11, with tools/mint-id copied to jobs/mint-id at step 3); and the QR code
-# of step 14. What later steps complete is marked TODO:
+# of step 14. U1 (2026-11-27): step 15 copies common/updates.sh, the rule file, to _update/updates.sh
+# before the stamp (D3.1, T43). What later steps complete is marked TODO:
 #   U4  `update`, and a run on a Mac that already serves the recipe (B3's update-only branches, D3.6);
 #   U2  the readers of the records written here, and the records' own tests;
 #   U5  the server check's callers other than a first install, and exit code 4's tests.
@@ -809,9 +810,11 @@ au_step14_show() { # each new device's key as a QR code (B7), only after a passe
 }
 
 au_step15_stamp() { # the stamp (D3.1): the line followed, the version, the commit and the time, by rename;
-  # left as it is when the line, the version and the commit are the same
+  # left as it is when the line, the version and the commit are the same. The rule file that reads it is
+  # copied into _update first (D3.2, T43), so that the two are of one version once a run has finished
   local f="$AU_DATA/_update/scripts" t l
   au_mkdir "$AU_DATA/_update" || au_stop "$AU_DATA/_update could not be made."
+  au_put "$AU_TREE/common/updates.sh" "$AU_DATA/_update/updates.sh" 644 || au_stop "$AU_DATA/_update/updates.sh could not be written."
   if [ -f "$f" ] && [ ! -L "$f" ]; then
     IFS= read -r l < "$f"
     au_split "$l"

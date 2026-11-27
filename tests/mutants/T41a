@@ -1,0 +1,3 @@
+# file: common/updates.sh
+# show the newest only
+s/ && newer(\$0)) {$/ \&\& newer($0) \&\& !shown) {/

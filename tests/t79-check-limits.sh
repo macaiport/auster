@@ -20,6 +20,7 @@ trap 'leftovers; engine_job_end; install_cleanup' EXIT
 
 engine_job; engine_wait
 same "$EJ_CODE" starting "the engine runs"
+rm -f "$DATA/_update/updates.sh"   # the install deploys it (U1); this run is the check job without one
 check_job
 same "$(probe_field probe)" ok "nothing hangs: the probe gives ok"
 grep -q 'no _update/updates.sh yet, so no update check' "$W/check.out" && ok "with no updates.sh it says there is no update check" || bad "check.out: $(cat "$W/check.out")"

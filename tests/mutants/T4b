@@ -1,0 +1,4 @@
+# file: common/updates.sh
+# write tried only after a fetch that worked
+s/^  _auu_put "\$AU_UPDATE_DIR\/tried" .*$/  :/
+s/^    AUU_FETCH=fetched$/    _auu_put "$AU_UPDATE_DIR\/tried" "auster-record 1$_AUU_T$now"; AUU_FETCH=fetched/

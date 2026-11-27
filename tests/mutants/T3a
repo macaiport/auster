@@ -1,0 +1,3 @@
+# file: common/updates.sh
+# remove the size check after the changelog's fetch
+s/ && \[ "\$size" -le "\$_AUU_CAP" \] \\$/ \\/

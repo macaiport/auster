@@ -1,0 +1,3 @@
+# file: common/updates.sh
+# rename an option: --refresh becomes --check
+s/^    --refresh)$/    --check)/

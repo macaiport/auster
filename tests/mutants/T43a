@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# deploy nothing: the install does not copy updates.sh into _update
+s|^  au_put "\$AU_TREE/common/updates.sh" .*$|  :|

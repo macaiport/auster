@@ -1,0 +1,3 @@
+# file: common/updates.sh
+# never write tried
+s/^  _auu_put "\$AU_UPDATE_DIR\/tried" .*$/  :/

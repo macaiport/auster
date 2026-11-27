@@ -1,0 +1,3 @@
+# file: common/updates.sh
+# test off after the fetch
+s/^  case "\$AUU_WORD" in off|none|manual) return 0 ;; esac$/  case "$AUU_WORD" in none|manual) return 0 ;; esac/

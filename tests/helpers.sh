@@ -1,13 +1,16 @@
 # Sourced by test files after lib.sh (docs/plans/v0.1.md, D6): the stubs' set-up and the fixtures that
 # are made at run time. The stubs themselves are described at the top of each file in tests/stubs/.
 
-stub_env() { # puts the stubs first on PATH, with fresh state folders; stops stub engines on exit
+stub_env() { # puts the stubs first on PATH, with fresh state folders; stops stub engines on exit. AU_CURL
+  # names the stub curl, so that common/updates.sh, which runs the system's curl by its full path, never
+  # reaches the network from a test (the check job runs the deployed copy with the test's environment)
   case ":$PATH:" in ":$TESTS/stubs:"*) ;; *) PATH="$TESTS/stubs:$PATH" ;; esac
   STUB_DIR=$(mktemp -d "${TMPDIR%/}/stubs.XXXXXX")
   export PATH STUB_DIR
   export STUB_LOG="$STUB_DIR/log" STUB_CURL_DIR="$STUB_DIR/curl" STUB_ENGINE_DIR="$STUB_DIR/engine"
   export STUB_LAUNCHCTL_DIR="$STUB_DIR/launchctl" STUB_PS_TABLE="$STUB_DIR/ps-table"
   export STUB_NOTIFY_LOG="$STUB_DIR/notify" STUB_CMD_DIR="$STUB_DIR/cmd"
+  export AU_CURL="$TESTS/stubs/curl"
   mkdir -p "$STUB_CURL_DIR" "$STUB_ENGINE_DIR" "$STUB_LAUNCHCTL_DIR" "$STUB_CMD_DIR"
   : > "$STUB_LOG"; : > "$STUB_CURL_DIR/routes"; : > "$STUB_PS_TABLE"; : > "$STUB_NOTIFY_LOG"
   trap stub_cleanup EXIT

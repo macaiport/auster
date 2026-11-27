@@ -1,0 +1,3 @@
+# file: common/updates.sh
+# add the installed version to the address
+s/-w '%{http_code}' "\$_AUU_URL" 2>\/dev\/null)/-w '%{http_code}' "$_AUU_URL?from=$AUU_INSTALLED" 2>\/dev\/null)/

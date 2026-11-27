@@ -1,0 +1,4 @@
+# file: common/updates.sh
+# compare versions as text
+s/^    if \[ "\$a" -gt "\$b" \]; then return 0; fi$/    if [[ "$a" > "$b" ]]; then return 0; fi/
+s/^    if \[ "\$a" -lt "\$b" \]; then return 1; fi$/    if [[ "$a" < "$b" ]]; then return 1; fi/

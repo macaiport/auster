@@ -2,7 +2,7 @@
 # its version) reads the `withdraw` lines of the registry release holds now (v0.2.0 here), and refuses a
 # build withdrawn since: with order 1 withdrawn it offers order 2, and with order 1 its only build it
 # installs nothing. The stamp then says `tag`, which makes the Mac manual (D3.2), so that it is not told of
-# later withdrawals (D3.8, the check's half: U1, U8). Mutant: tests/mutants/T96a.
+# later withdrawals (D3.8, the check's half: U1's here, U8's later). Mutant: tests/mutants/T96a.
 . "$TESTS/lib.sh"
 . "$TESTS/helpers.sh"
 . "$TESTS/install-helpers.sh"
@@ -37,4 +37,8 @@ run_install $'no\nyes\nipad\n' "$IR"
 same "$RC" 0 "with order 2 left: installed"
 same "$(sed -n 2p "$DATA/builds/$IR/serving" | cut -f2)" "$IB2" "serving names order 2"
 same "$(cut -f1-4 "$DATA/_update/scripts")" "auster-record 1	tag	v0.1.0	$COMMIT" "the stamp says tag, the version and the tag's commit"
+n=$(requests raw.githubusercontent.com | wc -l | tr -d ' ')
+same "$(/bin/bash "$DATA/_update/updates.sh" --refresh --now | cut -f1,4,5)" "manual	tag	skipped" \
+  "the deployed rule file: manual, the detail tag, and nothing fetched, with --now too (U1's half)"
+same "$(requests raw.githubusercontent.com | wc -l | tr -d ' ')" "$n" "  ...no request to release's changelog"
 done_
