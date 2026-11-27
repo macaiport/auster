@@ -326,6 +326,31 @@ changes nothing else. The engine's Jinja did the integer arithmetic (`| int`, `%
 uses. Auster's template is `assets/unsloth-Mistral-Small-4-119B-2603-dates-fixed.jinja`, 9,732 bytes,
 sha256 `f29aa080…e291f4`; T56 checks that it differs from the model file's own only in the date block.
 
+### 12. Word confidence as a sign of a guess: a first look, to come back to
+
+**To circle back to** (the owner, 2026-11-27), once the build is further along. For the "a guess" row of
+`docs/plans/agents-and-escalation.md`, E2a: can Auster tell when a light model is out of its depth,
+without trusting what the model says about itself?
+
+`llama-server` b12359 returns each written token's probability in the OpenAI-style answer
+(`"logprobs": true, "top_logprobs": n`). Order 2 (Magistral, its template from `assets/`, the household
+system prompt, temperature 0), three questions:
+
+| Question | Answer | Mean token probability | Lowest |
+|---|---|---|---|
+| The capital of Australia | Canberra | 0.91 | 0.66 |
+| The year a small town's library was founded, too obscure to know | "1922" | 0.60 | 0.16 |
+| How many moons Neptune has | "14" | 0.90 | 0.71 |
+
+It caught the guess and missed the stale fact: the count has been 16 since two moons were announced in
+2024, and the model gave its older figure with high confidence. No reasoning text came back with either
+build's default settings, so "inner dialogue" is not there to read unless reasoning is turned on, at a
+cost in time on every answer.
+
+**The measurement to make:** phase 1's 56 household questions, both builds, with token probabilities on;
+whether a low lowest-probability predicts a wrong answer (by the graders' verdicts), and the threshold
+for each build. Then, perhaps, asking twice and comparing (more costly, for night work rather than chat).
+
 ### Still open, and why
 
 These need the owner, another device or another Mac, or a lasting change to this Mac:

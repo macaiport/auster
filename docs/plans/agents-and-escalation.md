@@ -106,7 +106,7 @@ How sure it can be that a question "would go onward" depends on the signal:
 | The person asks ("ask the bigger model") | certain | That no data-center provider is set up, so this stays on the Mac; then the local model's answer |
 | The request is past the build's limits: a document longer than its context, an image for a model that reads only text | certain: Auster measures it | The limit in plain terms, and the local ways round it: ask about one part at a time, split the document |
 | A topic the household set to go onward | certain | As when the person asks, once a conversation |
-| The model seems out of its depth: it hedges, or the question is of a kind its build failed in testing | a guess | At most a light note that this may be past what this Mac's model does well, never more: a light model's hedging is a poor signal |
+| The model seems out of its depth: it hedges, or the question is of a kind its build failed in testing | a guess | At most a light note that this may be past what this Mac's model does well, never more: a light model's hedging is a poor signal. Token probabilities are a candidate, still to be measured per build (`docs/phase-2.md`, section 12) |
 
 - **Once, not every time:** one note a conversation, with "don't mention this again". It never presses
   the household to take a provider.
