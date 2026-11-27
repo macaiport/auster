@@ -14,7 +14,7 @@ update_install
 waiting_b1   # serving order 2, model A not in store/
 n=$(wc -l < "$STUB_LOG"); rm -rf "$STUB_CURL_DIR/requests"
 update_run $'yes\n'
-same "$RC" 3 "an update answered yes: exit 3, where U5's last part will test the build"
+same "$RC" 0 "an update answered yes: exit 0, the model fetched, tested and switched to"
 asked= extra=
 for d in "$STUB_CURL_DIR"/requests/*; do
   case "$(cat "$d/url")" in *huggingface.co/*|*cdn.example.test/*) ;; *) continue ;; esac

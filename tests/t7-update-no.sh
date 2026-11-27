@@ -6,11 +6,11 @@
 # and that nothing has been fetched (the publisher was asked about the file with a HEAD, D3.6 step 1). Answered no:
 # exit 1; the data root as it was but logs/ (the kept entry and its file there); nothing asked of Hugging Face, its CDN
 # or the engine's host but that HEAD; no job loaded, booted out or kickstarted, the engine's process the same; and the
-# rule file still says waiting. Answered yes (U5's middle part): the kept build the question named is removed only now,
-# with the model file only it named, then order 1's model is fetched into store/, and the run ends where U5's last part
-# will test it, with exit 3, serving and the engine's process as they were, and the files serving names kept (nothing
-# asked of the engine's host). Mutants: tests/mutants/T7a (start the download before the question), T7b (remove
-# earlier builds before it), T7c (remove every file a removed build named, those serving names among them).
+# rule file still says waiting. Answered yes (U5): the kept build the question named is removed only now, with the model
+# file only it named, then order 1's model is fetched into store/ (nothing asked of the engine's host, whose engine serving
+# names too), tested, and switched to, exit 0, with order 2 now the one entry in kept/.
+# Mutants: tests/mutants/T7a (start the download before the question), T7b (remove earlier builds before it), T7c
+# (remove every file a removed build named, those serving names among them).
 . "$TESTS/lib.sh"
 . "$TESTS/helpers.sh"
 . "$TESTS/install-helpers.sh"
@@ -46,14 +46,14 @@ same "$(AU_UPDATE_DIR="$DATA/_update" /bin/bash "$DATA/_update/updates.sh" --rec
 
 rm -rf "$STUB_CURL_DIR/requests"
 update_run $'yes\n'
-same "$RC" 3 "answered yes: exit 3, where U5's last part will test the build"
+same "$RC" 0 "answered yes: exit 0, order 1 fetched, tested and switched to"
 says "Removed build $IB1, kept since 2026-11-20, to make room." "  ...it removes the kept build the question named"
 [ -e "$K" ] || [ -e "$DATA/store/$X" ] && bad "  ...the kept entry or its model file is still there" || ok "  ...the kept entry and the model file only it named are gone"
 same "$(shasum -a 256 < "$DATA/store/$SA" 2>/dev/null | cut -c1-64) $(stat -f %Lp "$DATA/store/$SA" 2>/dev/null)" "$SA 444" "  ...order 1's model is in store/, read-only"
 same "$(requests | grep -E 'huggingface|cdn\.example' | tr '\n' ' ')" "HEAD $URL_A HEAD $URL_A GET $URL_A GET https://cdn.example.test/a " \
   "  ...asked of the publisher before the question and again before the download, from the address that names its commit"
 same "$(requests | grep -c 'github\.com/ggml')" 0 "  ...nothing asked of the engine's host: the engine, which serving names too, was kept"
-says "Build $IB1's files are on this Mac. The recipe household keeps serving build $IB2: testing build $IB1 here and switching to it come with a later version of Auster." "  ...it says the switch comes later"
-same "$(cat "$DATA/builds/$IR/serving")" "$(cat "$W/serving-before")" "  ...serving as it was"
-same "$(engine_pid)" "$pid" "  ...the engine's process the same"
+says "Build $IB1 passed the recipe's test on this Mac" "  ...it was tested"
+same "$(sed -n 2p "$DATA/builds/$IR/serving" | cut -f2)" "$IB1" "  ...order 1 serves"
+same "$(cat "$DATA/builds/$IR/kept"/*)" "$(cat "$W/serving-before")" "  ...and kept/ holds order 2's descriptor, the only entry left"
 done_

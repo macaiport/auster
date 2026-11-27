@@ -17,7 +17,43 @@
 #   job_calls N         the stub launchctl's calls after line N of STUB_LOG that start, stop or change a job
 #   engine_pid          the process of the engine the engine job started, or none
 #   says_not TEXT LABEL ok when the run's output does not hold TEXT
+# and for the test in isolation and the switch (U5's last part: T9, T16, T24, T25, T28, T31 to T33, T55, T60, T94, T99,
+# T109, T115):
+#   CPORT               the candidate's port, the first free one from 18484 (B3 step 10)
+#   big_mac             a Mac with a GPU limit of 100,000 MiB and 128 GB of memory, on which order 2 serving four at
+#                       32,768 and order 1 for one at 8,192 fit at once: the update tests side by side (C5)
+#   start_on PORT       the stub engine's newest start folder whose --port is PORT, or nothing
+#   arg_of START OPTION the value the engine of that start folder was given for OPTION
+#   during_test FUNCTION   in the background: once a candidate registers on CPORT, FUNCTION runs once, its output in
+#                       $W/during ("no candidate" if none came within 30 s); DURING is its process, to wait for
+#   candidate_slow [SECS]  the candidate answers every request, /health too, with 503 for SECS (2) after its start, so
+#                       that during_test has that long with the candidate alive
+CPORT=18484
 INSTALL_SH=https://raw.githubusercontent.com/macaiport/auster/refs/heads/release/install.sh
+
+big_mac() { export AU_GPU_MIB=100000 STUB_MEMSIZE=137438953472; }
+
+start_on() {
+  local s
+  for s in $(ls -d "$STUB_ENGINE_DIR"/starts/* 2>/dev/null | sort -r); do
+    [ "$(sed -n '/^--port$/{n;p;}' "$s/args")" = "$1" ] && { printf '%s' "$s"; return 0; }
+  done
+}
+
+arg_of() { sed -n "/^$2\$/{n;p;}" "$1/args"; }
+
+during_test() {
+  local f=$1
+  rm -f "$W/during"
+  ( for i in $(seq 600); do
+      if [ -f "$STUB_ENGINE_DIR/ports/$CPORT" ]; then "$f" > "$W/during" 2>&1; exit 0; fi
+      sleep 0.05
+    done
+    echo "no candidate" > "$W/during" ) &
+  DURING=$!
+}
+
+candidate_slow() { engine_set "port=$CPORT" load "${1:-2}"; }
 
 update_install() {
   cmd_install "$@"

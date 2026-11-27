@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# the update takes the figures from _update/registry, the copy an earlier check left, rather than this tree's registry
+s|^    AU_REG="\$AU_TREE/registry.tsv"   # D3.6: every size and sha256 from this tree's registry, never _update's copy$|    AU_REG="$AU_DATA/_update/registry"|

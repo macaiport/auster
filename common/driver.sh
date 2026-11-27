@@ -35,10 +35,16 @@
 # store/ does not hold (au_update_ask); and after the yes, once the programs and `mac` are done, the download
 # (au_update_build): room worked out again, the earlier builds the question named removed, then the first install's
 # steps 7 to 9, which on an update stop the recipe (exit 3) rather than the run (au_fail); and `update --retry`, which
-# offers a build in failed/ again (D3.7, BD12; T8, T10, T15, T29, T52, T99, T103, T110). What later steps complete is
-# marked TODO:
-#   U5  a yes to a change of build, once its files are in store/: the isolated test, side by side or in turn, paused,
-#       failed/, and the switch to the new build (D3.6 steps 4 and 5); until then it ends with exit 3, serving untouched.
+# offers a build in failed/ again (D3.7, BD12; T8, T10, T15, T29, T52, T99, T103, T110). U5, its last part (2026-11-27):
+# the isolated test and both ways of switching (au_update_test, D3.6 steps 4 and 5): fit worked out again, the candidate
+# started by the update itself (au_candidate_test, which step 10 shares), side by side or in turn with builds/paused,
+# failed/, the switch to the new build, the engine run again after a pass and after a fail alike, and the server check
+# (au_switch_check, which a change of setting shares); a retried build leaves failed/ on a pass (T9, T16, T24, T25, T28,
+# T31 to T33, T55, T60, T94, T99, T109, T115).
+#
+# builds/paused (D3.1, B4 step 1): one line, `auster-record 1`, the process, the boot session and the process's start time,
+# as the lock names this run; written by rename just before an update in turn stops the engine for its test, and removed
+# once the switch is written (au_paused_take, au_paused_release, and au_cleanup when the run ends otherwise).
 #
 # jobs/previous/ (B3 step 6): the programs in use before an update changed them, each of AU_PROGRAMS under the last part
 # of its path in the data root (auster, auster-engine, auster-check, registry-lib.js, capability-lib.js, capability.js,
@@ -47,12 +53,12 @@
 # `auster rollback` (U6) puts them back from it.
 #
 # Exit codes (B3): 0 done; 1 refused or answered no, and nothing of this run is left; 2 usage; 3 not
-# everything was updated (D3.6: a recipe passed over, before its question or at its download; a new bin/auster that does
-# not answer `status`; and, until U5's last part, a yes to a change of build once its files are in store/); 4 the server
-# is down; 5 stopped after writing: what is left is listed, and `auster remove` removes it. Before the yes every stop is 1
-# and removes what this run created; after it, at an install, every stop but 4 is 5 and keeps what was written, so that
-# pasting the line again goes on from there; on an update a download that fails stops its recipe only (3), and keeps a
-# model cut short (store/<sha256>.part) for a resume.
+# everything was updated (D3.6: a recipe passed over, before its question, at its download or before its test; a new
+# build that failed its test; a new bin/auster that does not answer `status`); 4 the server is down; 5 stopped after
+# writing: what is left is listed, and `auster remove` removes it. Before the yes every stop is 1 and removes what this run
+# created; after it, at an install, every stop but 4 is 5 and keeps what was written, so that pasting the line again goes
+# on from there; on an update a download that fails stops its recipe only (3), and keeps a model cut short
+# (store/<sha256>.part) for a resume.
 #
 # Test variables: those of section C (AU_GPU_MIB, AU_RAM_BYTES, AU_DISK_FREE_BYTES, AU_DISK_TOTAL_BYTES,
 # which common/capability.js reads), and common/auster's: AU_TTY, the file a test answers the questions in;
@@ -71,10 +77,10 @@ AU_TEST_PORT_FIRST=18484                       # B3 step 10: the candidate's fre
 AU_RE_COMMIT='^[0-9a-f]{40}$'
 AU_RE_ENTRY='^[A-Za-z0-9._+@-]+(/[A-Za-z0-9._+@-]+)*/?$'
 
-AU_AWAKE=no AU_DEVICE= AU_LOCKED=0 AU_ROOT_NEW=0 AU_MADE_ROOT=0 AU_CANDIDATE= AU_CREATED=()
+AU_AWAKE=no AU_DEVICE= AU_LOCKED=0 AU_ROOT_NEW=0 AU_MADE_ROOT=0 AU_CANDIDATE= AU_CANDIDATE_WATCH= AU_CREATED=()
 AU_FETCH_SECS=0 AU_FETCH_BYTES=0 AU_WITHDRAWALS= AU_MEASURED_ENGINE=
 AU_PROGRAMS_CHANGE=0 AU_PROGRAMS_DONE=0 AU_MAC_DONE=0 AU_CHANGED=0 AU_JGPUL= AU_JGPUFROM=
-AU_UPDATING=0 AU_RETRY=0 AU_JFAILED=
+AU_UPDATING=0 AU_RETRY=0 AU_JFAILED= AU_PAUSED=0
 
 au_usage() {
   { au_say "usage: driver.sh install|check <recipe id> --commit C --line release|tag --version V [--withdrawals FILE]"
@@ -128,6 +134,7 @@ au_fail() { # SENTENCE -> after the yes, a step of the files (B3 steps 7 to 9) t
 au_cleanup() {
   au_qr_leave
   au_candidate_stop
+  au_paused_release
   au_lock_release
   rm -rf "$AU_RUN"
 }
@@ -711,7 +718,7 @@ au_step9_engine() { # the engine, in store/ and unpacked into engines/<sha256>/ 
   fi
   AU_ENGINE_DIR=$d
   AU_LISTSHA=$(au_sha "$d/files")
-  AU_PROGRAM=$(au_program_in "$d") || au_stop "The engine holds no single program named llama-server."
+  AU_PROGRAM=$(au_program_in "$d") || { au_fail "The engine holds no single program named llama-server."; return 1; }
 }
 
 # --- step 10: the test, in isolation (B3 step 10, D3.6 step 4) -----------------------------------------
@@ -727,9 +734,10 @@ au_descriptor() { # FILE SPEED -> the chosen build's descriptor (A5), by rename:
     chmod 600 "$t" && mv -f "$t" "$1"
 }
 
-au_candidate_stop() { # -> the candidate engine of step 10 stopped, if it runs
+au_candidate_stop() { # -> the candidate engine of step 10 stopped, if it runs, and its watch (au_candidate_test) first
   local i
   [ -n "$AU_CANDIDATE" ] || return 0
+  if [ -n "$AU_CANDIDATE_WATCH" ]; then kill "$AU_CANDIDATE_WATCH" 2>/dev/null; wait "$AU_CANDIDATE_WATCH" 2>/dev/null; AU_CANDIDATE_WATCH=; fi
   kill "$AU_CANDIDATE" 2>/dev/null
   for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do kill -0 "$AU_CANDIDATE" 2>/dev/null || break; sleep 0.5; done
   kill -9 "$AU_CANDIDATE" 2>/dev/null
@@ -737,22 +745,32 @@ au_candidate_stop() { # -> the candidate engine of step 10 stopped, if it runs
   AU_CANDIDATE=
 }
 
-au_step10_test() { # -> 0 on a pass; on a fail the descriptor goes to failed/ and the run stops with exit 5
-  local port k i code rc r="$AU_DATA/builds/$AU_RECIPE" tsha ssha f
+au_candidate_test() { # PEOPLE CONTEXT -> the test in isolation (B3 step 10, D3.6 step 4) of AU_CH_BUILD, whose engine step 9
+  # unpacked: the candidate started by this run itself, never by the engine job, on 127.0.0.1 only, on a free port, with
+  # a key made for the test in a folder of this run's and deleted after it, and with the engine's fitting off, for PEOPLE
+  # at CONTEXT tokens each; then the recipe's test (A7), which checks the form of each answer and runs nothing it is
+  # sent, a tool call among them (T28); and the candidate stopped, whether it passed or failed, or by its watch, a process
+  # of its own, as soon as this run is gone (killed: T25). 0 on a pass, 1 on a fail, 2 when no key for the test could be
+  # made (nothing was started)
+  local port k i code rc tsha ssha
   for ((port = AU_TEST_PORT_FIRST; port < AU_TEST_PORT_FIRST + 100; port++)); do
     nc -z -w 1 127.0.0.1 "$port" > /dev/null 2>&1 || break
   done
   k="$AU_RUN/test-key"
+  rm -rf "$k"
   ( umask 077; mkdir "$k" && openssl rand -hex 16 > "$k/key" ) && [[ $(head -n 1 "$k/key") =~ $AU_RE_KEY ]] ||
-    au_stop "A key for the test could not be made."
+    { rm -rf "$k"; return 2; }
   tsha=$(au_build_field "$AU_CH_BUILD" 8); ssha=$(au_build_field "$AU_CH_BUILD" 9)
-  au_say "Testing the build on this Mac, for $AU_PEOPLE people at $(au_commas "$AU_CONTEXT") tokens each..."
+  au_say "Testing the build on this Mac, for $1 people at $(au_commas "$2") tokens each..."
   ( cd "$AU_DATA/store" && exec env -i PATH="$AU_ENGINE_PATH" "$AU_ENGINE_DIR/root/$AU_PROGRAM" \
-      -m "$(au_build_field "$AU_CH_BUILD" 30)" --alias "$AU_CH_BUILD" -c $((AU_PEOPLE * AU_CONTEXT)) -np "$AU_PEOPLE" \
+      -m "$(au_build_field "$AU_CH_BUILD" 30)" --alias "$AU_CH_BUILD" -c $(($1 * $2)) -np "$1" \
       --host 127.0.0.1 --port "$port" --api-key-file "$k/key" --offline --no-slots --no-webui-mcp-proxy \
       --jinja --chat-template-file "$tsha" --temp "$(au_build_field "$AU_CH_BUILD" 15)" \
       --top-p "$(au_build_field "$AU_CH_BUILD" 16)" --fit off -ngl all ) > "$AU_RUN/candidate.log" 2>&1 &
   AU_CANDIDATE=$!
+  ( while kill -0 "$$" 2>/dev/null && kill -0 "$AU_CANDIDATE" 2>/dev/null; do sleep 1; done   # a run that is killed stops it too
+    kill "$AU_CANDIDATE" 2>/dev/null ) > /dev/null 2>&1 &
+  AU_CANDIDATE_WATCH=$!
   code=
   for ((i = 0; i < 600; i++)); do
     kill -0 "$AU_CANDIDATE" 2>/dev/null || break
@@ -772,6 +790,13 @@ au_step10_test() { # -> 0 on a pass; on a fail the descriptor goes to failed/ an
   fi
   au_candidate_stop
   rm -rf "$k"
+  [ "$rc" = 0 ] || return 1
+}
+
+au_step10_test() { # -> 0 on a pass; on a fail the descriptor goes to failed/ and the run stops with exit 5
+  local r="$AU_DATA/builds/$AU_RECIPE" f rc=0
+  au_candidate_test "$AU_PEOPLE" "$AU_CONTEXT" || rc=$?
+  [ "$rc" != 2 ] || au_stop "A key for the test could not be made."
   if [ "$rc" = 0 ]; then
     for f in "$r"/failed/*-"$AU_CH_BUILD"; do [ -f "$f" ] && rm -f "$f"; done   # tried again, and it passed
     return 0
@@ -901,7 +926,9 @@ au_step15_stamp() { # the stamp (D3.1): the line followed, the version, the comm
 # au_update_yes) changes Auster's own programs first when they differ, or checks the server first when jobs/previous/
 # shows an earlier change never checked (au_update_programs: B3 step 6, BD18, T94); then writes `mac` (au_update_mac);
 # then switches a change of setting (au_switch_setting), or, for a change of build, fetches its files (au_update_build:
-# room again, the removals the question named, B3 steps 7 to 9), and ends at TODO(U5) with exit 3, serving untouched. A
+# room again, the removals the question named, B3 steps 7 to 9), then tests it in isolation and switches to it
+# (au_update_test: fit and the way worked out again, side by side or in turn, D3.6 steps 4 and 5). A failed test puts
+# the build in failed/ and leaves serving as it was (exit 3); a switch whose server check fails ends the run (exit 4). A
 # change of build goes to the question only after its pre-checks (au_update_ask, D3.6 step 1: the engine's macOS floor,
 # and the publisher's HEAD for each file store/ does not hold); a recipe that fails one is passed over (exit 3).
 # `update --retry` (AU_RETRY) judges every recipe without its failed/, so that a build that failed its test here is
@@ -926,23 +953,27 @@ au_later() { # X Y -> 0 when version X is later than version Y, both matched to 
   return 1
 }
 
-au_update_measure() { # -> B3 step 4 on an update (D3.6): AU_FIGURES, AU_DISKARGS and AU_NODISK, what section C is given.
-  # The GPU limit from --list-devices of the engine already in engines/ that serving names, or, when that engine is not
-  # the one its list names, the `mac` record's; the memory measured; the disk holdings as the rule file makes them, and
-  # no disk figures at all when a descriptor cannot be read (D3.3)
+au_update_measure() { # [again] -> B3 step 4 on an update (D3.6): AU_FIGURES, AU_DISKARGS and AU_NODISK, what section C is
+  # given. The GPU limit from --list-devices of the engine already in engines/ that serving names, or, when that engine is
+  # not the one its list names, the `mac` record's; the memory measured; the disk holdings as the rule file makes them, and
+  # no disk figures at all when a descriptor cannot be read (D3.3). With again, made anew immediately before the test (C5,
+  # D3.6 step 4), saying nothing, and 1 rather than a refusal when the memory cannot be read
   local r dir prog=
   AU_RAM=$(sysctl -n hw.memsize 2>/dev/null)
-  [[ $AU_RAM =~ ^[1-9][0-9]{0,14}$ ]] || au_refuse "This Mac's memory cannot be read (sysctl hw.memsize), so nothing was changed."
+  if ! [[ $AU_RAM =~ ^[1-9][0-9]{0,14}$ ]]; then
+    [ -z "${1:-}" ] || return 1
+    au_refuse "This Mac's memory cannot be read (sysctl hw.memsize), so nothing was changed."
+  fi
   AU_FIGURES=(--mac "$AU_DATA/builds/mac" --ram "$AU_RAM")
   AU_SV_ENGINE=
   for r in "${AU_URECIPES[@]}"; do au_serving_read "$r" && break; AU_SV_ENGINE=; done
   dir="$AU_DATA/engines/${AU_SV_ENGINE:-none}"
   if [ -n "$AU_SV_ENGINE" ] && au_engine_intact "$dir" && prog=$(au_program_in "$dir"); then
-    au_say "Measuring this Mac with the engine already on it; nothing is fetched before the question."
+    [ -n "${1:-}" ] || au_say "Measuring this Mac with the engine already on it; nothing is fetched before the question."
     au_limited 120 "$AU_RUN/list-devices.txt" /bin/bash -c 'cd "$1" && exec env -i PATH="$2" "$3" --list-devices' _ "$AU_RUN" "$AU_ENGINE_PATH" "$dir/root/$prog"
     AU_FIGURES+=(--list-devices "$AU_RUN/list-devices.txt")
   else
-    au_say "The engine this Mac serves with is not the one its list names, so the figures recorded at install (builds/mac) are used."
+    [ -n "${1:-}" ] || au_say "The engine this Mac serves with is not the one its list names, so the figures recorded at install (builds/mac) are used."
   fi
   au_update_disk
 }
@@ -1177,10 +1208,11 @@ au_update_programs_question() { # -> 0 on a yes, 1 on a no: Auster's own program
 
 au_update_yes() { # [RECIPE] -> what follows a yes (B3 steps 6 to 13, D3.6), for the recipe au_update_judge judged a change,
   # or with none for Auster's programs alone: the programs first (au_update_programs), then `mac` (au_update_mac), then a
-  # change of setting switched (au_switch_setting) or a change of build's files fetched (au_update_build). 0 once all of
-  # that has passed; 1 when the recipe stopped (a change of build, which keeps serving its build until U5's last part),
-  # having said why. The run then goes on to the server check of every recipe that needs one and to step 15, and ends
-  # with exit 3 after a 1. Open or not answered end the run with exit 4 on the way
+  # change of setting switched (au_switch_setting) or a change of build fetched, tested and switched (au_update_build). 0
+  # once all of that has passed; 1 when the recipe stopped (a change of build passed over after the yes, cut short in its
+  # download, or failing its test: it keeps serving its build), having said why. The run then goes on to the server
+  # check of every recipe that needs one and to step 15, and ends with exit 3 after a 1. Open or not answered end the run
+  # with exit 4 on the way
   au_update_programs
   au_update_mac
   [ -n "${1:-}" ] || return 0
@@ -1194,9 +1226,10 @@ au_update_build() { # RECIPE -> D3.6 step 3 for the build au_update_judge picked
   # build in use goes only on the person's yes); then the first install's steps 7 to 9, which skip a file store/ holds by
   # its sha256, ask the publisher, fetch from the address that names its commit with no login and the person's curl
   # settings ignored, resume from that same address, check the size then the sha256, delete a mismatch, and keep the Mac
-  # awake during the model's download when `mac` says so (BD10). Returns 1 when this recipe stops, having said why: its
-  # serving is untouched, and the files fetched stay in store/, a cache the disk rule counts
-  local r=$1 pick=$AU_JPICK p=$AU_JP c=$AU_JC named=() l n ok
+  # awake during the model's download when `mac` says so (BD10); then the test in isolation and the switch (au_update_test,
+  # D3.6 steps 4 and 5). 0 once switched and checked; 1 when this recipe stops, having said why: its serving is the build
+  # it was, and the files fetched stay in store/, a cache the disk rule counts. A server check that fails ends the run (4)
+  local r=$1 pick=$AU_JPICK p=$AU_JP c=$AU_JC way=$AU_JWAY named=() l n ok
   named=(${AU_JREMOVE[@]+"${AU_JREMOVE[@]}"})
   au_update_disk
   au_update_judge "$r"
@@ -1228,9 +1261,133 @@ au_update_build() { # RECIPE -> D3.6 step 3 for the build au_update_judge picked
   au_step7_model || { au_say "$AU_JNAME is not updated: it keeps serving build $AU_JNOW."; return 1; }
   au_step8_assets || { au_say "$AU_JNAME is not updated: it keeps serving build $AU_JNOW."; return 1; }
   au_step9_engine || { au_say "$AU_JNAME is not updated: it keeps serving build $AU_JNOW."; return 1; }
-  # TODO(U5): the isolated test (D3.6 step 4, B3 step 10), then the switch to the new build and its server check (step 5)
-  au_say "Build $pick's files are on this Mac. $AU_JNAME keeps serving build $AU_JNOW: testing build $pick here and switching to it come with a later version of Auster."
-  return 1
+  au_update_test "$r" "$way"
+}
+
+au_paused_take() { # -> builds/paused naming this run, by rename (D3.1: `auster-record 1`, the process, the boot session and the
+  # process's start time, as the lock names it), so that the engine job, which launchd starts again, waits while this run
+  # lives (B4 step 1, D3.6 step 4); AU_PAUSED=1 until au_paused_release, which au_cleanup calls too
+  local t="$AU_DATA/builds/.paused.new.$$"
+  rm -f "$t"
+  printf 'auster-record 1\t%s\t%s\t%s\n' "$$" "$AU_BOOT" "$AU_SELF_START" > "$t" && chmod 600 "$t" &&
+    mv -f "$t" "$AU_DATA/builds/paused" || { rm -f "$t"; return 1; }
+  AU_PAUSED=1
+}
+
+au_paused_release() { # -> builds/paused removed, when this run wrote it
+  [ "$AU_PAUSED" = 1 ] || return 0
+  rm -f "$AU_DATA/builds/paused"
+  AU_PAUSED=0
+}
+
+au_update_test() { # RECIPE WAY -> D3.6 steps 4 and 5 for the build au_update_build fetched (AU_CH_BUILD, with AU_ENGINE_DIR,
+  # AU_PROGRAM and AU_LISTSHA from step 9) at AU_JP people and AU_JC tokens each, WAY being the way the question said (C5).
+  # Fit is worked out again first, with the memory and the GPU limit measured anew: a build, setting or way other than the
+  # question's stops the recipe, which never changes way silently (T31). The test (au_candidate_test): side by side for one
+  # person at 8,192, while the engine job keeps serving (T16); in turn at the household's setting, once builds/paused names
+  # this run and the engine is stopped by kickstart -k, so that launchd starts the job again and it waits while this run
+  # lives (B4 step 1; a run that is killed ends the wait by itself, T25). The switch (step 5): on a pass the old descriptor
+  # copied into kept/ first, then serving replaced in one rename, the registry's lines byte for byte with this tree's and
+  # a speed of 0 (A5, T33, T55), and the build out of failed/ (`update --retry`, T99); on a fail the candidate's descriptor
+  # into failed/, serving untouched (T9). Then the engine runs again, after a pass and after a fail alike (T115): in turn
+  # by removing paused, side by side by kickstart -k (au_engine_start). Then the server check (B3 step 13): after a pass,
+  # au_switch_check, whose speed becomes this Mac's baseline for the build (T60) and which ends the run with exit 4 naming
+  # `auster rollback` when it fails (T109); after a fail, passed says the test failed, and not answered ends the run with
+  # exit 4 naming `auster restart`, since serving is the build it was (T32, T115). 0 once switched and checked; 1 when the
+  # recipe stopped, having said why (exit 3 at the end)
+  local r=$1 way=$2 pick=$AU_JPICK p=$AU_JP c=$AU_JC rc=0 tp=1 tc=8192 up=1 i now f
+  if ! au_update_measure again; then
+    au_say "This Mac's memory cannot be read now (sysctl hw.memsize), so build $pick was not tested. $AU_JNAME keeps serving build $AU_JNOW."
+    return 1
+  fi
+  au_update_judge "$r"
+  if [ "$AU_J" != change ]; then
+    au_say "$AU_J_SAY"
+    return 1
+  fi
+  if [ "$AU_JK" != build ] || [ "$AU_JPICK" != "$pick" ] || [ "$AU_JP" != "$p" ] || [ "$AU_JC" != "$c" ]; then
+    au_say "What this Mac can hold changed since the question. $AU_JNAME is not updated: it keeps serving build $AU_JNOW. \`auster update\` asks again."
+    return 1
+  fi
+  if [ "$AU_JWAY" != "$way" ]; then
+    if [ "$way" = side-by-side ]; then
+      au_say "Worked out again before the test, this Mac can no longer hold both builds at once, as the question said it could."
+    else
+      au_say "Worked out again before the test, this Mac can now hold both builds at once, which the question did not say."
+    fi
+    au_say "$AU_JNAME is not updated: it keeps serving build $AU_JNOW. Build $pick's files stay on this Mac, and \`auster update\` asks again."
+    return 1
+  fi
+  now=$AU_JNOW
+  au_serving_read "$r"
+  if [ "$way" = in-turn ]; then
+    tp=$p tc=$c
+    au_paused_take || { au_say "builds/paused could not be written, so build $pick was not tested. $AU_JNAME keeps serving build $now."; return 1; }
+    if au_job_loaded "$AU_LABEL_ENGINE"; then
+      au_say "This Mac cannot hold both builds at once: the server stops while build $pick is tested."
+      launchctl kickstart -k "gui/$AU_UID/$AU_LABEL_ENGINE" > /dev/null 2>&1
+    fi
+    for ((i = 0; i < 60; i++)); do nc -z -w 1 127.0.0.1 "$AU_SV_PORT" > /dev/null 2>&1 || break; sleep 1; done
+    if [ "$i" = 60 ]; then
+      au_paused_release
+      au_say "The server did not stop within a minute, so build $pick was not tested. $AU_JNAME keeps serving build $now."
+      return 1
+    fi
+  else
+    au_say "This Mac can hold both builds at once: build $pick is tested beside the one serving, which keeps answering."
+  fi
+  au_candidate_test "$tp" "$tc" || rc=$?
+  au_serving_read "$r"
+  AU_PEOPLE=$p AU_CONTEXT=$c AU_PORT=$AU_SV_PORT
+  if [ "$rc" = 0 ]; then
+    au_say "Build $pick passed the recipe's test on this Mac, so it now serves in place of build $now..."
+    au_kept_add "$r" || au_stop "What it serves now could not be kept (builds/$r/kept), so the build was not changed."
+    AU_CHANGED=1
+    au_descriptor "$AU_DATA/builds/$r/serving" 0 || au_stop "The record of what serves (builds/$r/serving) could not be written."
+    for f in "$AU_DATA/builds/$r"/failed/*-"$pick"; do [ -f "$f" ] && rm -f "$f"; done   # tried again, and it passed
+  elif [ "$rc" = 1 ]; then
+    au_say "Build $pick did not pass the recipe's test on this Mac. $AU_JNAME stays on build $now."
+    au_mkdir "$AU_DATA/builds/$r/failed" && au_descriptor "$AU_DATA/builds/$r/failed/$(au_now)-$pick" 0 ||
+      au_stop "The build failed its test, and its record could not be written."
+  else
+    au_say "A key for the test could not be made, so build $pick was not tested. $AU_JNAME stays on build $now."
+  fi
+  if [ "$way" = in-turn ]; then
+    AU_T0=$(date +%s)
+    au_paused_release
+    au_job_loaded "$AU_LABEL_ENGINE" || au_engine_start || up=0
+  else
+    au_engine_start || up=0
+  fi
+  if [ "$rc" = 0 ]; then
+    if [ "$up" = 0 ]; then
+      au_say "launchd did not start Auster's engine job, so the server was not checked. \`auster status\` says why."
+      au_say "Nothing switches back by itself: \`auster rollback\` goes back to what it served before, with no download."
+      exit 4
+    fi
+    au_switch_check "$r"
+    return 0
+  fi
+  if [ "$up" = 0 ]; then
+    au_say "launchd did not start Auster's engine job, so the server was not checked. \`auster status\` says why."
+    au_say "Serving is still build $now: \`auster restart\` starts it again and checks it."
+    exit 4
+  fi
+  au_say "Checking the server on the home network, on build $now..."
+  au_server_check "$r" "$AU_T0"
+  case "$AU_CHECK" in
+    passed)
+      au_say "The server answered on build $now, at $AU_CHECK_SPEED tokens a second, and refused a request with no key."
+      [ "$rc" != 1 ] || au_say "$AU_JNAME keeps serving build $now; build $pick is not offered again until \`auster update --retry\`."
+      return 1 ;;
+    open)
+      au_say "The server did not refuse a request that carried no key, so Auster stopped it. It stays stopped until \`auster start\`."
+      exit 4 ;;
+    *)
+      au_say "The server did not answer its check within $AU_CHECK_SECS s: $AU_CHECK_WHY. \`auster status\` says how the engine's last start went."
+      au_say "Serving is still build $now, which it was before the test: \`auster restart\` starts it again and checks it."
+      exit 4 ;;
+  esac
 }
 
 au_update_remove() { # -> the earlier builds the disk rule named (AU_JREMOVE), removed now that the room is needed (D3.6 step 3,
@@ -1373,6 +1530,14 @@ au_switch_setting() { # RECIPE -> D3.6, a change of setting, the update's and `a
     au_say "Nothing switches back by itself: \`auster rollback\` goes back to what it served before, with no download."
     exit 4
   fi
+  au_switch_check "$r"
+}
+
+au_switch_check() { # RECIPE -> the server check (B3 step 13) after a switch, of setting (au_switch_setting) or of build
+  # (au_update_test), once the engine runs again from AU_T0 on the new serving: passed writes its speed into serving, this
+  # Mac's baseline for what it now serves (A5), and returns; open and not answered end the run with exit 4, naming
+  # `auster rollback`, which goes back with no download. Nothing switches back by itself, and nothing goes in failed/
+  local r=$1
   au_say "Checking the server on the home network..."
   au_server_check "$r" "$AU_T0"
   case "$AU_CHECK" in
@@ -1466,9 +1631,8 @@ au_update_known() { # -> after a run that wrote a new stamp on the release line:
 }
 
 au_update() { # -> the update (D3.6; the comment above): exits. 0 done, or nothing needed changing; 1 refused or answered no,
-  # and nothing changed; 3 a recipe passed over (before its question, or when its download stopped), a new bin/auster that
-  # does not answer `status`, or, until U5's last part, a yes to a change of build once its files are in store/; 4 the
-  # server check failed
+  # and nothing changed; 3 a recipe passed over (before its question, at its download or before its test), a new build
+  # that failed its test, or a new bin/auster that does not answer `status`; 4 the server check failed
   local s r no=0 short=0 asked=0 did=0
   AU_UPDATING=1   # a download that fails stops its recipe, not the run (au_fail)
   au_refuse_stopped || au_refuse   # B6: while builds/stopped exists, whatever it holds, the update refuses

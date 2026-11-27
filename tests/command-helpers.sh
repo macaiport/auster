@@ -12,7 +12,8 @@
 #   loaded LABEL        0 when the stub launchctl holds the job as loaded
 #   override LABEL      enabled, disabled, or none: what launchd keeps for the label
 #   key_of NAME / id_of NAME   the device NAME's key / id, from keys/
-#   ask_engine KEY [HOST]      the HTTP code the server gives the speed question asked with KEY (- for no key)
+#   ask_engine KEY [HOST [PORT]]  the HTTP code the server gives the speed question asked with KEY (- for no key), at
+#                       HOST (10.0.0.5) and PORT (8484)
 #   qr_texts FILE       what each QR code drawn in FILE holds, one a line (tests/qr-read.js)
 #   engine_alive        0 while an engine the engine job started is alive and listening on 8484
 #   outsays TEXT LABEL  ok when the command's output holds TEXT
@@ -100,7 +101,7 @@ ask_engine() {
   [ "$1" = - ] || { printf 'Authorization: Bearer %s\n' "$1" > "$W/ask-header"; h=(-H @"$W/ask-header"); }
   printf '{"messages":[{"role":"user","content":"Count from 1 to 3"}],"max_tokens":8,"temperature":0}' > "$W/ask-body"
   curl -q -s --max-time 10 -o /dev/null -w '%{http_code}' ${h[@]+"${h[@]}"} -H 'Content-Type: application/json' \
-    --data-binary @"$W/ask-body" "http://${2:-10.0.0.5}:8484/v1/chat/completions"
+    --data-binary @"$W/ask-body" "http://${2:-10.0.0.5}:${3:-8484}/v1/chat/completions"
   rm -f "$W/ask-header"
 }
 

@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# always in turn: the engine is stopped for the test whatever room the Mac has
+/^au_update_test() {/,/^}/s/^  if \[ "\$way" = in-turn \]; then$/  if true; then/

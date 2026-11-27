@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# decide the way once, at the question: the way worked out again before the test is not compared with it
+/^au_update_test() {/,/^}/s/^  if \[ "\$AU_JWAY" != "\$way" \]; then$/  if false; then/

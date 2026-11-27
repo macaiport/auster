@@ -38,13 +38,13 @@ same "$(line)" "waiting $IB1 2400" "  ...the rule file: order 1 still waiting, w
 cdn 200 "$FX/models/standin-a.gguf"
 rm -rf "$STUB_CURL_DIR/requests"
 update_run $'yes\n'
-same "$RC" 3 "the next update, answered yes: exit 3, where U5's last part will test the build"
+same "$RC" 0 "the next update, answered yes: exit 0, its download finished, then tested and switched to"
 says "  Download    2,400 bytes: standin-a.gguf from Hugging Face" "  ...its question: 2,400 bytes left to fetch"
 same "$(first_get)" "$URL_A bytes=1000-" "  ...it resumed from 1,000, asking the address that names the commit again"
 same "$(shasum -a 256 < "$DATA/store/$SA" 2>/dev/null | cut -c1-64)" "$SA" "  ...the finished file is model A, in store/"
 [ -e "$P" ] && bad "  ...the part is left" || ok "  ...and no part is left"
 
-chmod 644 "$DATA/store/$SA"; rm -f "$DATA/store/$SA"
+waiting_b1   # order 2 served again, model A out of store/
 cdn exit:18:1000 "$FX/models/standin-a.gguf"
 update_run $'yes\n'
 same "$RC:$(stat -f %z "$P" 2>/dev/null)" "3:1000" "cut off again at 1,000 bytes: exit 3, the part kept"

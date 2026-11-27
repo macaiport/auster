@@ -1,0 +1,3 @@
+# file: common/auster-engine
+# the engine job waits on paused whether or not its process is alive
+/^paused_live() {/,/^}/s/^  s=\$(ps -p "\${F\[1\]}" -o lstart= 2>\/dev\/null) || return 1$/  return 0/

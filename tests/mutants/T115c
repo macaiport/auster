@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# name auster rollback: a server that does not answer after a failed test is sent back to the build before
+/^au_update_test() {/,/^}/s/^      au_say "Serving is still build \$now, which it was before the test: .*$/      au_say "\\`auster rollback\\` goes back to what it served before, with no download."/

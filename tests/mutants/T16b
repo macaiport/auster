@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# always side by side: the candidate is tested beside the serving engine whatever room the Mac has
+/^au_update_test() {/,/^}/s/^  if \[ "\$way" = in-turn \]; then$/  if false; then/

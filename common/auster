@@ -20,7 +20,8 @@
 # au_serving_launch); a passed server check deletes jobs/previous/ (B3 step 13); and `status` says when kept/ gives
 # `auster rollback` a way back from a speed of 0, and when jobs/previous/ holds programs never checked (T94, T107, T109,
 # T111, T112). U5, its middle part (2026-11-27): `update --retry`, which runs the update with a build that failed its
-# test on this Mac offered again (D3.7, BD12; T99). Still to come, each marked TODO below:
+# test on this Mac offered again (D3.7, BD12; T99). U5, its last part (2026-11-27): `status` reports a run that holds the
+# lock, and one that ended without releasing it (D3.6 step 5, T25). Still to come, each marked TODO below:
 #   U6  `rollback`, `unhold` and `cleanup`;  U8  the words of each withdrawal's reason in `status`.
 #
 # The readers (D3.1, Reading). Each checks the format first, from the first field of the first 4,096 bytes
@@ -48,7 +49,8 @@
 #                                the engine is stopped, a job macOS has switched off, the devices, a `.local`
 #                                name macOS has changed, the sleep setting, whether update checks are made,
 #                                each recipe's line (same, waiting with what would change, passed over and
-#                                why, withdrawn), and every record of a newer format
+#                                why, withdrawn), a run that holds the lock or one that died holding it, and every
+#                                record of a newer format
 #   stop                         launchctl disable, then bootout; builds/stopped says `household`
 #   start                        enable, then bootstrap (kickstart -k if it is loaded); builds/stopped
 #                                deleted, whatever the check then gives; the server check
@@ -1539,6 +1541,15 @@ au_status() { # -> B6: what serves, the engine job's last start, why the engine 
   if [ -e "$AU_DATA/jobs/previous" ] || [ -L "$AU_DATA/jobs/previous" ]; then   # B3 step 6, T94
     au_say "Auster's own programs were changed by an update, and the server has not passed a check since (jobs/previous holds the ones before)."
     au_say "\`auster restart\` checks them; \`auster rollback\` puts the previous ones back, with no download."
+  fi
+  au_lock_read "$AU_DATA/builds/updating"   # D3.6 step 5: a lock left by a run that died (T25)
+  if [ "$AU_LOCK" = held ]; then
+    if au_alive "$AU_LOCK_PID" "$AU_LOCK_BOOT" "$AU_LOCK_START"; then
+      au_say "A run of Auster (process $AU_LOCK_PID) is installing, updating or changing the server now."
+    else
+      au_say "A run of Auster (process $AU_LOCK_PID) that was installing, updating or changing the server ended before it finished."
+      au_say "The engine serves the last build that passed its test; the next \`auster update\`, or pasting the line again, goes on from there."
+    fi
   fi
   au_stopped_read
   case "$AU_STOPPED:$AU_STOPPED_WHY" in

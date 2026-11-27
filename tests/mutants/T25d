@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# no watch on the candidate: it outlives an update that is killed
+/^au_candidate_test() {/,/^}/s/^  AU_CANDIDATE_WATCH=\$!$/  kill $!; AU_CANDIDATE_WATCH=/

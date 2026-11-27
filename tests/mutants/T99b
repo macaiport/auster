@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# --retry that skips the test: a build tried again is switched to as if it had passed
+/^au_update_test() {/,/^}/s/^  au_candidate_test "\$tp" "\$tc" || rc=\$?$/  [ "$AU_RETRY" = 1 ] || au_candidate_test "$tp" "$tc" || rc=$?/

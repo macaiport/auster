@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# side by side, leave the candidate running: the candidate engine is never stopped
+/^au_candidate_stop() {/,/^}/s/^  kill "\$AU_CANDIDATE" 2>\/dev\/null$/  AU_CANDIDATE=; return 0/

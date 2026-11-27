@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# write them before the test: an update copies serving into kept/ and replaces it with the candidate before its test
+/^au_update_test() {/,/^}/s/^  au_candidate_test "\$tp" "\$tc" || rc=\$?$/  au_kept_add "$r"; AU_PEOPLE=$p AU_CONTEXT=$c AU_PORT=$AU_SV_PORT; au_descriptor "$AU_DATA\/builds\/$r\/serving" 0; &/

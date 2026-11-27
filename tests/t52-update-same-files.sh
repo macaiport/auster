@@ -3,8 +3,8 @@
 # at 15,360 tokens, release v0.2.0 adds a build of order 2's model, engine, template, system prompt and test with a
 # corrected figure, orders it after order 1 (which does not fit this Mac) and ahead of order 2, and withdraws order 2 with
 # the reason `corrected`: the corrected build is waiting, its question says nothing is to be downloaded, and the yes
-# asks nothing of Hugging Face, its CDN or the engine's host, neither a HEAD nor a download, and ends where U5's last part
-# will test the build (exit 3). (The calm words of `corrected` are U8's.)
+# asks nothing of Hugging Face, its CDN or the engine's host, neither a HEAD nor a download, tests the corrected build and
+# switches to it (exit 0), order 2 in kept/. (The calm words of `corrected` are U8's.)
 # Mutant: tests/mutants/T52b (download again for the same sha256), and T52a (the registry's).
 . "$TESTS/lib.sh"
 . "$TESTS/helpers.sh"
@@ -26,11 +26,11 @@ route_drop "$API/heads/release"; commit_route heads/release "$COMMIT2"
 s0=$(cat "$DATA/builds/$IR/serving") st0=$(ls "$DATA/store" | sort)
 rm -rf "$STUB_CURL_DIR/requests"
 update_run $'yes\n'
-same "$RC" 3 "a corrected build of the same files, answered yes: exit 3, where U5's last part will test it"
+same "$RC" 0 "a corrected build of the same files, answered yes: exit 0, tested and switched to"
 says "  After       build $IB6 (standin-b.gguf)" "  ...the corrected build is offered"
 says "  Download    Nothing: the files it needs are already on this Mac." "  ...its question: nothing to download"
 same "$(requests | grep -E 'huggingface|cdn\.example|github\.com/ggml' | tr '\n' ' ')" "" "  ...nothing asked of Hugging Face, its CDN or the engine's host"
 same "$(ls "$DATA/store" | sort)" "$st0" "  ...store/ as it was"
-says "Build $IB6's files are on this Mac." "  ...its files were all on this Mac"
-same "$(cat "$DATA/builds/$IR/serving")" "$s0" "  ...serving untouched"
+same "$(sed -n 2p "$DATA/builds/$IR/serving" | cut -f2)" "$IB6" "  ...the corrected build serves"
+same "$(cat "$DATA/builds/$IR"/kept/*)" "$s0" "  ...and kept/ holds order 2's descriptor"
 done_

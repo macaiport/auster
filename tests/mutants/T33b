@@ -1,0 +1,6 @@
+# file: common/driver.sh
+# replace serving before copying the old descriptor to kept/: the switch to a new build writes serving first
+/^au_update_test() {/,/^}/{
+/^    au_kept_add "\$r" || au_stop "What it serves now could not be kept/d
+s/^    au_descriptor "\$AU_DATA\/builds\/\$r\/serving" 0 || au_stop .*$/    cp "$AU_DATA\/builds\/$r\/serving" "$AU_RUN\/old"; &; t="$AU_DATA\/builds\/$r\/kept\/.new"; cp "$AU_RUN\/old" "$t"; mv -f "$t" "$AU_DATA\/builds\/$r\/kept\/$(au_now)-$AU_JNOW"/
+}

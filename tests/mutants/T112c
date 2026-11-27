@@ -1,3 +1,3 @@
 # file: common/driver.sh
-# skip the server check after a change of setting: it is taken as passed
-/^au_switch_setting() {/,/^}/s/^  au_server_check "\$r" "\$AU_T0"$/  AU_CHECK=passed AU_CHECK_SPEED=0/
+# skip the server check after a switch, of setting or of build: it is taken as passed
+/^au_switch_check() {/,/^}/s/^  au_server_check "\$r" "\$AU_T0"$/  AU_CHECK=passed AU_CHECK_SPEED=0/

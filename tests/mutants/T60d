@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# record the test's speed: the switch writes the speed the candidate's test reported into serving, as this Mac's baseline
+/^au_update_test() {/,/^}/s/^    au_descriptor "\$AU_DATA\/builds\/\$r\/serving" 0 || /    au_descriptor "$AU_DATA\/builds\/$r\/serving" "$(sed -n 's\/^speed \\([0-9.]*\\) tok.*\/\\1\/p' "$AU_RUN\/test.out")" || /

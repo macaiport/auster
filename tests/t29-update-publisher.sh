@@ -54,7 +54,7 @@ head_route 302 - "Location: https://cdn.example.test/a"
 route_drop https://cdn.example.test/a; curl_route GET https://cdn.example.test/a 200 "$FX/models/standin-a.gguf"
 rm -rf "$STUB_CURL_DIR/requests"
 update_run $'yes\n'
-same "$RC" 3 "a publisher that reports no size or hash: the update goes on, and ends where U5's last part will test the build (exit 3)"
+same "$RC" 0 "a publisher that reports no size or hash: the update goes on, and finishes (exit 0)"
 says "The recipe household: an update is waiting." "  ...the question was asked"
 same "$(shasum -a 256 < "$DATA/store/$SA" 2>/dev/null | cut -c1-64)" "$SA" "  ...and the yes fetched the model"
 done_

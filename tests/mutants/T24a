@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# stop at the first failure: a recipe that stops after its yes ends the round, and the recipes after it are not updated
+/^au_update() {/,/^}/s/^      change) asked=1; if au_update_question; then au_update_yes "\$r" || short=1; did=1; else no=1; fi ;;$/      change) asked=1; if au_update_question; then did=1; au_update_yes "$r" || { short=1; break; }; else no=1; fi ;;/

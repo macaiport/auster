@@ -1,0 +1,7 @@
+# file: common/driver.sh
+# change the programs after the download: a yes to a new build fetches, tests and switches it, and only then changes Auster's programs
+/^au_update_yes() {/,/^}/{
+/^  au_update_programs$/d
+s/^  \[ -n "\${1:-}" \] || return 0$/  [ -n "${1:-}" ] || { au_update_programs; return 0; }/
+s/^  if \[ "\$AU_JK" = build \]; then au_update_build "\$1"; return \$?; fi$/  if [ "$AU_JK" = build ]; then au_update_build "$1"; rc=$?; au_update_programs; return $rc; fi; au_update_programs/
+}

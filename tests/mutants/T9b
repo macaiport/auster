@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# in turn, leave the engine job stopped: builds/paused stays after the test, so the engine job waits while the run lives
+/^au_update_test() {/,/^}/s/^    au_paused_release$/    :/

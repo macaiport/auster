@@ -1,0 +1,3 @@
+# file: common/auster
+# auster status says nothing of a lock left by a run that died
+/^au_status() {/,/^}/s/^  au_lock_read "\$AU_DATA\/builds\/updating"   # D3.6 step 5.*$/  AU_LOCK=absent/

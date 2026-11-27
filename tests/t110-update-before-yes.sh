@@ -6,8 +6,8 @@
 # over SSH answered no: until the question is answered, the stub curl's log shows only release's install.sh, GitHub's API,
 # the tree and the publisher's HEAD for each file store/ lacks (the model at Hugging Face, the engine archive at GitHub),
 # and step 4's --list-devices ran from the engine already in engines/. Answered yes: the model and the new engine are
-# fetched after the yes from their own addresses, checked, the engine unpacked into engines/ with its list, and the run
-# ends where U5's last part will test the build (exit 3), serving untouched.
+# fetched after the yes from their own addresses, checked, the engine unpacked into engines/ with its list, the candidate
+# run from it, and the recipe switched to the new build (exit 0), serving naming its engine and that engine's list.
 # Mutants: tests/mutants/T110a (run step 4 as at a first install), T110b (judge no macOS floor for the candidate engine).
 . "$TESTS/lib.sh"
 . "$TESTS/helpers.sh"
@@ -69,13 +69,15 @@ same "$ld" "$DATA/engines/$ESHA/root/llama-stub/llama-server " "  ...and step 4 
 # --- answered yes
 rm -rf "$STUB_CURL_DIR/requests"
 update_run $'yes\n'
-same "$RC" 3 "answered yes: exit 3, where U5's last part will test the build"
+same "$RC" 0 "answered yes: exit 0, the new build tested and switched to"
 same "$(host_asks)" "HEAD $URL_A HEAD $ENGINE2_URL HEAD $URL_A GET $URL_A GET https://cdn.example.test/a GET $ENGINE2_URL GET $ENGINE2_CDN " \
   "  ...asked again before the download, then fetched from the addresses that name them"
 same "$(shasum -a 256 < "$DATA/store/$E2" 2>/dev/null | cut -c1-64):$(shasum -a 256 < "$DATA/store/$SA" 2>/dev/null | cut -c1-64)" "$E2:$SA" \
   "  ...the new engine's archive and model A in store/"
 [ -x "$DATA/engines/$E2/root/llama-stub/llama-server" ] && grep -q '^llama-stub/libstub.0.dylib	' "$DATA/engines/$E2/files" &&
   ok "  ...the new engine unpacked into engines/ with its file list" || bad "  ...engines/$E2 is not the unpacked engine: $(ls -R "$DATA/engines/$E2" 2>&1 | head -5)"
-says "Build $IB5's files are on this Mac. The recipe household keeps serving build $IB2" "  ...it says the switch comes later"
-same "$(cat "$DATA/builds/$IR/serving")" "$s0" "  ...serving untouched"
+same "$(sed -n 2p "$DATA/builds/$IR/serving" | cut -f2) $(sed -n 3p "$DATA/builds/$IR/serving" | cut -f7) $(sed -n 5p "$DATA/builds/$IR/serving" | cut -f5)" \
+  "$IB5 $E2 $(shasum -a 256 < "$DATA/engines/$E2/files" | cut -c1-64)" "  ...serving names the new build, its engine and that engine's list"
+same "$(arg_of "$(start_on $CPORT)" --alias) $(cat "$(start_on $CPORT)/program")" "$IB5 $DATA/engines/$E2/root/llama-stub/llama-server" \
+  "  ...the candidate ran from the new engine"
 done_

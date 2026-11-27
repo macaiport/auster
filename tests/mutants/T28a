@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# start the candidate with the household's address and key file
+/^au_candidate_test() {/,/^}/s#--host 127.0.0.1 --port "\$port" --api-key-file "\$k/key"#--host "127.0.0.1,$(awk -F'\\t' '$1 == "address" { print $2; exit }' "$AU_DATA"/builds/r*/start)" --port "$port" --api-key-file "$AU_DATA/keys/engine.keys"#
