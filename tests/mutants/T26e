@@ -1,0 +1,3 @@
+# file: common/auster
+# `auster cleanup` without the lock: it lists, asks and removes while another run holds builds/updating
+/^au_cmd_cleanup() {/,/^}/{/^  au_lock_take || return 1$/d;}

@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# fetch a file store/ already holds: the model is fetched whatever store/ holds
+/^au_step7_model() {/,/^}/s/^  if \[ -e "\$AU_DATA\/store\/\$sha" \]; then$/  if false; then/

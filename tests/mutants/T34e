@@ -1,0 +1,3 @@
+# file: common/auster
+# `auster status` says only the code: no sentence for a start stopped by a changed file
+/^    if \[ "\$AU_ST_CODE" = engine-hash \]; then/,/^    fi$/d

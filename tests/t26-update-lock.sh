@@ -1,10 +1,12 @@
 # T26, the update's half (U4, U6; D3.1, D3.6): while the lock, builds/updating, names a live run, an update (install.sh
-# update), a second paste, `auster update`, `auster stop`, `auster key revoke`, `auster rollback` and `auster unhold` each
-# refuse, leave the lock as it is and change nothing (the engine still serving), and the check job makes no update check,
-# so that `offer` does not change during an update. A lock whose process is gone, whose number now belongs to another
-# process, or from an earlier boot is taken over: the update runs and leaves no lock. With the lock gone, the same check
-# writes the offer.
-# Mutants: tests/mutants/T26a and T26b (the lock's, shared with the install's half), T26d (check during an update).
+# update), a second paste, `auster update`, `auster stop`, `auster key revoke`, `auster rollback`, `auster unhold` and
+# `auster cleanup` (whose list would name order 1's template, which no descriptor names once order 2 serves) each refuse,
+# leave the lock as it is and change nothing (the engine still serving), and the check job makes no update check, so that
+# `offer` does not change during an update. A lock whose process is gone, whose number now belongs to another process, or
+# from an earlier boot is taken over: the update runs and leaves no lock. With the lock gone, the same check writes the
+# offer.
+# Mutants: tests/mutants/T26a and T26b (the lock's, shared with the install's half), T26d (check during an update), T26e
+# (`auster cleanup` without the lock).
 . "$TESTS/lib.sh"
 . "$TESTS/helpers.sh"
 . "$TESTS/install-helpers.sh"
@@ -37,6 +39,7 @@ auster stop; held "auster stop while the lock is live"
 auster key revoke ipad; held "auster key revoke while the lock is live"
 auster rollback; held "auster rollback while the lock is live"
 auster unhold; held "auster unhold while the lock is live"
+ANSWERS=$'yes\n' auster cleanup; held "auster cleanup while the lock is live, answered yes"
 
 # the check job during an update
 route_drop "$CHANGELOG"; route_drop "$REGISTRY"

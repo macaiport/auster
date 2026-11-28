@@ -1,0 +1,3 @@
+# file: common/auster
+# keep exactly one, whatever the disk: each entry copied into kept/ takes the place of every earlier one
+/^au_kept_add() {/,/^}/s/^  AU_KEPT=\$n$/  for t in "$r"\/kept\/*; do [ "$t" = "$n" ] || rm -f "$t"; done; AU_KEPT=$n/

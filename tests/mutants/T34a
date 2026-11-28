@@ -1,0 +1,3 @@
+# file: common/auster-engine
+# skip the engine's hash: the engine's files are not compared with the list the launch line names
+s/^\[ -n "\$listing" \] && \[ "\$(printf '%s\\n' "\$listing" | shasum -a 256 | cut -c1-64)" = "\$list" \] ||$/true ||/

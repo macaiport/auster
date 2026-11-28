@@ -24,9 +24,9 @@
 # sources nothing, and T6's and T95's tables run them too. Its tests: T1, T3, T4, T14, T42 (their registry
 # halves), T11, T22 (the update's half), T23, T35 (with bin/auster's status), T40 and T44 (the recipe half).
 # U4 (2026-11-27): --open, the update's .command file handed to Terminal, and --command, the same file for a caller
-# that runs it itself (`auster update` over SSH); the driver also sources this file for _auu_holdings, the disk
-# holdings, when it judges an update (common/driver.sh). Its tests: T38, T19 (the check never starts an update) and
-# T43 (--open in the contract's form).
+# that runs it itself (`auster update` over SSH); the driver sourced this file for _auu_holdings, the disk
+# holdings, when it judged an update; since U6 it uses common/auster's copy, au_holdings, which T30 holds to the same
+# output. Its tests: T38, T19 (the check never starts an update) and T43 (--open in the contract's form).
 # U5 (2026-11-27): a download cut short, store/<sha256>.part, among the disk holdings (B3 step 7); and --retry after
 # --open or --command, for `auster update --retry` (D3.7, BD12), whose .command file runs `update --retry` and which goes
 # on when the word is current as well as ready, since a build that failed its test here is never what makes it ready.

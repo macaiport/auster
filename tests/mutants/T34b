@@ -1,0 +1,4 @@
+# file: common/auster-engine
+# hash the model at start
+/^\[ "\$(sha "\$DATA\/store\/\$system")" = "\$system" \] || fault engine-hash/a\
+[ "$(sha "$DATA/store/$model")" = "$model" ] || fault engine-hash "the model is not the one the build names."

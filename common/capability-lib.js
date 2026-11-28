@@ -117,6 +117,13 @@
 //      none is spared to save a count; C6, settled at V3). A file counts as freed only when no
 //      descriptor that stays, of any recipe, names it, and never when it is the build in use's or the
 //      chosen build's.
+//   C6 auCapCleanup(recipeId, holdings, figures) -> the same rule for `auster cleanup` (D3.6 step 6, U6),
+//      with nothing to download. Every download cut short (`partial`) and every file in store/ or folder in
+//      engines/ that no descriptor names (`unnamed`) is spare, and always removed: nothing serves from it or
+//      goes back to it. Then, only when free disk with the spare gone is still below the floor, this
+//      recipe's earlier builds, named as auCapRemovals names them; when no run makes room, every build in
+//      the order that frees space, so that a Mac short of disk gets back what it can. Above the floor every
+//      earlier build stays (AD7).
 //
 // auCapChoose(reg, recipeId, o) -> result. o is
 //   { figures,         auCapFigures' answer
@@ -381,7 +388,8 @@ function auCapFreed(holdings, removed, protect) { // bytes freed by removing the
   return n;
 }
 
-function auCapRemovals(recipeId, holdings, protect, free, floor, download) { // -> { names, freed } or null
+function auCapRemovals(recipeId, holdings, protect, free, floor, download, whole) { // -> { names, freed } or null;
+  // with whole, when no run makes room, every build in the order that frees space rather than null (`auster cleanup`)
   function byDate(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; }
   function of(kind) { return holdings.descs.filter(function (d) { return d.recipe === recipeId && d.kind === kind; }).sort(byDate); }
   var failed = of('failed'), kept = of('kept'), order = failed.concat(kept), set = [], i;
@@ -390,9 +398,31 @@ function auCapRemovals(recipeId, holdings, protect, free, floor, download) { // 
     var more = set.concat([order[i]]);                       // a build that frees nothing is never named
     if (auCapFreed(holdings, more, protect) > auCapFreed(holdings, set, protect)) set = more;
   }
-  if (!room(set)) return null;
+  if (!room(set) && !whole) return null;
   var newest = kept.length ? kept[kept.length - 1] : null;
   return { names: set.map(function (d) { return { desc: d, yes: d === newest }; }), freed: auCapFreed(holdings, set, protect) };
+}
+
+function auCapCleanup(recipeId, holdings, f) { // -> { ok, refused, detail, figures, builds, disk, removals, room, needs, spare }
+  // (the header, C6): refused figures (detail disk, then why) when free disk or the volume's size is not known
+  var out = { ok: false, refused: null, detail: [], figures: f, builds: [], choice: null, disk: null, removals: [], room: [],
+    needs: null, spare: [] };
+  if (f.diskFree === null || f.diskTotal === null) return auCapRefuse(out, 'figures', ['disk', f.why.diskFree || f.why.diskTotal || 'missing']);
+  var named = {}, extra = 0, floor = auCapDiskFloor(f.diskTotal), r;
+  holdings.descs.forEach(function (d) { d.files.forEach(function (p) { named[p] = true; }); });
+  Object.keys(holdings.files).sort().forEach(function (p) {
+    if (!named[p]) { out.spare.push({ kind: 'unnamed', path: p, bytes: holdings.files[p] }); extra += holdings.files[p]; }
+  });
+  Object.keys(holdings.partial).sort().forEach(function (s) {
+    out.spare.push({ kind: 'partial', path: 'store/' + s + '.part', bytes: holdings.partial[s] }); extra += holdings.partial[s];
+  });
+  out.disk = { download: 0, floor: floor, free: f.diskFree, freed: extra };
+  if (f.diskFree + extra < floor) {
+    r = auCapRemovals(recipeId, holdings, {}, f.diskFree + extra, floor, 0, true);
+    out.removals = r.names; out.disk.freed += r.freed;
+  }
+  out.ok = true;
+  return out;
 }
 
 // --- C4, the choice ---------------------------------------------------------------------------------
@@ -513,10 +543,10 @@ function auCapReport(r) {
     out.push(['build', e.position, e.id, e.why.length ? e.why.join(',') : 'ok', c.context ? c.context : '-',
       n ? n.gpuMiB : '-', n ? n.totalMiB : '-'].join(T));
   });
-  if (r.ok) {
+  if (r.ok && r.choice) {
     var c = r.choice;
     out.push(['choice', c.id, c.people, c.context, c.gpuMiB, c.totalMiB, c.way, c.disk].join(T));
-  } else out.push(['refused', r.refused].concat(r.detail.length ? [r.detail.join(',')] : []).join(T));
+  } else if (!r.ok) out.push(['refused', r.refused].concat(r.detail.length ? [r.detail.join(',')] : []).join(T));
   if (r.disk) out.push(['disk', r.disk.download, r.disk.floor, r.disk.free, r.disk.freed].join(T));
   r.removals.forEach(function (x) {
     out.push(['remove', x.desc.recipe, x.desc.kind, x.desc.date, x.desc.build, x.yes ? 'yes' : '-'].join(T));
@@ -526,6 +556,7 @@ function auCapReport(r) {
     var s = r.needs;
     out.push(['needs', s.id, s.people, s.context, s.gpuMiB, s.totalMiB, s.gpuLimitMiB, s.memoryMiB].join(T));
   }
+  (r.spare || []).forEach(function (x) { out.push(['spare', x.kind, x.path, x.bytes].join(T)); });
   return out;
 }
 

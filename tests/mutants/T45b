@@ -1,0 +1,4 @@
+# file: common/auster
+# refuse while builds/stopped exists, as update does
+/^au_cmd_cleanup() {/,/^}/s/^  au_lock_take || return 1$/&\
+  au_refuse_stopped || return 1/

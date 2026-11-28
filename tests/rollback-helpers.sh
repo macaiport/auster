@@ -1,4 +1,4 @@
-# Sourced by the rollback's tests (U6: T12, T27, T57, and the rollback clauses of T94, T107, T109 and T112) after lib.sh,
+# Sourced by the rollback's tests (U6: T12, T17, T27, T57, and the rollback clauses of T94, T107, T109 and T112) after lib.sh,
 # helpers.sh, install-helpers.sh, job-helpers.sh, command-helpers.sh and update-run-helpers.sh:
 #   model_in MODEL      that model's stand-in (IMA or IMB) put in store/, read-only, whole
 #   kept_put BUILD MODEL PEOPLE CONTEXT [SPEED [DATE]]   an entry of builds/<recipe>/kept/ for that build at that setting,

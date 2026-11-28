@@ -3,6 +3,11 @@
 // holdings, are in capability-lib.js's header.
 //
 //   osascript -l JavaScript common/capability.js <registry.tsv> <recipe id> [option...]
+//   osascript -l JavaScript common/capability.js --cleanup <recipe id> --disk FILE [--df FILE]   (U6)
+//
+// --cleanup is `auster cleanup`'s rule (capability-lib.js's auCapCleanup, D3.6 step 6): no registry is read
+// and only --df and --disk are taken, --disk always; it prints figures, then refused (figures, when free
+// disk is not known) or disk, then the remove and spare lines, and exits 0, or 3 when refused.
 //
 //   --people N                 the household's number of people, 1 to 64, carried over from the launch
 //                              line (C4); without it, the recipe's default. Above the default, the default
@@ -76,9 +81,14 @@
 //             `other`, or -. reasons: for passed-over and withdrawn, comma-separated: withdrawn, tier, held,
 //             failed, fit, room, or one refusal's code (figures, people); - otherwise. download: for waiting,
 //             the bytes the build picked would fetch that the disk holdings do not hold; - otherwise
+//   spare     <partial|unnamed> <path> <bytes>
+//             with --cleanup only (U6): a download cut short (store/<sha256>.part), or a file in store/ or a
+//             folder in engines/ that no descriptor names (store/<sha256>, engines/<sha256>), one line each,
+//             removed by `auster cleanup` whatever the disk. With --cleanup the disk line's download is 0 and
+//             its freed is what the spare and the removals free together
 //
-// Lines come in this order: figures, build, then choice or refused, then disk, remove, room and needs
-// where they apply, then line.
+// Lines come in this order: figures, build, then choice or refused, then disk, remove, room, needs and
+// spare where they apply, then line.
 ObjC.import('Foundation');
 ObjC.import('stdlib');
 
@@ -106,10 +116,12 @@ function run(argv) {
   function usage(why) {
     auWrite(err, 'capability.js: ' + why + '\nusage: osascript -l JavaScript capability.js <registry.tsv> <recipe id> [--people N] ' +
       '[--serving BUILD] [--keep-build] [--loaded BUILD PEOPLE CONTEXT]... [--held BUILD]... [--failed BUILD]... ' +
-      '[--hold-unreadable] [--mac FILE] [--list-devices FILE] [--ram BYTES] [--df FILE] [--disk FILE]\n');
+      '[--hold-unreadable] [--mac FILE] [--list-devices FILE] [--ram BYTES] [--df FILE] [--disk FILE]\n' +
+      '       osascript -l JavaScript capability.js --cleanup <recipe id> --disk FILE [--df FILE]\n');
     $.exit(2);
   }
   var P = AU_REG_PATTERNS, PEOPLE = /^[1-9][0-9]?$/, CONTEXT = /^(0|[1-9][0-9]{0,6})$/;
+  var cleanup = argv.length > 0 && argv[0] === '--cleanup';
   if (argv.length < 2) usage('a registry and a recipe id are needed');
   if (!P.recipeId.test(argv[1])) usage('the recipe id fails its pattern');
   var o = { people: null, serving: null, keepBuild: false, loaded: [], held: [], failed: [], holdings: null };
@@ -122,6 +134,7 @@ function run(argv) {
   }
   while (i < argv.length) {
     var a = argv[i++];
+    if (cleanup && !/^--(df|disk)$/.test(a)) usage('--cleanup takes only --df and --disk');
     if (/^--(people|serving|keep-build|hold-unreadable|mac|list-devices|ram|df|disk)$/.test(a)) {
       if (once[a]) usage(a + ' is given twice');
       once[a] = true;
@@ -142,6 +155,7 @@ function run(argv) {
     else usage('unknown option ' + (/^[-a-z]{1,20}$/.test(a) ? a : '(not shown)'));
   }
   if (o.keepBuild && !o.serving) usage('--keep-build needs --serving');
+  if (cleanup && !files.disk) usage('--cleanup needs --disk');
 
   var maxOf = { mac: AU_CAP_MAX.mac, 'list-devices': AU_CAP_MAX.listDevices, df: AU_CAP_MAX.df, disk: AU_CAP_MAX.disk }, got = {};
   for (var k in files) {
@@ -163,6 +177,11 @@ function run(argv) {
     if (!o.holdings.ok) usage('the disk holdings are out of form');
   }
   o.figures = auCapFigures(ObjC.deepUnwrap($.NSProcessInfo.processInfo.environment), measured, mac);
+  if (cleanup) {
+    var cr = auCapCleanup(argv[1], o.holdings, o.figures);
+    auWrite($.NSFileHandle.fileHandleWithStandardOutput, auCapReport(cr).join('\n') + '\n');
+    $.exit(cr.ok ? 0 : 3);
+  }
 
   var reg = auRegRead(argv[0]);
   var r = auCapChoose(reg, argv[1], o);

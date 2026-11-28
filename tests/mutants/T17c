@@ -1,0 +1,3 @@
+# file: common/capability-lib.js
+# the one before the build in use not said to be so: no build the disk rule names needs the person's yes
+s/return { names: set\.map(function (d) { return { desc: d, yes: d === newest }; })/return { names: set.map(function (d) { return { desc: d, yes: false }; })/

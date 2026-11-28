@@ -1,0 +1,3 @@
+# file: common/auster
+# count no partial download among the disk holdings the update judges by (au_holdings): what is still to fetch is the whole file
+/^au_holdings() {/,/^}/s/^    printf 'partial\\t%s\\t%s\\n' "\$n" "\$s"$/    :/

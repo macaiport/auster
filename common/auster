@@ -24,8 +24,10 @@
 # lock, and one that ended without releasing it (D3.6 step 5, T25). U6, its first part (2026-11-27): `rollback`, which puts
 # back Auster's previous programs from jobs/previous/, or goes back to a build or setting in kept/ (D3.6, BD18); the record
 # `hold`, which a rollback writes (AD8); and `unhold` (T12, T27, T57, and the rollback clauses of T94, T107, T109, T112).
-# Still to come, each marked TODO below: U6  `cleanup`;  U8  the words of each withdrawal's reason in `status` and
-# `rollback`.
+# U6, its second part (2026-11-27): `cleanup`, the disk rule's removals at the household's asking (D3.6 step 6, C6); the
+# disk holdings (au_holdings) and the removal of what the disk rule names (au_builds_remove), which the driver's update
+# now shares; and `status`'s sentence for a start stopped by a changed file (T17, T26's cleanup half, T30, T34, T45).
+# Still to come, each marked TODO below: U8  the words of each withdrawal's reason in `status` and `rollback`.
 #
 # The readers (D3.1, Reading). Each checks the format first, from the first field of the first 4,096 bytes
 # (au_format): `auster-record 1` (`auster-descriptor 1` for a descriptor) is read on; the same word with a
@@ -45,8 +47,8 @@
 # `start`, `updating`, `paused` and `_update/engine` follow the same rules, and T6 runs each of them through
 # the same table.
 #
-# The commands (B6). Exit codes: 0 done; 1 refused; 2 usage; 3 not in this version (each a TODO); 4 the
-# server is down. `start`, `restart`, `key add`, `key revoke` and `rollback` exit 0 when the server check passes and 4
+# The commands (B6). Exit codes: 0 done; 1 refused; 2 usage; 4 the server is down (`people` gives the installer's own,
+# 3 among them). `start`, `restart`, `key add`, `key revoke` and `rollback` exit 0 when the server check passes and 4
 # otherwise, naming `auster start` after open and `auster status` after not answered.
 #   status                       what serves, the engine job's last start, the check job's last probe, why
 #                                the engine is stopped, a job macOS has switched off, the devices, a `.local`
@@ -78,23 +80,27 @@
 #                                kept/ and the entry written as serving with a speed of 0, the engine started and checked;
 #                                on a pass, the build left behind held. No test, no failed/, no fetch; 0, 1 or 4
 #   unhold [<recipe id>]         the recipe's holds cleared (builds/<recipe>/hold deleted)
-#   cleanup                      TODO(U6)
-# Each that stops or starts the engine or writes a record takes the lock. While builds/stopped exists,
+#   cleanup [<recipe id>]        what the disk rule would remove listed, then removed on a yes and nothing on a no
+#                                (D3.6 step 6, C6): downloads cut short and files no descriptor names, always; the
+#                                recipe's earlier builds only while free disk is below the floor, failed first, then
+#                                the oldest kept; never the build in use, nor a file another descriptor names; 0, 1 or 2
+# Each that stops or starts the engine or writes or deletes a record takes the lock. While builds/stopped exists,
 # whatever it holds and whether or not it can be read, `update`, `people`, `restart`, `key add` and `key
-# revoke` refuse and name `auster start`; `start`, `rollback`, `status`, `key show`, `verify`, `network`
-# and `remove` work. A `stopped` of a newer format is left as it is: `start` and `stop` then refuse.
+# revoke` refuse and name `auster start`; `start`, `rollback`, `status`, `key show`, `verify`, `network`,
+# `unhold`, `cleanup` and `remove` work. A `stopped` of a newer format is left as it is: `start` and `stop` then refuse.
 #
 # Records written here (D3.1): the lock `builds/updating` (one line: `auster-record 1`, the process, the
 # boot session, the process's start time); `builds/stopped` (one line: `auster-record 1`, `household` or
 # `open`, and the time, `date -u +%Y-%m-%dT%H:%M:%SZ`); the launch line of serving, by rename, with the speed a
 # server check measured or with a new setting and a speed of 0 (au_serving_launch); an entry of kept/, a copy of
 # serving byte for byte named by the time and its build, `2026-11-26T15:04:05Z-b...` (au_kept_add), and taken out of kept/
-# when a rollback goes back to it; builds/<recipe>/hold (`auster-record 1`, then each build id a line, at most 64, by
-# rename; deleted when none is left, and by `unhold`: au_hold_write); the router in
-# builds/mac (`auster network`, in capability-lib.js's form); builds/local-name (one line: `auster-record 1`,
-# the Mac's `.local` name, its LocalHostName, when the household's devices were given its address, or - when it
-# had none, and the time as `stopped` gives it; written by the driver after the yes at a first install and by
-# `auster network`, read by `status`). And what the engine reads, which carries no
+# when a rollback goes back to it; an entry of kept/ or failed/ deleted, with the files in store/ and engines/ that only it
+# named, when the disk rule names it (au_builds_remove: an update's removals and `cleanup`); builds/<recipe>/hold
+# (`auster-record 1`, then each build id a line, at most 64, by rename; deleted when none is left, and by `unhold`:
+# au_hold_write); the router in builds/mac (`auster network`, in capability-lib.js's form); builds/local-name (one
+# line: `auster-record 1`, the Mac's `.local` name, its LocalHostName, when the household's devices were given its
+# address, or - when it had none, and the time as `stopped` gives it; written by the driver after the yes at a first
+# install and by `auster network`, read by `status`). And what the engine reads, which carries no
 # format number (B7): each device's key in keys/<id> (32 hex characters and a newline, mode 0600), its name
 # in keys/<id>.name (one line, AU_RE_DEVICE), Auster's own probe key in keys/probe, and keys/engine.keys:
 # every named device's key in the order of their ids, then the probe key, one a line, mode 0600, written to
@@ -994,7 +1000,8 @@ au_cmd_verify() { # -> AD13: every file serving names, against its sha256: the m
   if [ "$out" = "$AU_SV_LIST" ]; then au_say "  same      the engine's unpacked files"
   else au_say "  CHANGED   the engine's unpacked files (engines/$AU_SV_ENGINE)"; bad=1; fi
   if [ "$bad" = 0 ]; then au_say "Every file is the one the registry names."; return 0; fi
-  au_say "A file has changed since it was checked. Paste the installer line again to fetch it again."
+  au_say "A file has changed since it was checked. Pasting the installer line does not fetch again a file of the build this Mac serves:"
+  au_say "removing Auster with all its files (\`auster remove\`) and then pasting the line installs it afresh, with new keys for the devices."
   return 1
 }
 
@@ -1254,9 +1261,181 @@ au_cmd_unhold() { # RECIPE -> D3.6, B6: the recipe's holds cleared, builds/<reci
   else au_say "The holds (builds/$AU_RECIPE/hold, which could not be read) are cleared: an update may move it to any build again."; fi
 }
 
-au_cmd_later() { # COMMAND -> 3: a command of B6 that comes with a later version
-  au_say "auster $1 comes with a later version of Auster (U6); nothing was changed."   # TODO(U6): cleanup
-  return 3
+# --- the disk (C6, D3.6 steps 3 and 6): what store/ and engines/ hold, and removing what the disk rule names ------------
+
+au_holdings() { # -> the disk holdings in capability-lib.js's form (`auster-disk 1`), on standard output: each file in store/ and
+  # folder in engines/ named by a sha256, with what it takes on disk; a `partial` line for each download cut short,
+  # store/<sha256>.part, which the installer keeps for a resume (B3 step 7); and a `desc` line for every descriptor of every
+  # recipe (C6: a file counts as free only when no descriptor names it). 1 when a descriptor cannot be read or an entry's date
+  # is out of form, so that no disk rule is applied rather than one that would count its files free (D3.3). The update's
+  # (the driver's) and `cleanup`'s; the rule file keeps its own copy, _auu_holdings, since it sources nothing, and T30 holds
+  # the two to one output
+  local f n s r kind date
+  printf 'auster-disk 1\n'
+  for f in "$AU_DATA"/store/*; do
+    n=${f##*/}
+    [[ $n =~ $AU_RE_SHA ]] && [ -f "$f" ] && [ ! -L "$f" ] || continue
+    s=$(au_size "$f") && [[ $s =~ $AU_RE_SIZE ]] || return 1
+    printf 'file\tstore/%s\t%s\n' "$n" "$s"
+  done
+  for f in "$AU_DATA"/store/*.part; do
+    n=${f##*/}; n=${n%.part}
+    [[ $n =~ $AU_RE_SHA ]] && [ -f "$f" ] && [ ! -L "$f" ] || continue
+    s=$(au_size "$f") && [[ $s =~ $AU_RE_SIZE ]] || return 1
+    printf 'partial\t%s\t%s\n' "$n" "$s"
+  done
+  for f in "$AU_DATA"/engines/*; do
+    n=${f##*/}
+    [[ $n =~ $AU_RE_SHA ]] && [ -d "$f" ] && [ ! -L "$f" ] || continue
+    s=$(du -sk "$f" 2>/dev/null) || return 1
+    s=${s%%[!0-9]*}
+    [[ $s =~ ^(0|[1-9][0-9]{0,11})$ ]] || return 1
+    printf 'file\tengines/%s\t%s\n' "$n" $((s * 1024))
+  done
+  for f in "$AU_DATA"/builds/r*/serving "$AU_DATA"/builds/r*/kept/* "$AU_DATA"/builds/r*/failed/*; do
+    [ -e "$f" ] || [ -L "$f" ] || continue
+    case "$f" in
+      */serving) kind=serving date=- r=${f%/serving} ;;
+      *) kind=${f%/*}; kind=${kind##*/} r=${f%/*/*} date=${f##*/}; date=${date%-b*} ;;
+    esac
+    r=${r##*/}
+    [[ $r =~ $AU_RE_RECIPE ]] || continue
+    if [ "$kind" = serving ]; then au_desc_read "$f" || return 1; else au_entry_read "$f" && [[ $date =~ $AU_RE_DATE ]] || return 1; fi
+    printf 'desc\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$r" "$kind" "$date" "$AU_SV_BUILD" "$AU_SV_ENGINE" \
+      "$AU_SV_MODEL" "$AU_SV_TEMPLATE" "$AU_SV_SYSTEM" "$AU_SV_TEST"
+  done
+}
+
+au_builds_remove() { # KEEP LINE... -> what the disk rule named, removed now (C6; D3.6 steps 3 and 6). Each LINE is one of
+  # capability.js's: `remove`, an earlier build, whose entry of kept/ or failed/ is deleted at once and each file in store/
+  # and folder in engines/ it named below; or `spare` (`cleanup`'s), a download cut short or a file in store/ or folder in
+  # engines/ that no descriptor names. A file or folder is deleted only when no descriptor left, of any recipe, names it and
+  # KEEP (store/<sha256> and engines/<sha256>, one a line) does not list it: never a file of the build in use, which its
+  # serving names, nor on an update the chosen build's. The update's removals (the driver's au_update_remove) and `cleanup`'s.
+  # 1, with no file of store/ or engines/ deleted, when a line is out of form, or an entry named or a descriptor left cannot
+  # be read
+  local keep=$1 l f e kind date build named list=() spare=()
+  shift
+  for l in "$@"; do
+    au_split "$l"
+    case "${AU_F[0]:-}" in
+      spare)
+        [[ ${AU_F[1]:-} =~ ^(partial|unnamed)$ ]] && [[ ${AU_F[2]:-} =~ ^(store/[0-9a-f]{64}(\.part)?|engines/[0-9a-f]{64})$ ]] || return 1
+        spare+=("${AU_F[2]}")
+        continue ;;
+      remove) ;;
+      *) return 1 ;;
+    esac
+    kind=${AU_F[2]:-} date=${AU_F[3]:-} build=${AU_F[4]:-}
+    [[ ${AU_F[1]:-} =~ $AU_RE_RECIPE ]] && [[ $kind =~ ^(kept|failed)$ ]] && [[ $date =~ $AU_RE_UTC ]] && [[ $build =~ $AU_RE_BUILD ]] ||
+      return 1
+    f="$AU_DATA/builds/${AU_F[1]}/$kind/$date-$build"
+    au_entry_read "$f" || return 1
+    list+=("store/$AU_SV_ENGINE" "engines/$AU_SV_ENGINE" "store/$AU_SV_MODEL" "store/$AU_SV_TEMPLATE" "store/$AU_SV_SYSTEM" "store/$AU_SV_TEST")
+    rm -f "$f" || return 1
+    if [ "$kind" = failed ]; then au_say "Removed build $build, which failed its test here on ${date%%T*}, to make room."
+    else au_say "Removed build $build, kept since ${date%%T*}, to make room."; fi
+  done
+  [ "${#list[@]}" -gt 0 ] || [ "${#spare[@]}" -gt 0 ] || return 0
+  named=$(au_holdings) || return 1
+  named=$(printf '%s\n' "$named" | awk -F'\t' '$1 == "desc" { print "store/" $6; print "engines/" $6; print "store/" $7; print "store/" $8; print "store/" $9; print "store/" $10 }')
+  named+=$'\n'"$keep"
+  for e in ${list[@]+"${list[@]}"} ${spare[@]+"${spare[@]}"}; do
+    printf '%s\n' "$named" | grep -qxF -- "$e" && continue
+    case "$e" in
+      engines/*) rm -rf "$AU_DATA/$e" ;;
+      store/*) chmod 644 "$AU_DATA/$e" 2>/dev/null; rm -f "$AU_DATA/$e" ;;
+    esac
+  done
+  for e in ${spare[@]+"${spare[@]}"}; do
+    [ ! -e "$AU_DATA/$e" ] && [ ! -L "$AU_DATA/$e" ] || continue
+    case "$e" in
+      *.part) au_say "Removed $e, a download cut short." ;;
+      *) au_say "Removed $e, which no build names." ;;
+    esac
+  done
+}
+
+au_cmd_cleanup() { # RECIPE -> D3.6 step 6, C6, B6: what the disk rule would remove, listed, then removed on a yes and nothing on
+  # a no (T45). The rule is the update's, with nothing to download (capability.js --cleanup; capability-lib.js's auCapCleanup):
+  # every download cut short and every file in store/ or folder in engines/ that no descriptor names, which nothing serves
+  # from or goes back to; then, only while free disk is still below the floor (the larger of 20 GiB and 5% of the volume)
+  # once those are gone, this recipe's earlier builds, failed first, then the oldest kept, the one before the build in use
+  # said to be so, until there is room, or every one that frees space when nothing makes room. Above the floor every earlier
+  # build stays (AD7). Never a file of the build in use, nor one another descriptor of any recipe names (au_builds_remove).
+  # It takes the lock (D3.1) and starts and stops nothing, so it works while builds/stopped exists. A descriptor that cannot
+  # be read removes nothing (D3.3). With several recipes (BD14's fixtures), RECIPE names the one whose builds are judged;
+  # what no descriptor names is the whole Mac's. 0 done, or nothing to remove; 1 refused or answered no; 2 several recipes
+  # and none named
+  local w l r free= floor= freed= builds=0 bad=0 lines=()
+  au_ready || return 1
+  au_lock_take || return 1
+  AU_CMD=cleanup
+  au_recipe_pick "$1" || return $?
+  r=$AU_RECIPE
+  w=$(mktemp -d "${TMPDIR:-/tmp}/auster-cleanup.XXXXXX") || { au_say "A temporary folder could not be made, so nothing was removed."; return 1; }
+  if ! au_holdings > "$w/disk"; then
+    rm -rf "$w"
+    au_say "A record of a build in builds/ cannot be read, so Auster cannot tell which files are still in use. Nothing was removed."
+    return 1
+  fi
+  df -k "$AU_DATA" > "$w/df" 2>/dev/null
+  osascript -l JavaScript "$AU_DATA/jobs/capability.js" --cleanup "$r" --df "$w/df" --disk "$w/disk" > "$w/out" 2>/dev/null
+  while IFS= read -r l; do
+    au_split "$l"
+    case "${AU_F[0]}" in
+      disk) [[ ${AU_F[2]:-} =~ $AU_RE_SIZE ]] && [[ ${AU_F[3]:-} =~ $AU_RE_SIZE ]] && [[ ${AU_F[4]:-} =~ $AU_RE_SIZE ]] &&
+              floor=${AU_F[2]} free=${AU_F[3]} freed=${AU_F[4]} ;;
+      spare)
+        [[ ${AU_F[1]:-} =~ ^(partial|unnamed)$ ]] && [[ ${AU_F[2]:-} =~ ^(store/[0-9a-f]{64}(\.part)?|engines/[0-9a-f]{64})$ ]] &&
+          [[ ${AU_F[3]:-} =~ $AU_RE_SIZE ]] || bad=1
+        lines+=("$l") ;;
+      remove)
+        [[ ${AU_F[2]:-} =~ ^(kept|failed)$ ]] && [[ ${AU_F[3]:-} =~ $AU_RE_UTC ]] && [[ ${AU_F[4]:-} =~ $AU_RE_BUILD ]] &&
+          [[ ${AU_F[5]:-} =~ ^(yes|-)$ ]] || bad=1
+        lines+=("$l") builds=$((builds + 1)) ;;
+    esac
+  done < "$w/out"
+  rm -rf "$w"
+  if [ -z "$floor" ] || [ "$bad" = 1 ]; then
+    au_say "Auster could not work out the room on disk (df -k of the data root, and jobs/capability.js), so nothing was removed."
+    return 1
+  fi
+  if [ "${#lines[@]}" = 0 ]; then
+    if [ "$free" -ge "$floor" ]; then
+      au_say "There is nothing to remove: this Mac has $(au_bytes "$free") free, above the $(au_bytes "$floor") Auster keeps free, so every earlier build stays."
+    else
+      au_say "This Mac has $(au_bytes "$free") free, below the $(au_bytes "$floor") Auster keeps free, but nothing Auster may remove would free any of it: the build in use, and every file another build names, stay. Nothing was removed."
+    fi
+    return 0
+  fi
+  au_say "This Mac has $(au_bytes "$free") free, and Auster keeps at least $(au_bytes "$floor") free. This removes:"
+  for l in "${lines[@]}"; do
+    au_split "$l"
+    case "${AU_F[0]}:${AU_F[1]}" in
+      spare:partial) au_say "  ${AU_F[2]}, a download cut short ($(au_bytes "${AU_F[3]}"));" ;;
+      spare:*) au_say "  ${AU_F[2]} ($(au_bytes "${AU_F[3]}")), which no build names;" ;;
+    esac
+  done
+  for l in "${lines[@]}"; do
+    au_split "$l"
+    [ "${AU_F[0]}" = remove ] || continue
+    case "${AU_F[2]}" in
+      failed) au_say "  build ${AU_F[4]}, which failed its test here on ${AU_F[3]%%T*};" ;;
+      *) if [ "${AU_F[5]}" = yes ]; then
+           au_say "  build ${AU_F[4]}, kept since ${AU_F[3]%%T*}: the one before the build in use, so \`auster rollback\` could no longer go back to it;"
+         else au_say "  build ${AU_F[4]}, kept since ${AU_F[3]%%T*};"; fi ;;
+    esac
+  done
+  au_say "That frees $(au_bytes "$freed")."
+  if [ $((free + freed)) -lt "$floor" ]; then au_say "Even with all of it gone, this Mac has less free than Auster keeps free."
+  elif [ "$builds" = 0 ]; then au_say "Every earlier build stays: with these gone, this Mac has room for them."; fi
+  if ! au_yes "Remove them?"; then au_say "Nothing was removed."; return 1; fi
+  if ! au_builds_remove "" "${lines[@]}"; then
+    au_say "A record named above could no longer be read, so no file in store/ or engines/ was deleted."
+    return 1
+  fi
+  au_say "Done: $(au_bytes "$freed") given back."
 }
 
 au_ssh() { [ -n "${SSH_CONNECTION:-}" ] || [ -n "${SSH_TTY:-}" ]; }   # -> 0 when this command came over SSH (T38)
@@ -1775,6 +1954,9 @@ au_status() { # -> B6: what serves, the engine job's last start, why the engine 
       *) au_say "The record of what serves (builds/$r/serving) cannot be read." ;;
     esac
     au_start_read "$r" && au_say "The engine job's last start: $AU_ST_CODE."
+    if [ "$AU_ST_CODE" = engine-hash ]; then   # B4 step 4, AD13 (T34)
+      au_say "So it did not start the engine: a file it checks at every start (the engine's files, the template or the system prompt) has changed, or the record of what serves cannot be read. \`auster verify\` says which file."
+    fi
   done
   if [ -e "$AU_DATA/jobs/previous" ] || [ -L "$AU_DATA/jobs/previous" ]; then   # B3 step 6, T94
     au_say "Auster's own programs were changed by an update, and the server has not passed a check since (jobs/previous holds the ones before)."
@@ -1834,7 +2016,7 @@ au_status() { # -> B6: what serves, the engine job's last start, why the engine 
 
 au_usage() {
   au_say "usage: auster status | update [--retry] | stop | start | restart | network | verify | people <n> | remove" \
-    "              auster rollback [--withdrawn-ok] [<recipe id>] | unhold [<recipe id>]" \
+    "              auster rollback [--withdrawn-ok] [<recipe id>] | unhold [<recipe id>] | cleanup [<recipe id>]" \
     "              auster key add <name> | key revoke <name> | key show <name>" >&2
   return 2
 }
@@ -1873,7 +2055,8 @@ auster_main() {
     rollback:3) if [ "$2" = --withdrawn-ok ] && [[ $3 =~ $AU_RE_RECIPE ]]; then au_cmd_rollback 1 "$3"; rc=$?; else au_usage; fi ;;
     unhold:1) au_cmd_unhold ""; rc=$? ;;
     unhold:2) if [[ $2 =~ $AU_RE_RECIPE ]]; then au_cmd_unhold "$2"; rc=$?; else au_usage; fi ;;
-    cleanup:*) au_cmd_later "$1"; rc=$? ;;
+    cleanup:1) au_cmd_cleanup ""; rc=$? ;;
+    cleanup:2) if [[ $2 =~ $AU_RE_RECIPE ]]; then au_cmd_cleanup "$2"; rc=$?; else au_usage; fi ;;
     *) au_usage ;;
   esac
   exit "$rc"

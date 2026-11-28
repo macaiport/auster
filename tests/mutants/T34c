@@ -1,0 +1,3 @@
+# file: common/auster-engine
+# skip the template's hash
+s/^\[ "\$(sha "\$DATA\/store\/\$template")" = "\$template" \] || fault engine-hash/true || fault engine-hash/

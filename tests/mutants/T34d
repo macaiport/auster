@@ -1,0 +1,3 @@
+# file: common/auster
+# `auster verify` by size alone: a file of the right size counts as the same
+/^au_cmd_verify() {/,/^}/s/ && \[ "\$(au_sha "\$f")" = "\$sha" \]; then au_say "  same /; then au_say "  same /

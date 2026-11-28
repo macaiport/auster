@@ -1,0 +1,3 @@
+# file: common/auster
+# go on when a descriptor cannot be read: the disk holdings are used as far as they were made
+/^au_cmd_cleanup() {/,/^}/s/^  if ! au_holdings > "\$w\/disk"; then$/  if ! { au_holdings > "$w\/disk"; true; }; then/

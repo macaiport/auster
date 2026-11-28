@@ -9,7 +9,7 @@ Product name Auster (decided 2026-11-25), repo `macaiport/auster`. Concept, road
 |---|---|---|
 | 0 | Scaffold: CLAUDE.md, SPEC.md, memory/, docs/, concept captured | Done 2026-11-25 |
 | 1 | Household assistant built by hand on the Studio: engine, a model that fits, always-on server, one client, per-user keys, all measured | Current: under way. Models A, B and C measured and quizzed; MLX compared; keys, the chat page and an iPad on the home network tested ([docs/phase-1.md](docs/phase-1.md)). Left: two devices with one key revoked, and the restart tests (AD15). The model is chosen (plan A6) and a cold start measured (step 10) |
-| 2 | v0.1: the `household-assistant` recipe. Recipe format, from-zero installer, capability rules, and the built-in update of Auster and of its models | Building. V1 to V8 built and tested (`tests/run.sh`: the test stubs and fixtures, the registry reader and gate, section C, the recipe's test, the first install: `install.sh` and `common/driver.sh`; the engine job and the check job; keys, the QR code, the `auster` command and removal; the repo's own `registry.tsv`, `assets/` and recipe folder), order 1's chat template patched where it failed on some dates (BD20); U1, the update's rule file, U2, the records' readers and the ownership rule, U3, the registry fetch and each recipe's line, U4, `auster update` and the update run up to its question, and U5, the update's yes to the end (Auster's programs first, a change of setting and `auster people`, the checks with the publisher, the download, the isolated test and both ways of switching), and U6's first part, `auster rollback`, `hold` and `auster unhold`, built; U6's second part and U7 to U9 next. [`docs/plans/v0.1.md`](docs/plans/v0.1.md) is drafted in full (2026-11-26). The whole plan was reviewed the same day (pass 2, seven lenses), found to need rework, and reworked; re-checked six times and each pass's fixes folded; the owner accepted BD8 to BD20. **check-it'd 2026-11-26 — build-ready-with-fixes (pass 2g)**. V1 begun (`tools/mint-id`, `tests/run.sh`). Phase 2's first step settled the facts that can be settled on the development Mac ([docs/phase-2.md](docs/phase-2.md)) |
+| 2 | v0.1: the `household-assistant` recipe. Recipe format, from-zero installer, capability rules, and the built-in update of Auster and of its models | Building. V1 to V8 built and tested (`tests/run.sh`: the test stubs and fixtures, the registry reader and gate, section C, the recipe's test, the first install: `install.sh` and `common/driver.sh`; the engine job and the check job; keys, the QR code, the `auster` command and removal; the repo's own `registry.tsv`, `assets/` and recipe folder), order 1's chat template patched where it failed on some dates (BD20); U1, the update's rule file, U2, the records' readers and the ownership rule, U3, the registry fetch and each recipe's line, U4, `auster update` and the update run up to its question, and U5, the update's yes to the end (Auster's programs first, a change of setting and `auster people`, the checks with the publisher, the download, the isolated test and both ways of switching), and U6, `auster rollback`, `hold`, `auster unhold`, `auster cleanup` and the disk rule's and `auster verify`'s tests, built; U7 to U9 next. [`docs/plans/v0.1.md`](docs/plans/v0.1.md) is drafted in full (2026-11-26). The whole plan was reviewed the same day (pass 2, seven lenses), found to need rework, and reworked; re-checked six times and each pass's fixes folded; the owner accepted BD8 to BD20. **check-it'd 2026-11-26 — build-ready-with-fixes (pass 2g)**. V1 begun (`tools/mint-id`, `tests/run.sh`). Phase 2's first step settled the facts that can be settled on the development Mac ([docs/phase-2.md](docs/phase-2.md)) |
 | 3 | `coders-companion`, the second recipe on the same format | Planning only |
 | 4 | Launcher window (concept v0.2) | Planning only |
 | 5 | `kids-homework-box`, `audit-tower`, trust-tier labels (concept v0.3) | Planning only |
@@ -50,7 +50,7 @@ MLX fits.
 
 Side tracks, not phases: the name checks and funding. Their notes are kept privately.
 
-**Current phase:** 2, building: V1 to V8, U1 to U5 and U6's first part done. Phase 1's last items need the owner, and so do three of phase 2's first-step checks ([docs/phase-2.md](docs/phase-2.md)). The household recipe's model is chosen: Mistral Small 4, then Magistral Small (plan A6)
+**Current phase:** 2, building: V1 to V8 and U1 to U6 done. Phase 1's last items need the owner, and so do three of phase 2's first-step checks ([docs/phase-2.md](docs/phase-2.md)). The household recipe's model is chosen: Mistral Small 4, then Magistral Small (plan A6)
 
 **Next:**
 1. Phase 1's last items: the restart tests for AD15 (they need the owner at the Mac and an administrator),
@@ -58,8 +58,10 @@ Side tracks, not phases: the name checks and funding. Their notes are kept priva
 2. The D12 checks that need the owner: the iPad reading the QR
    code, a launchd job for the engine's speeds, and `auster update` opening its `.command` file in
    Terminal at the Mac's screen (the tests replace `open`, so no test opens Terminal).
-3. Build the rest of the update: `auster cleanup`, the disk rule's tests and `auster verify`'s test (U6's second
-   part), the jobs' notification (U7), withdrawn builds (U8), and the release gate (U9).
+3. Build the rest of the update: the jobs' notification (U7), withdrawn builds (U8), and the release gate (U9).
+4. Decide how a changed file of the build in use is fetched again: today only `auster remove` and a fresh install
+   (new device keys) or a rollback do it, and a second paste while the engine job is stuck at `engine-hash` exits 0
+   with no server check (found at U6; the plan's table of rows left).
 
 **Parked, for later discussion** (not phased, not in any plan): [docs/concepts/](docs/concepts/).
 - [central-services.md](docs/concepts/central-services.md): a central service that Auster works

@@ -41,6 +41,9 @@
 # failed/, the switch to the new build, the engine run again after a pass and after a fail alike, and the server check
 # (au_switch_check, which a change of setting shares); a retried build leaves failed/ on a pass (T9, T16, T24, T25, T28,
 # T31 to T33, T55, T60, T94, T99, T109, T115).
+# U6, its second part (2026-11-27): the disk holdings and the removal of the earlier builds the disk rule names are
+# common/auster's (au_holdings, au_builds_remove), which `auster cleanup` shares; the update no longer sources the rule file
+# (T7, T10, T17, T30).
 #
 # builds/paused (D3.1, B4 step 1): one line, `auster-record 1`, the process, the boot session and the process's start time,
 # as the lock names this run; written by rename just before an update in turn stops the engine for its test, and removed
@@ -979,11 +982,11 @@ au_update_measure() { # [again] -> B3 step 4 on an update (D3.6): AU_FIGURES, AU
 }
 
 au_update_disk() { # -> AU_DISKARGS and AU_NODISK, the disk section C is given (C6): `df -k` of the data root and the disk
-  # holdings as the rule file makes them (partial downloads among them), measured now; no disk figures at all when a
-  # descriptor cannot be read (D3.3). Made at step 4, and again after the yes, before a download starts (D3.6 step 3)
+  # holdings (common/auster's au_holdings, as `auster cleanup` makes them; partial downloads among them), measured now; no
+  # disk figures at all when a descriptor cannot be read (D3.3). Made at step 4, and again after the yes, before a download
+  # starts (D3.6 step 3)
   AU_DISKARGS=() AU_NODISK=()
-  if df -k "$AU_DATA" > "$AU_RUN/df.txt" 2>/dev/null &&
-     ( AU_UPDATE_DIR="$AU_DATA/_update"; . "$AU_TREE/common/updates.sh"; _auu_holdings "$AU_RUN/disk" ) > /dev/null 2>&1; then
+  if df -k "$AU_DATA" > "$AU_RUN/df.txt" 2>/dev/null && ( au_holdings ) > "$AU_RUN/disk" 2>/dev/null; then
     AU_DISKARGS=(--df "$AU_RUN/df.txt" --disk "$AU_RUN/disk")
   else
     AU_NODISK=(-u AU_DISK_FREE_BYTES -u AU_DISK_TOTAL_BYTES)
@@ -1391,34 +1394,14 @@ au_update_test() { # RECIPE WAY -> D3.6 steps 4 and 5 for the build au_update_bu
 }
 
 au_update_remove() { # -> the earlier builds the disk rule named (AU_JREMOVE), removed now that the room is needed (D3.6 step 3,
-  # C6): each entry of kept/ or failed/ deleted, then each file in store/ and engines/ it named that no descriptor left, of
-  # any recipe, names, and that is not the chosen build's (C6: never the build in use's, which serving names, nor the
-  # chosen one's). 1, with no file of store/ or engines/ deleted, when an entry named, or a descriptor left, cannot be read
-  local l f e x kind date build named list=()
-  for l in ${AU_JREMOVE[@]+"${AU_JREMOVE[@]}"}; do
-    au_split "$l"
-    kind=${AU_F[2]:-} date=${AU_F[3]:-} build=${AU_F[4]:-}
-    [[ ${AU_F[1]:-} =~ $AU_RE_RECIPE ]] && [[ $kind =~ ^(kept|failed)$ ]] && [[ $date =~ $AU_RE_UTC ]] && [[ $build =~ $AU_RE_BUILD ]] ||
-      return 1
-    f="$AU_DATA/builds/${AU_F[1]}/$kind/$date-$build"
-    au_entry_read "$f" || return 1
-    list+=("store/$AU_SV_ENGINE" "engines/$AU_SV_ENGINE" "store/$AU_SV_MODEL" "store/$AU_SV_TEMPLATE" "store/$AU_SV_SYSTEM" "store/$AU_SV_TEST")
-    rm -f "$f" || return 1
-    if [ "$kind" = failed ]; then au_say "Removed build $build, which failed its test here on ${date%%T*}, to make room."
-    else au_say "Removed build $build, kept since ${date%%T*}, to make room."; fi
-  done
-  [ "${#list[@]}" -gt 0 ] || return 0
-  ( AU_UPDATE_DIR="$AU_DATA/_update"; . "$AU_TREE/common/updates.sh"; _auu_holdings "$AU_RUN/disk-left" ) > /dev/null 2>&1 || return 1
-  named=$(awk -F'\t' '$1 == "desc" { print "store/" $6; print "engines/" $6; print "store/" $7; print "store/" $8; print "store/" $9; print "store/" $10 }' "$AU_RUN/disk-left")
-  for x in 23 30 8 9 10; do named+=$'\n'"store/$(au_build_field "$AU_JPICK" "$x")"; done
-  named+=$'\n'"engines/$(au_build_field "$AU_JPICK" 23)"
-  for e in "${list[@]}"; do
-    printf '%s\n' "$named" | grep -qxF -- "$e" && continue
-    case "$e" in
-      engines/*) rm -rf "$AU_DATA/$e" ;;
-      store/*) chmod 644 "$AU_DATA/$e" 2>/dev/null; rm -f "$AU_DATA/$e" ;;
-    esac
-  done
+  # C6), by common/auster's au_builds_remove, which `auster cleanup` shares: each entry of kept/ or failed/ deleted, then each
+  # file in store/ and engines/ it named that no descriptor left, of any recipe, names, and that is not the chosen build's (C6:
+  # never the build in use's, which serving names, nor the chosen one's). 1, with no file of store/ or engines/ deleted, when
+  # an entry named, or a descriptor left, cannot be read
+  local x keep=
+  for x in 23 30 8 9 10; do keep+="store/$(au_build_field "$AU_JPICK" "$x")"$'\n'; done
+  keep+="engines/$(au_build_field "$AU_JPICK" 23)"
+  au_builds_remove "$keep" ${AU_JREMOVE[@]+"${AU_JREMOVE[@]}"}
 }
 
 au_update_programs() { # -> B3 step 6 after the yes (BD18, T94), once a run, before anything else changes or is fetched, on the

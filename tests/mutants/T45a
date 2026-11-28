@@ -1,0 +1,4 @@
+# file: common/auster
+# remove before asking: what the disk rule names is removed, then the question is asked
+/^au_cmd_cleanup() {/,/^}/s/^  if ! au_yes "Remove them?"; then/  au_builds_remove "" "${lines[@]}" > \/dev\/null\
+&/
