@@ -21,7 +21,7 @@
 | The line that lets Terminal find `auster`, on the person's yes | the end of `~/.zprofile`, marked "added by Auster", written through a hidden `~/.zprofile.auster-new.<pid>` renamed into place, and removed by `auster remove` where it is unchanged (the file itself deleted when nothing else is left in it) | as it was; 0644 when Auster creates the file | B6 |
 | The app (planned) | `~/Applications/Auster.app` | the account's; `~/Applications/` made 0700 when missing | `docs/plans/app.md` |
 | A report (planned) | `~/auster-report.txt`, shown in full first | 0600 | `docs/plans/report.md` |
-| A run's own temporary files | a folder made by `mktemp` in `$TMPDIR` named `auster-<what>.XXXXXX`, deleted on any exit, an interruption included (`common/driver.sh`'s `AU_RUN`, `install.sh`'s `AUSTER_TMP`, and those of `auster`'s server check, `people`, `cleanup`, the check job and the recipes' lines) | 0700 | the code; B1 says what Auster writes outside the data root |
+| A run's own temporary files | a folder made by `mktemp` in `$TMPDIR` named `auster-<what>.XXXXXX`, deleted on any exit, an interruption included (`common/driver.sh`'s `AU_RUN`, `install.sh`'s `AUSTER_TMP`, and those of `auster`'s server check, `people`, `cleanup`, the check job and the recipes' lines). In `common/auster`, `au_tmp` adds each folder to `AU_TMPS` in the same command that makes it, and the EXIT traps of `bin/auster` and of the driver (`au_cleanup`) delete them all. `common/updates.sh` sets its trap only while its folder exists, so a check stopped while curl waits still ends at once (T136, T137) | 0700 | the code; B1 says what Auster writes outside the data root |
 | `Update Auster.command`, which `auster update` opens in Terminal | a folder of its own made by `mktemp`, which outlives the command that made it; the `.command` file deletes itself and its folder when it ends | 0700 | `common/updates.sh` |
 
 **Never written:** the Desktop and Documents (iCloud's Desktop and Documents may upload them, and macOS
@@ -55,8 +55,19 @@ since Auster runs as the person and nothing in it runs as root (AD15); iCloud Dr
 How Auster speaks to a person, in Terminal, in a notification, in an alert or in the README:
 
 - **Fixed sentences,** written in the code, never assembled from what a record or a program printed. A value
-  read from a record goes into one only after it matches its pattern (D3.1, "Reading"; D3.5 for
-  notifications). Fetched release notes appear only through the notes cleaner (D3.5).
+  read from a record, or printed by a program (`sw_vers`, `id -un`, a version in the rule file), goes into one
+  only after it matches its pattern (D3.1, "Reading"; D3.5 for notifications). Fetched release notes appear
+  only through the notes cleaner (D3.5).
+- **A program's own sentences are never printed.** Where another of Auster's programs says why it failed, it
+  also gives a code, and the program that tells the person answers that code with a sentence of its own: the
+  rule file's `failed` line, answered by `au_update_why` (T141).
+- **curl's numbers:** a website's answer (the HTTP code) is named only once it matches `^[0-9]{1,3}$`, and
+  never as 000, which curl gives when there was no answer. curl's exit code is never shown. It is put into
+  words: the address could not be found, the connection was cut, it did not answer in time
+  (`au_fetch_said`, `install.sh`'s `auster_install_unreached`, the update's `.command` file; T138, T139).
+- **Record codes** in `auster status` come at the end of a fixed sentence, in parentheses, so that they can
+  be looked up: "it started the engine (starting)" (`au_start_words`, `au_probe_words`; T142).
+- **Times** read `2026-11-28 14:05:09 UTC` (`au_tried_when`, and the time the engine was stopped).
 - **Say what happened, then the way on:** which command, or "pasting the installer line again". Name the
   way back when there is one, and only when it would work (`docs/plans/v0.1.md` D3.6, "The words after it").
 - **Never in a notification, an alert or a report:** an address, the `.local` name, a device's name, a key, a
@@ -87,4 +98,4 @@ icon come under this repository's MIT licence.
 | Date | Pass | Lenses | Method | Models | Read against | Verdict |
 |---|---|---|---|---|---|---|
 | 2026-11-28 | 1, the whole page | accuracy: every path, mode, label, citation and rule against the code and plans; Apple's conventions against Apple's own pages | one agent | Opus; fold by Opus 5.5 | Auster `99e5065` | accurate-with-fixes; folded: Apple's Application Support convention (by bundle identifier, so Auster differs), `local.` (not Apple's form), `~/Applications` written only when the person directs it, the link rule, where the home address appears, sources and modes corrected |
-| 2026-11-28 | 2, the code against sections 1 and 2 | an audit of every sentence a person sees and every write outside the data root | one agent | Opus | Auster `277307b` | consistent-with-fixes: the faults (a device key left in `$TMPDIR` by an interrupted server check, numbers without commas, unmatched values, missing traps) go to the code; the deliberate cases are now listed here (launchd's record, the LaunchAgents folder, the hidden files beside a target, every temporary folder, logs, names found in the data root) |
+| 2026-11-28 | 2, the code against sections 1 and 2 | an audit of every sentence a person sees and every write outside the data root | one agent | Opus | Auster `277307b` | consistent-with-fixes: the faults (a device key left in `$TMPDIR` by an interrupted server check, numbers without commas, unmatched values, missing traps) go to the code; the deliberate cases are now listed here (launchd's record, the LaunchAgents folder, the hidden files beside a target, every temporary folder, logs, names found in the data root). The faults were fixed in `9e31e2e` (merged `aa11fe6`; T136 to T142), and the rules that fix made are now in section 2 (a program's own sentences, curl's numbers, record codes, times). Three of the same kind were left for a further fix: the server check's unanswered reason names the start code raw, capability.js's figures reach `au_refusal` and `au_facts` unmatched, and no test reaches an unreadable `e_mac` |
