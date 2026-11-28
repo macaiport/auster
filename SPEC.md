@@ -56,7 +56,10 @@ Side tracks, not phases: funding, whose notes are kept privately. The name is se
 **v0.1.0**, with "beta" said in the README and on auster.build; fixes go out as v0.1.1 and up, through the
 built-in update. In order: a real install from zero on the Studio (begun 2026-11-28); U6's third part; U9
 and the first `release` branch and tag (public, on the owner's word); the D12 checks at the Mac; U8 as
-v0.1.1, taken by the Studio as the first real update; auster.build's how-to. Then `auster report`, a report
+v0.1.1, taken by the Studio as the first real update; auster.build's how-to. Also before v0.1.0: the model and
+the engine kept out of Time Machine ([`docs/plans/backup.md`](docs/plans/backup.md)), and the Auster app if it
+is built in time ([`docs/plans/app.md`](docs/plans/app.md)); both checked 2026-11-28, and Auster's conventions
+are on one page ([`docs/conventions.md`](docs/conventions.md)). Then `auster report`, a report
 a tester reads and emails to reports@auster.build ([`docs/plans/report.md`](docs/plans/report.md), checked
 build-ready-with-fixes 2026-11-28), as a v0.1.x; the owner sets that address up with the domain. A tester's Mac, by section C:
 Apple Silicon with 32 GB or more (24 GB is refused), on macOS 27 (BD15).
