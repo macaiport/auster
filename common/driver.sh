@@ -53,6 +53,12 @@
 # it. A repair passed over, declined or failed restarts nothing, checks nothing, changes no program and ends the run
 # with no step 15 (au_repair_end). A second paste checks the server while the engine job's last start is engine-hash;
 # `auster people` refuses while a file the engine job checks has changed (T117, T118; T33, T94 and T112 point there).
+# Backups (2026-11-28, docs/plans/backup.md): at the end of step 3, after the lock and after the refusal of a newer
+# version's records, every run that reaches it asks Time Machine to leave out store/ and engines/, which can be fetched
+# again, in one call to tmutil whose output, which names the data root, is never shown; `--check`, whose data root is a
+# temporary one, asks nothing. AU_TM records ok or failed and nothing stops on it: the install's question says which in
+# its Backups line, and an update, a second paste or `people` says it once, straight after step 3, when it failed. A Mac
+# restored from a backup lacks both folders; step 3 makes them again and the repair above fetches their files (T135).
 #
 # builds/paused (D3.1, B4 step 1): one line, `auster-record 1`, the process, the boot session and the process's start time,
 # as the lock names this run; written by rename just before an update in turn stops the engine for its test, and removed
@@ -94,6 +100,7 @@ AU_FETCH_SECS=0 AU_FETCH_BYTES=0 AU_WITHDRAWALS= AU_MEASURED_ENGINE=
 AU_PROGRAMS_CHANGE=0 AU_PROGRAMS_DONE=0 AU_MAC_DONE=0 AU_CHANGED=0 AU_JGPUL= AU_JGPUFROM=
 AU_UPDATING=0 AU_RETRY=0 AU_JFAILED= AU_PAUSED=0
 AU_RP= AU_RP_RECIPE= AU_RP_BAD=0 AU_RP_DONE=0 AU_RP_WAIT= AU_REPAIRING=0 AU_PROGRAMS_IN=0 AU_JMOVEOFF=0   # the repair (D3.6; U6)
+AU_TM=   # ok or failed: whether Time Machine was told to leave out store/ and engines/ (step 3; docs/plans/backup.md)
 
 au_usage() {
   { au_say "usage: driver.sh install|check <recipe id> --commit C --line release|tag --version V [--withdrawals FILE]"
@@ -249,7 +256,14 @@ common/capability-lib.js:jobs/capability-lib.js:644 common/capability.js:jobs/ca
 common/registry.js:jobs/registry.js:644 tools/mint-id:jobs/mint-id:644"
 
 au_step3_root() { # -> the data root (made at a first install), its folders, the lock, and no record of a newer format;
-  # the same for an install and an update, which writes no program here (au_step3_programs is a first install's)
+  # the same for an install and an update, which writes no program here (au_step3_programs is a first install's). Last,
+  # AU_TM: Time Machine asked to leave out store/ and engines/ (docs/plans/backup.md, sections 1 and 4; T135), after the
+  # lock and the refusal of newer records, so that a run refused for either changes nothing, and once both folders
+  # exist, whether this run made them or not (tmutil refuses a folder that does not exist, exit 162). Asked at every
+  # run, since asking again for a folder already left out is harmless, so a Mac installed before this, and a Mac
+  # restored from a backup, which has neither folder, get it at their next run. tmutil's own output names the data root
+  # and is never shown; a failure stops nothing (au_facts and au_tm_said say it). `--check` asks nothing, its data root
+  # being a temporary one, and its question says what an install would
   local sub
   au_root_check "$AU_DATA" || exit 1
   if [ "$AU_ROOT_NEW" = 1 ]; then
@@ -265,6 +279,15 @@ au_step3_root() { # -> the data root (made at a first install), its folders, the
     au_refuse "${AU_NEWER[0]} was written by a newer version of Auster, so this one leaves it as it is." \
       "Paste the installer line from the guide to update, or remove Auster with: \"$AU_DATA/bin/auster\" remove"
   fi
+  if [ "$AU_MODE" = check ]; then AU_TM=ok
+  elif tmutil addexclusion "$AU_DATA/store" "$AU_DATA/engines" > /dev/null 2>&1; then AU_TM=ok
+  else AU_TM=failed; fi
+}
+
+au_tm_said() { # -> section 4's sentence of docs/plans/backup.md, once, straight after step 3 at an update, a second paste
+  # or `people`, when Time Machine could not be told to leave out store/ and engines/ (AU_TM); an install's question says
+  # it in its Backups line instead (au_facts), and an update's question does not repeat it (T135)
+  [ "$AU_TM" != failed ] || au_say "Time Machine could not be told to leave out the model and the engine, so it may back them up."
 }
 
 au_step3_programs() { # -> Auster's own programs written into the data root (B3 step 3, a first install)
@@ -511,8 +534,11 @@ au_download_bytes() { # -> what is still to download for the chosen build: its m
   printf '%s' "$n"
 }
 
-au_facts() { # -> what the question says (B3 step 6), in fixed words with this Mac's figures
-  local dl file repo l rb
+au_facts() { # -> what the question says (B3 step 6), in fixed words with this Mac's figures. Its Backups line says what
+  # step 3 recorded (AU_TM; docs/plans/backup.md, sections 4 and 5): that Time Machine leaves out the model and the
+  # engine, or that it could not be told to, with the chosen build's model and archive sizes (fields 29 and 22), "about"
+  # since the unpacked engine is not in the registry; never the first after a failure (T135)
+  local dl file repo l rb tm
   dl=$(au_download_bytes)
   file=$(au_build_field "$AU_CH_BUILD" 28); repo=$(au_build_field "$AU_CH_BUILD" 26)
   au_say ""
@@ -549,6 +575,14 @@ au_facts() { # -> what the question says (B3 step 6), in fixed words with this M
     *) au_say "  Firewall    $AU_FIREWALL." ;;
   esac
   [ "$AU_BATTERY" = no ] || au_say "  Laptop      This Mac has a battery: with its lid closed it sleeps, whatever Auster does, so it is not always on."
+  tm=$(au_bytes $(($(au_build_field "$AU_CH_BUILD" 29) + $(au_build_field "$AU_CH_BUILD" 22))))
+  if [ "$AU_TM" = ok ]; then
+    au_say "  Backups     Time Machine leaves out the model and the engine ($tm): a Mac restored from a backup"
+    au_say "              fetches them again when the installer line is pasted."
+  else
+    au_say "  Backups     Time Machine could not be told to leave out the model and the engine, so it may back them up"
+    au_say "              (about $tm)."
+  fi
   while IFS= read -r l; do
     au_split "$l"
     rb=$(au_build_field "${AU_F[1]}" 28)
@@ -2163,18 +2197,21 @@ au_main() {
     [ "$AU_ROOT_NEW" = 0 ] || au_refuse "Auster is not installed on this Mac, so there is nothing to update. To install it, paste the installer line from the guide."
     AU_REG="$AU_TREE/registry.tsv"   # D3.6: every size and sha256 from this tree's registry, never _update's copy
     au_step3_root
+    au_tm_said
     au_update
   fi
   if [ "$AU_MODE" = people ]; then   # B6, from `auster people <n>` (install.sh people <n>)
     [ "$AU_ROOT_NEW" = 0 ] || au_refuse "Auster is not installed on this Mac, so there is no number of people to change."
     AU_REG="$AU_TREE/registry.tsv"   # the recipe's limits from this tree's registry (B6)
     au_step3_root
+    au_tm_said
     au_people
   fi
   au_registry
   au_bd14
   au_step3_root
   if [ -e "$AU_DATA/builds/$AU_RECIPE/serving" ] || [ -L "$AU_DATA/builds/$AU_RECIPE/serving" ]; then
+    au_tm_said
     au_update   # a second paste on a Mac that serves the recipe is the update (B3, T65)
   fi
   au_step3_programs

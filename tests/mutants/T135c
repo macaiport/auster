@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# ask only when this run made a folder: a run that finds store/ and engines/ already there asks nothing
+/^au_step3_root() {/,/^}/s/^  elif tmutil addexclusion /  elif [ "${#AU_CREATED[@]}" = 0 ]; then AU_TM=ok; elif tmutil addexclusion /

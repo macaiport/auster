@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# ask in --check too: tmutil is asked for --check's temporary data root
+/^au_step3_root() {/,/^}/s/^  if \[ "\$AU_MODE" = check \]; then AU_TM=ok$/  if false; then AU_TM=ok/

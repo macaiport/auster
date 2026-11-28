@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# print tmutil's own output: its error, which names the path, and its line on standard output reach the screen
+/^au_step3_root() {/,/^}/s/^\(  elif tmutil addexclusion "\$AU_DATA\/store" "\$AU_DATA\/engines"\) > \/dev\/null 2>&1;/\1;/

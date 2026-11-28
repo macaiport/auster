@@ -1,0 +1,11 @@
+# file: common/driver.sh
+# ask before the folders exist: tmutil is asked before step 3 makes the folders and takes the lock
+/^au_step3_root() {/,/^}/{
+/^  if \[ "\$AU_MODE" = check \]; then AU_TM=ok$/d
+/^  elif tmutil addexclusion /d
+/^  else AU_TM=failed; fi$/d
+/^  for sub in builds store engines keys logs bin jobs; do$/i\
+  if [ "$AU_MODE" = check ]; then AU_TM=ok\
+  elif tmutil addexclusion "$AU_DATA/store" "$AU_DATA/engines" > /dev/null 2>&1; then AU_TM=ok\
+  else AU_TM=failed; fi
+}
