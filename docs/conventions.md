@@ -16,11 +16,12 @@
 | The `auster` command | the data root's `bin/` | 0755 inside the 0700 root | B3 step 3, B6 |
 | Device keys and the engine's key file | the data root's `keys/` | 0600 each, in a 0700 folder | B7 |
 | Model files and engine archives | the data root's `store/`, named by sha256, read-only | 0444 | D3.1 |
-| The two background jobs | `~/Library/LaunchAgents/local.auster.engine.plist` and `local.auster.check.plist` | the account's | B4, B5 |
-| The line that lets Terminal find `auster`, on the person's yes | the end of `~/.zprofile`, marked "added by Auster" and removed by `auster remove` where it is unchanged | as it was; 0644 when Auster creates the file | B6 |
+| The two background jobs | `~/Library/LaunchAgents/local.auster.engine.plist` and `local.auster.check.plist`; the folder made when missing; each file written as a hidden `.<label>.plist.new.<pid>` beside it, then renamed into place | the account's | B4, B5 |
+| Whether each job is switched on | launchd's own record, by label, written by `launchctl enable` and `disable`; macOS keeps it outside the home folder, and `auster remove` leaves both labels marked enabled, since it can set that record but not delete it | macOS's | B4, B8 |
+| The line that lets Terminal find `auster`, on the person's yes | the end of `~/.zprofile`, marked "added by Auster", written through a hidden `~/.zprofile.auster-new.<pid>` renamed into place, and removed by `auster remove` where it is unchanged (the file itself deleted when nothing else is left in it) | as it was; 0644 when Auster creates the file | B6 |
 | The app (planned) | `~/Applications/Auster.app` | the account's; `~/Applications/` made 0700 when missing | `docs/plans/app.md` |
 | A report (planned) | `~/auster-report.txt`, shown in full first | 0600 | `docs/plans/report.md` |
-| A run's own temporary files | a folder made by `mktemp` in `$TMPDIR`, deleted on any exit (`common/driver.sh`'s `AU_RUN`, `install.sh`'s `AUSTER_TMP`) | 0700 | the code; B1 says what Auster writes outside the data root |
+| A run's own temporary files | a folder made by `mktemp` in `$TMPDIR` named `auster-<what>.XXXXXX`, deleted on any exit, an interruption included (`common/driver.sh`'s `AU_RUN`, `install.sh`'s `AUSTER_TMP`, and those of `auster`'s server check, `people`, `cleanup`, the check job and the recipes' lines) | 0700 | the code; B1 says what Auster writes outside the data root |
 | `Update Auster.command`, which `auster update` opens in Terminal | a folder of its own made by `mktemp`, which outlives the command that made it; the `.command` file deletes itself and its folder when it ends | 0700 | `common/updates.sh` |
 
 **Never written:** the Desktop and Documents (iCloud's Desktop and Documents may upload them, and macOS
@@ -62,6 +63,10 @@ How Auster speaks to a person, in Terminal, in a notification, in an alert or in
   path in the home folder. In Terminal the home address appears only where the person needs it: the
   install's question and its last line, `auster network`, and `auster status` when macOS has changed the
   Mac's `.local` name.
+- **Logs** (the data root's `logs/`) may hold the home address and the data root's path: they are Auster's
+  own record, inside the data root, never notified and never put into a report.
+- **Names found in the data root** (a folder's or an entry's name) are printed as found: only this account
+  can make them (D3.1, ownership); a name used to find something is matched first.
 - **Plain words,** no jargon a household would need to look up. Numbers with commas (`32,768`); sizes as
   Finder gives them (GB of 1,000); memory as About This Mac gives it (GB of 1,024 MiB) (`au_commas`,
   `au_bytes`, `au_memory` in `common/auster`).
@@ -82,3 +87,4 @@ icon come under this repository's MIT licence.
 | Date | Pass | Lenses | Method | Models | Read against | Verdict |
 |---|---|---|---|---|---|---|
 | 2026-11-28 | 1, the whole page | accuracy: every path, mode, label, citation and rule against the code and plans; Apple's conventions against Apple's own pages | one agent | Opus; fold by Opus 5.5 | Auster `99e5065` | accurate-with-fixes; folded: Apple's Application Support convention (by bundle identifier, so Auster differs), `local.` (not Apple's form), `~/Applications` written only when the person directs it, the link rule, where the home address appears, sources and modes corrected |
+| 2026-11-28 | 2, the code against sections 1 and 2 | an audit of every sentence a person sees and every write outside the data root | one agent | Opus | Auster `277307b` | consistent-with-fixes: the faults (a device key left in `$TMPDIR` by an interrupted server check, numbers without commas, unmatched values, missing traps) go to the code; the deliberate cases are now listed here (launchd's record, the LaunchAgents folder, the hidden files beside a target, every temporary folder, logs, names found in the data root) |
