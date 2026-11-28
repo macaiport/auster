@@ -44,4 +44,5 @@ of the typefaces they are set in are settled.
 A script kept with the website's source draws all of them, and that copy is the original. Change the
 script there and copy the results here; do not edit these files by hand.
 
-Whether the mark comes under this repository's MIT licence has not been decided.
+The mark and the icon come under this repository's MIT licence, like everything else here. They are art,
+not a brand identity, and no trademark is sought (the owner, 2026-11-28).
