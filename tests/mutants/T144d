@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# step 5 matches the choice's people and context only, as before the second pass, and takes its MiB unmatched
+/^au_step5_choose() {/,/^}/s/au_choice_whole "\$AU_PEOPLE" "\$AU_CONTEXT" "\$AU_GPU" "\$AU_TOTAL" &&/[[ $AU_PEOPLE =~ ^[1-9][0-9]?$ ]] \&\& [[ $AU_CONTEXT =~ ^[1-9][0-9]{0,6}$ ]] \&\&/

@@ -60,7 +60,7 @@ awk -F'\t' -v OFS='\t' -v t=$(( $(date +%s) - 100 )) '$1 == "time" { $2 = t } { 
 AU_SERVER_CHECK_SECS=3 auster restart
 same "$RC" 4 "auster restart while the engine job waits on paused: exit 4"
 outsays "the engine job has not run since this run started it" "  ...the start before this run is reported as such"
-grep -q 'last start says' "$W/out" && bad "  ...it reports the stale start code as current" || ok "  ...and not as its last code"
+grep -qE '\((starting|keys|engine-hash|not-home|no-network)\)' "$W/out" && bad "  ...it reports the stale start code as current" || ok "  ...and not as its last code"
 rm -f "$DATA/builds/paused"; { kill "$live"; wait "$live"; } 2>/dev/null
 engine_set 'ctx=131072' behaviour ok
 

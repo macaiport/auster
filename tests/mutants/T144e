@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# step 5 takes this Mac's GPU limit and memory from capability.js unmatched, as before the second pass
+/^au_step5_choose() {/,/^}/s/^    au_whole "\$AU_GPU_LIMIT" "\$AU_MEMORY" || au_refuse/    : || au_refuse/

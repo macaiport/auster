@@ -62,7 +62,11 @@
 # The conventions' audit (2026-11-28, docs/conventions.md sections 1 and 2): au_cleanup also deletes the server check's
 # folder, which holds a household key (common/auster's au_tmp; T136); curl's numbers in plain words (au_fetch_said, and the
 # publisher's code matched; T138, T139); macOS's version, the engine's oldest macOS, section C's codes and the name of a folder
-# in builds/ each matched or put in fixed words before a sentence names them (T102, T140, T141).
+# in builds/ each matched or put in fixed words before a sentence names them (T102, T140, T141). Its second pass
+# (2026-11-28): every figure of section C's (capability.js) is matched (au_whole, au_choice_whole) before a sentence names
+# it or a sum takes it, at step 5 and in its refusals, in the question's Room lines, and in the choice of an update and of
+# `people`; one that does not match gets a sentence that names no figure, or the choice is taken as not worked out (T144).
+# The server check's reason when it is not answered, which this driver prints too, says each start code in words (T143).
 #
 # builds/paused (D3.1, B4 step 1): one line, `auster-record 1`, the process, the boot session and the process's start time,
 # as the lock names this run; written by rename just before an update in turn stops the engine for its test, and removed
@@ -505,22 +509,43 @@ au_step5_choose() { # [PEOPLE] -> AU_CH_BUILD, AU_PEOPLE, AU_CONTEXT, AU_GPU, AU
   if [ "$rc" = 3 ]; then au_refusal; fi
   l=$(awk -F'\t' '$1 == "choice"' "$AU_RUN/choice.out"); au_split "$l"
   AU_CH_BUILD=${AU_F[1]} AU_PEOPLE=${AU_F[2]} AU_CONTEXT=${AU_F[3]} AU_GPU=${AU_F[4]} AU_TOTAL=${AU_F[5]}
-  [[ $AU_CH_BUILD =~ $AU_RE_BUILD ]] && [[ $AU_PEOPLE =~ ^[1-9][0-9]?$ ]] && [[ $AU_CONTEXT =~ ^[1-9][0-9]{0,6}$ ]] ||
-    au_refuse "Auster could not work out what fits this Mac, so nothing was installed."
+  # the figures the question and builds/mac take, matched with the choice (au_choice_whole, au_whole; T144)
+  [[ $AU_CH_BUILD =~ $AU_RE_BUILD ]] && au_choice_whole "$AU_PEOPLE" "$AU_CONTEXT" "$AU_GPU" "$AU_TOTAL" &&
+    au_whole "$AU_GPU_LIMIT" "$AU_MEMORY" || au_refuse "Auster could not work out what fits this Mac, so nothing was installed."
 }
 
-au_refusal() { # -> section C's refusal, in this Mac's figures; exit 1
+au_whole() { # FIGURE... -> 0 when each is a whole number of A3's sizes (AU_RE_SIZE), the form of every figure capability.js
+  # prints. It is matched before a sentence names it or a sum takes it: bash's arithmetic on a value that is no number runs
+  # what it holds (a[$(...)]), and a sentence names nothing a program printed unmatched (docs/conventions.md section 2; T144)
+  local v
+  for v in "$@"; do [[ $v =~ $AU_RE_SIZE ]] || return 1; done
+}
+
+au_choice_whole() { # PEOPLE CONTEXT MIB MIB -> 0 when the figures of a setting (capability.js's `choice` line, or the
+  # `needs` of a refusal for fit) each match: the people 1 to 99 and the context at most seven digits, as step 5 has always
+  # matched them, and the two MiB by au_whole (T144)
+  [[ $1 =~ ^[1-9][0-9]?$ ]] && [[ $2 =~ ^[1-9][0-9]{0,6}$ ]] && au_whole "$3" "$4"
+}
+
+au_refusal() { # -> section C's refusal, in this Mac's figures; exit 1. A figure that does not match (au_whole) gets a
+  # sentence that names no figure (T144)
   local l why detail say
   l=$(awk -F'\t' '$1 == "refused"' "$AU_RUN/choice.out"); au_split "$l"
   why=${AU_F[1]:-} detail=${AU_F[2]:-}
   case "$why" in
     fit)
       l=$(awk -F'\t' '$1 == "needs"' "$AU_RUN/choice.out"); au_split "$l"
-      au_refuse "This Mac has a GPU limit of $(au_memory "$AU_GPU_LIMIT") and $(au_memory $((AU_MEMORY / 1048576))) of memory." \
-        "The smallest build of this recipe, for ${AU_F[2]} people at $(au_commas "${AU_F[3]}") tokens each, needs a GPU limit of $(au_memory "${AU_F[6]}") and $(au_memory "${AU_F[7]}") of memory, so nothing was installed." ;;
+      if au_whole "$AU_GPU_LIMIT" "$AU_MEMORY" && au_choice_whole "${AU_F[2]:-}" "${AU_F[3]:-}" "${AU_F[6]:-}" "${AU_F[7]:-}"; then
+        au_refuse "This Mac has a GPU limit of $(au_memory "$AU_GPU_LIMIT") and $(au_memory $((AU_MEMORY / 1048576))) of memory." \
+          "The smallest build of this recipe, for ${AU_F[2]} people at $(au_commas "${AU_F[3]}") tokens each, needs a GPU limit of $(au_memory "${AU_F[6]}") and $(au_memory "${AU_F[7]}") of memory, so nothing was installed."
+      fi
+      au_refuse "This Mac does not have the GPU limit and memory the smallest build of this recipe needs, so nothing was installed." ;;
     room)
       l=$(awk -F'\t' '$1 == "room"' "$AU_RUN/choice.out" | tail -n 1); au_split "$l"
-      au_refuse "There is not room on this Mac's disk: it has $(au_bytes "$AU_FREE") free, and the smallest download that fits, $(au_bytes "${AU_F[2]}"), needs $(au_bytes "${AU_F[3]}") free (Auster keeps the larger of 20 GB and 5% of the disk free). Nothing was fetched." ;;
+      if au_whole "$AU_FREE" "${AU_F[2]:-}" "${AU_F[3]:-}"; then
+        au_refuse "There is not room on this Mac's disk: it has $(au_bytes "$AU_FREE") free, and the smallest download that fits, $(au_bytes "${AU_F[2]}"), needs $(au_bytes "${AU_F[3]}") free (Auster keeps the larger of 20 GB and 5% of the disk free). Nothing was fetched."
+      fi
+      au_refuse "There is not room on this Mac's disk for the smallest download that fits (Auster keeps the larger of 20 GB and 5% of the disk free). Nothing was fetched." ;;
     figures)   # capability.js's codes, each in fixed words, never printed as they came (T102)
       case "$detail" in
         gpu,*)
@@ -609,8 +634,13 @@ au_facts() { # -> what the question says (B3 step 6), in fixed words with this M
   while IFS= read -r l; do
     au_split "$l"
     rb=$(au_build_field "${AU_F[1]}" 28)
-    au_say "  Room        The first choice for this Mac, $rb, would need $(au_bytes "${AU_F[3]}") free (a download of $(au_bytes "${AU_F[2]}"));"
-    au_say "              this Mac has $(au_bytes "$AU_FREE") free, so the next build that fits is offered."
+    if au_whole "$AU_FREE" "${AU_F[2]:-}" "${AU_F[3]:-}"; then   # matched first, or a line that names no figure (T144)
+      au_say "  Room        The first choice for this Mac, $rb, would need $(au_bytes "${AU_F[3]}") free (a download of $(au_bytes "${AU_F[2]}"));"
+      au_say "              this Mac has $(au_bytes "$AU_FREE") free, so the next build that fits is offered."
+    else
+      au_say "  Room        The first choice for this Mac, $rb, would need more room on disk than this Mac has free,"
+      au_say "              so the next build that fits is offered."
+    fi
   done < <(awk -F'\t' '$1 == "room"' "$AU_RUN/choice.out")
   au_say ""
 }
@@ -1164,6 +1194,10 @@ au_update_judge() { # RECIPE -> AU_J: ok, held, passed, withdrawn or change, wit
   [[ ${AU_JMEM:-} =~ ^[1-9][0-9]{0,14}$ ]] || AU_JMEM=$AU_RAM
   AU_JWD=${lf[3]:--}
   if [ "${#cf[@]}" -ge 8 ]; then AU_JP=${cf[2]} AU_JC=${cf[3]} AU_JGPU=${cf[4]} AU_JALL=${cf[5]} AU_JWAY=${cf[6]}; fi
+  if [ "${#cf[@]}" -ge 8 ] && ! au_choice_whole "$AU_JP" "$AU_JC" "$AU_JGPU" "$AU_JALL"; then   # the question's figures (T144)
+    AU_J_SAY="$AU_JNAME: what an update would change cannot be worked out, so it is not updated: it keeps serving build $AU_JNOW."
+    return 0
+  fi
   case "${lf[1]:-}" in
     same)
       if [ "${#cf[@]}" -ge 8 ] && [ "${cf[1]}" = "$AU_JNOW" ] && { [ "$AU_JP" != "$AU_JP0" ] || [ "$AU_JC" != "$AU_JC0" ]; }; then
@@ -2123,6 +2157,10 @@ au_people_judge() { # RECIPE -> AU_J: ok (its setting at AU_PEOPLE_N people is t
     return 0
   fi
   AU_JPICK=${cf[1]} AU_JP=${cf[2]} AU_JC=${cf[3]} AU_JGPU=${cf[4]} AU_JALL=${cf[5]} AU_JWAY=${cf[6]}
+  if ! [[ $AU_JPICK =~ $AU_RE_BUILD ]] || ! au_choice_whole "$AU_JP" "$AU_JC" "$AU_JGPU" "$AU_JALL"; then   # matched (T144)
+    AU_J_SAY="$AU_JNAME: section C gave no setting for $AU_PEOPLE_N people at a time, so nothing was changed."
+    return 0
+  fi
   if [ "$AU_JPICK" = "$AU_JNOW" ] && [ "$AU_JP" = "$AU_JP0" ] && [ "$AU_JC" = "$AU_JC0" ]; then
     AU_J=ok AU_J_SAY="$AU_JNAME: OK. Build $AU_JNOW already serves it for $AU_JP0 people at $(au_commas "$AU_JC0") tokens each, so nothing changes."
     return 0

@@ -23,7 +23,7 @@ AU_SERVER_CHECK_SECS=4 update_run $'yes\n'
 wait "$DURING"
 same "$RC" 4 "a failed test, then an old build that does not answer: exit 4"
 says "Build $IB1 did not pass the recipe's test on this Mac." "  ...it says the test failed"
-says "The server did not answer its check within 4 s: the engine job's last start says starting." "  ...it says the server did not answer, and why"
+says "The server did not answer its check within 4 s: the engine job started the engine, but the engine did not answer the recipe's question (starting)." "  ...it says the server did not answer, and why, the start code in parentheses"
 says "\`auster restart\` starts it again and checks it." "  ...and names auster restart"
 same "$(cat "$DATA/builds/$IR/serving")" "$s0" "  ...serving as it was"
 same "$(cat "$DATA/_update/scripts")" "$st0" "  ...no stamp written"

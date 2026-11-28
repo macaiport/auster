@@ -1,0 +1,3 @@
+# file: common/auster
+# the unanswered check's reason gives the engine job's start code alone, as before the second pass
+/^au_server_check() {/,/^}/s/^\(        [a-z-]*) AU_CHECK_WHY=\)".*" ;;$/\1"the engine job's last start says $AU_ST_CODE" ;;/
