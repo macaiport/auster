@@ -1,0 +1,3 @@
+# file: common/auster-check
+# ask --noted on every firing of the check job, not only after an update check that fetched
+s/^if \[ "\$FETCHED" = 1 \] && \[ -f "\$DATA\/_update\/updates.sh" \]/if [ -f "$DATA\/_update\/updates.sh" ]/

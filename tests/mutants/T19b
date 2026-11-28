@@ -1,0 +1,4 @@
+# file: common/auster-check
+# start the update when telling of one: the check job opens the update's .command file after the notification
+/^  update_note "\$PART_DIR\/out"/a\
+  /bin/bash "$DATA/_update/updates.sh" --open > /dev/null 2>&1

@@ -11,8 +11,7 @@
 # control characters; values matched to Auster's own patterns.
 #
 # Built by U1 (2026-11-27); its tests are T1, T3, T4, T5, T14, T41, T42 and T43 (their halves that U1
-# builds), with the cases of 1launcher's test that still apply. What later steps add is marked TODO:
-#   U7  the check job's notification, which reads --noted.
+# builds), with the cases of 1launcher's test that still apply.
 # U2 (2026-11-27) made auu_own the ownership rule over the whole data root (D3.1; tests/t6-records-own.sh), and
 # T6's and T95's tables run this file's one-line reader through the cases they run every reader through. The
 # readers of D3.1's other records are common/auster's, which the installer and bin/auster share: bin/auster must
@@ -31,6 +30,10 @@
 # --open or --command, for `auster update --retry` (D3.7, BD12), whose .command file runs `update --retry` and which goes
 # on when the word is current as well as ready, since a build that failed its test here is never what makes it ready.
 # Its tests: T15 (the holdings) and T99.
+# U7 (2026-11-27): --noted has its caller, the check job's notification of an update waiting (common/auster-check,
+# B5 step 6), which asks it after a check whose state line says fetched, and --recipes for a recipe's label to name;
+# nothing here changed but this header and --noted's comment. Its tests: T5's notification clause (--noted names
+# nothing while off or manual) and T37 (a third check of one version: --noted names nothing, as `noted` holds it twice).
 #
 # The update's .command file (D3.6; --open and --command), "Update Auster.command" in a new folder that only this
 # account can read (mktemp -d: mode 0700), mode 0700 itself. It holds constants only: curl's path, which is AU_CURL
@@ -691,10 +694,10 @@ auu_notes() {
     END { flush() }'
 }
 
-# For the check job's notification (TODO(U7)): prints the offered version when the versions alone give ready (a
-# notification is sent for a new version, D3.3: a build waiting for a reason on the Mac itself is not one) and
-# `noted` does not yet hold that version with the count 2, and then writes `noted` with the count raised. Otherwise
-# it prints nothing; a `noted` of a newer format is left as it is, and nothing is printed.
+# For the check job's notification (B5 step 6; U7 asks it after a check that fetched): prints the offered version
+# when the versions alone give ready (a notification is sent for a new version, D3.3: a build waiting for a reason on
+# the Mac itself is not one) and `noted` does not yet hold that version with the count 2, and then writes `noted` with
+# the count raised. Otherwise it prints nothing; a `noted` of a newer format is left as it is, and nothing is printed.
 auu_noted() {
   local n=1 rc=0
   _auu_state versions

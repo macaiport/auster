@@ -1,0 +1,3 @@
+# file: common/updates.sh
+# announce a newer offer whatever the word: --noted compares the versions and not the word, so off and manual are told too
+/^auu_noted() {/,/^}/s/^  \[ "\$AUU_WORD" = ready \] || return 0$/  auu_newer "$AUU_OFFERED" "$AUU_INSTALLED" || return 0/

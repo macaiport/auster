@@ -6,12 +6,14 @@
 # file loads.
 #
 # Built by V6 (2026-11-26); its tests are T77 to T80 and T105, and T107's file for the probe's half of the
-# rule that the check fails closed. U7 joins it to updates.sh's output (the notifications of an update
-# waiting, TODO(U7)) and U8 to withdrawn builds (TODO(U8)).
+# rule that the check fails closed. U8 joins it to withdrawn builds (TODO(U8)).
 # U2 (2026-11-27): its readers of `serving`, `mac`, `start`, `updating`, `paused` and `_update/engine` follow D3.1
 # as common/auster's do (whole records, each value matched, within a bound), and T6 runs each through its table.
-# TODO(U7): the ownership rule over the whole data root (D3.1) before its own writes (`_update/engine`, the logs);
-# until then it checks the data root, `_update` and logs/, and updates.sh checks the whole root before its writes.
+# U7 (2026-11-27): the ownership rule over the whole data root (D3.1, own_tree, common/auster's au_own_tree copied),
+# before anything is done; and the notification of an update waiting (B5 step 6, D3.5), from updates.sh's --noted
+# after a check that fetched, with the version and a recipe's label each in only when it matches its pattern
+# (update_note). Its tests: T5 (no notification), T6 (the jobs' half), T18, T19 (with a notification), T20, T35 (no
+# further notification) and T37.
 #
 # It only reads and records (D2.2, D3.4): it never stops, starts or restarts the engine, and its program and
 # everything it loads hold no command that could (T80 is a gate on the source). Its probe waits in line like
@@ -26,16 +28,20 @@
 #   5. logs: a log in logs/ above 50 MB (50,000,000 bytes) is truncated in place, so that the engine, which
 #      launchd gave the file open for appending, writes its next line at its start (T105);
 #   6. notifications, in fixed words (D3.5), once for each change of state; then `_update/engine` is written.
-# With no `_update` (moved to the Trash, D3.1), or a data root not this account's alone, it does nothing.
+# With no `_update` (moved to the Trash, D3.1), or a data root not this account's alone, it does nothing: the data
+# root of mode 0700, and it and every folder in it, at any depth, this account's and nobody else's to write, with no
+# link in it that leads to a folder but inside an engine's unpacked tree (D3.1, Ownership; U2's reading). It is
+# checked once, before the update check, and the run writes nothing of its own before its step 5.
 #
 # Time limits. Each request has curl's --max-time; each part also has a watchdog of this job's own, since
 # /usr/bin/timeout is not assumed (it may not exist before macOS 26, T79): the part runs in the background,
 # and a part still running at its limit is left behind and counted as failed. Nothing here signals it: when
 # the job ends, launchd ends what is left of its process group (launchd.plist, AbandonProcessGroup). Limits:
 # /health 10 s, the speed question 120 s, the request with no key 30 s, the probe 170 s in all; the update
-# check 60 s; the address 30 s, the figures 60 s, the logs 60 s, a notification 30 s. Test variable:
-# AU_CHECK_LIMIT, a whole number of seconds from 1, replaces the probe's three limits and the update
-# check's, and the probe's slack, so that a test of a hang ends in seconds.
+# check 60 s, and each of the two asks of updates.sh for an update's notification (--noted, --recipes) the same;
+# the address 30 s, the figures 60 s, the logs 60 s, a notification 30 s. Test variable: AU_CHECK_LIMIT, a whole
+# number of seconds from 1, replaces the probe's three limits and the update check's, and the probe's slack, so
+# that a test of a hang ends in seconds.
 #
 # The probe (B5 step 2). Skipped, with the result `stopped` (never notified), while builds/stopped exists,
 # whatever it holds; skipped with nothing recorded while builds/updating or builds/paused names a live run of
@@ -54,12 +60,24 @@
 #   failed   anything else: another code, an answer with no rate, no answer within 120 s, a probe stopped
 #            by its watchdog, and /health 200 with HTTP 500 while the speed is 0.
 #
-# Notifications (B5 step 6), each one fixed sentence passed to osascript as an argument: `open` and `broken`
-# at once; `failed` or `down` on the second run in a row, or at once while the speed is 0, in a sentence
-# that names `auster rollback` when kept/ holds an entry and `auster status` when it does not; the address
-# changed; the build no longer fits. Each once for each change of state: `ok` or `slow` (and `stopped`)
+# Notifications (B5 step 6), each one fixed sentence passed to osascript as an argument: an update waiting;
+# `open` and `broken` at once; `failed` or `down` on the second run in a row, or at once while the speed is 0,
+# in a sentence that names `auster rollback` when kept/ holds an entry and `auster status` when it does not; the
+# address changed; the build no longer fits. Each once for each change of state: `ok` or `slow` (and `stopped`)
 # clear the probe's, an address equal to `start`'s clears the address's, a build that fits clears the
 # figures'.
+#
+# An update waiting (D3.3, D3.5): a notification is for a new version, never for a build that waits for a reason
+# on the Mac itself, and at most two for one version. The rule file keeps that count: `updates.sh --noted`
+# prints the offered version while the versions alone give ready and `_update/noted` does not yet hold it twice,
+# and writes `noted` before it answers. It is asked only after an update check whose state line's fifth field
+# says `fetched`, so that the second notification of a version comes a check later (a day, D3.4), not at the
+# next firing; never while `builds/updating` is live, when a check left behind at its limit, nor while
+# `_update/engine` is a newer version's (nothing is notified then). Any answer that is not empty sends one; its
+# version goes in only when the whole answer is one line whose first field is a version (`v<a>.<b>.<c>`, as the
+# rule file's), and a recipe's label only when `updates.sh --recipes` gives exactly one recipe whose word is
+# waiting and its label matches A3's pattern. A value that fails is left out, and the sentence is the one
+# without it (T20). Nothing else from the rule file's answers reaches the sentence.
 #
 # `_update/engine` (D3.1), written to a temporary file and renamed. Seven lines, each ending in a newline,
 # exactly these keys in this order, one tab between fields; its reader takes nothing else (bound 1,024 bytes)
@@ -106,8 +124,14 @@ RE_LSTART='^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|O
 RE_IPV4='^(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})$'
 RE_ROUTER='^[0-9a-f]{2}(:[0-9a-f]{2}){5}$'
 RE_DATE='^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]Z$'
+RE_VER='^v(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$'
 
-# The fixed sentences (D3.5). None holds text from a file or the network.
+# The fixed sentences (D3.5). None holds text from a file or the network; the four of an update waiting take a
+# version and a recipe's label, each only after it has matched its pattern, through printf's arguments.
+S_UPDATE="Auster %s is out. auster status says what would change, and auster update asks before changing anything."
+S_UPDATE_FOR="Auster %s is out, with a new build for the recipe %s. auster status says what would change, and auster update asks before changing anything."
+S_UPDATE_ANY="A new version of Auster is out. auster status says what would change, and auster update asks before changing anything."
+S_UPDATE_ANY_FOR="A new version of Auster is out, with a new build for the recipe %s. auster status says what would change, and auster update asks before changing anything."
 S_OPEN="Auster's server on this Mac did not refuse a request that carried no key, so anyone on the home network may be able to use it. auster restart checks it again, and stops it if it is still open."
 S_BROKEN="Auster's server on this Mac is running but answers every question with an error. auster restart starts it again."
 S_FAILED="Auster's server on this Mac did not answer its check twice in a row. auster status says how the engine's last start went."
@@ -131,6 +155,19 @@ dir_ok() { # DIR -> 0 when it is a folder, not a link, owned by this account, th
   [ "${s%% *}" = "$ME" ] || return 1
   m=00${s#* }; m=${m: -3}
   case "${m:1:1}${m:2:1}" in *[2367]*) return 1 ;; esac
+}
+
+own_tree() { # -> 0 when every folder in the data root, at any depth, the root among them, is this account's and
+  # nobody else may write to it, and no link in it leads to a folder (D3.1, Ownership; the links inside an engine's
+  # unpacked tree point inside it, which B3 step 9 checked); otherwise prints the first path that breaks the rule
+  # (from the data root, ./ first) and returns 1, as it does when find cannot walk the whole of it. common/auster's
+  # au_own_tree is the same rule, and updates.sh's auu_own
+  local bad
+  bad=$(cd "$DATA" 2>/dev/null && find . \( -type d \( ! -user "$ME" -o -perm +022 \) \) -print -o \
+    \( -type l ! -path './engines/*/root/*' -exec test -d {} \; \) -print 2>/dev/null) || { printf '.'; return 1; }
+  [ -z "$bad" ] && return 0
+  printf '%s' "${bad%%$'\n'*}"
+  return 1
 }
 
 PART=0 PART_DIR=
@@ -355,6 +392,32 @@ notify() { # SENTENCE -> one notification: a fixed sentence, passed as an argume
   log "notified: $1"
 }
 
+update_note() { # NOTED -> one notification of an update waiting (B5 step 6, D3.5), NOTED being the file that holds
+  # what updates.sh --noted printed (not empty). The version goes in only when NOTED is one line, ending in a newline,
+  # within 4,096 bytes, whose first field is a version; the label only when --recipes, asked now, gives exactly one
+  # recipe line whose word is waiting, and its label (the line's 13th field) matches A3's pattern. Either one failing
+  # is left out, and the sentence is the one without it (T20)
+  local f=$1 v= label= n=0 l s i=0
+  if [ "$(size "$f")" -le 4096 ] && [ "$(wc -l < "$f" | tr -d ' ')" = 1 ] && ends_in_newline "$f"; then
+    IFS= read -r l < "$f"; split "$l"
+    [[ ${F[0]} =~ $RE_VER ]] && v=${F[0]}
+  fi
+  if part "$L_UPDATE" recipes /bin/bash "$DATA/_update/updates.sh" --recipes && [ "$(size "$PART_DIR/out")" -le 65536 ]; then
+    while IFS= read -r l; do
+      i=$((i + 1))
+      [ "$i" -gt 1 ] || continue   # the state line
+      split "$l"
+      if [ "${#F[@]}" -ge 15 ] && [ "${F[0]}" = recipe ] && [ "${F[2]}" = waiting ]; then n=$((n + 1)); s=${F[12]}; fi
+    done < "$PART_DIR/out"
+    [ "$n" = 1 ] && [[ $s =~ $RE_LABEL ]] && label=$s
+  fi
+  if [ -n "$v" ] && [ -n "$label" ]; then printf -v s "$S_UPDATE_FOR" "$v" "$label"
+  elif [ -n "$v" ]; then printf -v s "$S_UPDATE" "$v"
+  elif [ -n "$label" ]; then printf -v s "$S_UPDATE_ANY_FOR" "$label"
+  else s=$S_UPDATE_ANY; fi
+  notify "$s"
+}
+
 # --- `_update/engine` ---------------------------------------------------------------------------------------
 
 state_read() { # -> ST_* from _update/engine; absent gives the empty state; 1 when it is a newer version's
@@ -398,19 +461,31 @@ state_write() { # -> _update/engine from ST_*, by rename
 dir_ok "$DATA" && [ "$(stat -f %Lp "$DATA" 2>/dev/null)" = 700 ] && [ -f "$DATA/.auster-data-root" ] ||
   { log "$DATA is not a data root that only this account owns, so nothing is done"; exit 0; }
 dir_ok "$DATA/_update" || { log "no _update folder: the checks are off until the installer line is pasted again"; exit 0; }
+if ! bad=$(own_tree); then   # D3.1, Ownership (U7): the whole data root, before anything is done
+  case "$bad" in
+    .) log "$DATA cannot be read whole, so it is not known that only this account can write in it, and nothing is done" ;;
+    *) log "$DATA/${bad#./} must be a folder that only this account owns and can write, and no link in the data root may lead to a folder, so nothing is done" ;;
+  esac
+  exit 0
+fi
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/auster-check.XXXXXX") || exit 0
 trap 'rm -rf "$WORK"' EXIT
 NEWER=0
 state_read || NEWER=1
 
-# 1. The update check (D3.3), U1's rule file. Its exit code is not used. TODO(U7): read what it concludes,
-# and notify an update waiting once for each version (D3.5); TODO(U8): a build withdrawn, the same way.
+# 1. The update check (D3.3), U1's rule file. Its exit code is not used; its state line's fifth field says whether
+# it fetched, which step 6 reads for an update waiting (U7). TODO(U8): a build withdrawn, notified from the same.
 # U4: not while builds/updating names a live run, so that a check never changes `offer` during an update (T26);
 # `tried` is then left as it is, and the next firing checks.
+FETCHED=0
 if live "$DATA/builds/updating" 0; then
   log "a run of Auster holds builds/, so no update check now"
 elif [ -f "$DATA/_update/updates.sh" ] && [ ! -L "$DATA/_update/updates.sh" ]; then
-  part "$L_UPDATE" update /bin/bash "$DATA/_update/updates.sh" --refresh && log "the update check ran"
+  if part "$L_UPDATE" update /bin/bash "$DATA/_update/updates.sh" --refresh; then
+    log "the update check ran"
+    l=$(head -c 4096 "$PART_DIR/out" | head -n 1); split "$l"
+    [ "${#F[@]}" -ge 5 ] && [ "${F[4]}" = fetched ] && FETCHED=1
+  fi
 else
   log "no _update/updates.sh yet, so no update check"
 fi
@@ -458,6 +533,10 @@ fi
 if [ "$NEWER" = 1 ]; then
   log "_update/engine was written by a newer version of Auster, so this one leaves it as it is and notifies nothing"
   exit 0
+fi
+if [ "$FETCHED" = 1 ] && [ -f "$DATA/_update/updates.sh" ] && [ ! -L "$DATA/_update/updates.sh" ] &&
+   part "$L_UPDATE" noted /bin/bash "$DATA/_update/updates.sh" --noted && [ -s "$PART_DIR/out" ]; then
+  update_note "$PART_DIR/out"   # an update waiting, at most twice for one version (D3.5; the header gives the rule)
 fi
 if [ "$probed" = 1 ]; then
   case "$ST_RESULT" in

@@ -1,0 +1,4 @@
+# file: common/auster-engine
+# run the check from the engine job: the update check made before the engine starts
+/^say "starting build \$build on 127\.0\.0\.1 and \$ADDR, port \$port"$/i\
+/bin/bash "$DATA/_update/updates.sh" --refresh > /dev/null 2>&1

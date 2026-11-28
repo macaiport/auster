@@ -1,0 +1,3 @@
+# file: common/auster-check
+# ask --recipes with no time limit: its watchdog set beyond any run
+s/part "\$L_UPDATE" recipes \/bin\/bash/part 100000 recipes \/bin\/bash/

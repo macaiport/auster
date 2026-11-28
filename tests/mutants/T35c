@@ -1,0 +1,3 @@
+# file: common/updates.sh
+# tell of a build waiting as of a new version: --noted takes the word with each recipe judged, so a build waiting makes it name the version
+/^auu_noted() {/,/^}/s/^  _auu_state versions$/  _auu_state/

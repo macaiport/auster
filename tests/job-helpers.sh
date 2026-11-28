@@ -20,6 +20,11 @@
 #   serving_put BUILD MODEL PEOPLE CONTEXT [SPEED]  builds/<recipe>/serving for that build, its lines from
 #                       the fixture registry, the installed engine's list, and its template put in store/
 #   notes / last_note   how many notifications the stub notifier has had / the sentence of the last one
+# and for the notification of an update waiting (U7: T5's, T19's and T35's notification clauses, T20, T37):
+#   release_says VERSION   release's CHANGELOG.md names VERSION (of 2026-12-01) and its registry.tsv is install_registry's
+#                       of VERSION, as the check job's update check fetches them
+#   update_notes        how many notifications of an update waiting the stub notifier has had
+#   last_update_note    the sentence of the last of them
 UIDN=501
 
 job_install() {
@@ -129,3 +134,13 @@ serving_put() {
 
 notes() { wc -l < "$STUB_NOTIFY_LOG" | tr -d ' '; }
 last_note() { tail -n 1 "$STUB_NOTIFY_LOG" | cut -f2; }
+
+release_says() {
+  install_registry "$FX/registry-$1.tsv" "$1"
+  printf '# Changelog\n\n## %s (2026-12-01)\n\nNew.\n' "$1" > "$FX/changelog-$1.md"
+  route_drop "$CHANGELOG"; route_drop "$REGISTRY"
+  curl_route GET "$CHANGELOG" 200 "$FX/changelog-$1.md"; curl_route GET "$REGISTRY" 200 "$FX/registry-$1.tsv"
+}
+
+update_notes() { grep -c ' is out' "$STUB_NOTIFY_LOG"; }
+last_update_note() { grep ' is out' "$STUB_NOTIFY_LOG" | tail -n 1 | cut -f2; }

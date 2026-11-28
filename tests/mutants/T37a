@@ -1,0 +1,3 @@
+# file: common/updates.sh
+# do not write `noted`: --noted names the offered version at every check
+s/^  _auu_put "\$AU_UPDATE_DIR\/noted" "auster-record 1\$_AUU_T\$AUU_OFFERED\$_AUU_T\$n" || return 0$/  :/

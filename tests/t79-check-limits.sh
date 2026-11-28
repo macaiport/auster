@@ -2,7 +2,9 @@
 # (B5, D3.4): curl's --max-time for each request, and a watchdog of the job's own for each part. With
 # AU_CHECK_LIMIT=3, a probe whose /health never answers (the stub curl's hang, which --max-time does not cut)
 # is left behind after 3+3+3+3 s and recorded as failed, and an updates.sh that never ends after 3 s while the
-# probe still runs; a run with nothing hanging gives ok. Mutant: tests/mutants/T79a.
+# probe still runs; a run with nothing hanging gives ok. U7: the two asks of updates.sh for an update's notification
+# (--noted, --recipes) each have the update check's limit. Mutants: tests/mutants/T79a, and T79b and T79c (ask --noted,
+# or --recipes, with no time limit).
 . "$TESTS/lib.sh"
 . "$TESTS/helpers.sh"
 . "$TESTS/install-helpers.sh"
@@ -33,6 +35,37 @@ t=$(date +%s); check_job; t=$(( $(date +%s) - t ))
 grep -q 'update: still running after 3 s, so it is left behind' "$W/check.out" && ok "the update check is left behind at its limit" || bad "check.out: $(tail -n 5 "$W/check.out")"
 same "$(probe_field probe)" ok "and the probe still runs: ok"
 rm "$DATA/_update/updates.sh"; leftovers
+
+# U7: each ask for an update's notification has the update check's limit. A rule file whose check says it fetched and
+# whose --noted never ends: left behind after 3 s, the run ends, nothing notified; one whose --noted names v0.2.0 and
+# whose --recipes never ends: left behind too, and the update notified with no recipe named. Each run is watched from
+# here, so that a part with no limit fails this test rather than hanging it.
+ends() { # LABEL PART -> check_job, ended within 30 s, with PART left behind at its limit
+  local i t=$(date +%s)
+  : > "$STUB_NOTIFY_LOG"; : > "$W/check.out"
+  check_job & CJ=$!
+  for i in $(seq 300); do kill -0 "$CJ" 2>/dev/null || break; sleep 0.1; done
+  if kill -0 "$CJ" 2>/dev/null; then bad "$1: the run still goes after 30 s"; pkill -P "$CJ"; kill "$CJ" 2>/dev/null
+  else ok "$1: the run ends in $(( $(date +%s) - t )) s"; fi
+  wait "$CJ" 2>/dev/null
+  grep -q "$2: still running after 3 s, so it is left behind" "$W/check.out" && ok "  ...--$2 is left behind at its limit" ||
+    bad "  ...check.out: $(tail -n 5 "$W/check.out")"
+  leftovers
+}
+cat > "$DATA/_update/updates.sh" <<'UPD'
+case "${1:-}" in
+  --refresh) printf 'ready\tv0.1.0\tv0.2.0\t-\tfetched\n' ;;
+  --noted) [ -f "${0%/*}/t79-noted" ] && { echo v0.2.0; exit 0; }; while :; do /bin/sleep 1; done ;;
+  --recipes) while :; do /bin/sleep 1; done ;;
+esac
+UPD
+ends "--noted never ends" noted
+same "$(notes)" 0 "  ...and nothing is notified"
+: > "$DATA/_update/t79-noted"
+ends "--recipes never ends" recipes
+same "$(last_note)" "Auster v0.2.0 is out. auster status says what would change, and auster update asks before changing anything." \
+  "  ...and the update is notified, naming no recipe"
+rm "$DATA/_update/updates.sh" "$DATA/_update/t79-noted"
 
 engine_job_end
 curl_route GET http://127.0.0.1:8484/health hang -

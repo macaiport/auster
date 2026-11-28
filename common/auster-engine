@@ -8,12 +8,16 @@
 # no `_update`, calls no updates.sh, fetches nothing, and runs no Auster program but osascript for the UI
 # config. It loads nothing from bin/auster either, so that a fault in the command cannot stop the server.
 # U2 (2026-11-27): its readers of `serving`, `mac` and `paused` follow D3.1 as common/auster's do (whole records,
-# each value matched, within a bound), and T6 runs each through its table. TODO(U7): the ownership rule over the
-# whole data root (D3.1) before it writes `start` and the UI config; until then it checks the data root, builds/
-# and the recipe's folder.
+# each value matched, within a bound), and T6 runs each through its table. U7 (2026-11-27): the ownership rule over
+# the whole data root (D3.1, own_tree, common/auster's au_own_tree copied) before it writes `start` or the UI config,
+# in place of V6's check of the data root, builds/ and the recipe's folder; tests T6 (the jobs' half) and T18.
 #
 # Each start, B4's steps in order:
 #   1. waits while builds/paused names a live process of this boot (D3.1), at most 30 minutes;
+#      then the ownership rule (D3.1): the data root of mode 0700, and it and every folder in it, at any depth,
+#      this account's and nobody else's to write, with no link in it that leads to a folder but inside an
+#      engine's unpacked tree. Otherwise it writes nothing (not even `start`), says which folder, waits 60 s
+#      and exits 1. It is checked after the wait, since the run that held `paused` may have changed the root;
 #   2. reads serving after the wait, every field matched against its pattern (A3, A5);
 #   3. checks keys/engine.keys (B7): `keys`;
 #   4. checks the engine's files against its list, and the template and the system prompt against their
@@ -84,8 +88,19 @@ for s in "$DATA"/builds/r*/serving; do
 done
 [ -n "$recipe" ] || { say "nothing is serving"; sleep "$FAULT_SECS"; exit 1; }
 B="$DATA/builds/$recipe"
-dir_ok "$DATA" && dir_ok "$DATA/builds" && dir_ok "$B" ||
-  { say "$B must be a folder that only this account owns and can write, so nothing is written or started"; sleep "$FAULT_SECS"; exit 1; }
+
+own_tree() { # -> 0 when every folder in the data root, at any depth, the root among them, is this account's and
+  # nobody else may write to it, and no link in it leads to a folder (D3.1, Ownership; the links inside an engine's
+  # unpacked tree point inside it, which B3 step 9 checked); otherwise prints the first path that breaks the rule
+  # (from the data root, ./ first) and returns 1, as it does when find cannot walk the whole of it. common/auster's
+  # au_own_tree is the same rule, and updates.sh's auu_own
+  local bad
+  bad=$(cd "$DATA" 2>/dev/null && find . \( -type d \( ! -user "$ME" -o -perm +022 \) \) -print -o \
+    \( -type l ! -path './engines/*/root/*' -exec test -d {} \; \) -print 2>/dev/null) || { printf '.'; return 1; }
+  [ -z "$bad" ] && return 0
+  printf '%s' "${bad%%$'\n'*}"
+  return 1
+}
 
 start_record() { # CODE ADDRESS -> builds/<recipe>/start (B4 step 6), by rename
   local t="$B/.start.new.$$"
@@ -212,6 +227,19 @@ while paused_live; do
   sleep 1
   n=$((n + 1))
 done
+
+# The ownership rule (D3.1), after the wait and before the first write: nothing below writes in a data root that
+# another account, or a link to a folder elsewhere, could change under it.
+dir_ok "$DATA" && [ "$(stat -f %Lp "$DATA" 2>/dev/null)" = 700 ] ||
+  { say "$DATA must be a folder of mode 0700 that only this account owns and can write, so nothing is written or started."; sleep "$FAULT_SECS"; exit 1; }
+if ! bad=$(own_tree); then
+  case "$bad" in
+    .) say "$DATA cannot be read whole, so it is not known that only this account can write in it; nothing is written or started." ;;
+    *) say "$DATA/${bad#./} must be a folder that only this account owns and can write, and no link in the data root may lead to a folder; nothing is written or started." ;;
+  esac
+  sleep "$FAULT_SECS"
+  exit 1
+fi
 
 # 2. Read serving, after the wait, so that the job starts what the last switch wrote.
 read_serving "$B/serving" || fault engine-hash "builds/$recipe/serving cannot be read."   # step 2

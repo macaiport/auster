@@ -1,0 +1,3 @@
+# file: common/auster-check
+# build the text into the AppleScript source: the sentence written into the script, with no argument
+s/^  part "\$L_NOTIFY" notify osascript -e 'on run argv' -e 'display notification (item 1 of argv) with title "Auster"' -e 'end run' "\$1" ||$/  part "$L_NOTIFY" notify osascript -e "display notification \\"$1\\" with title \\"Auster\\"" ||/

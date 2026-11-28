@@ -1,0 +1,3 @@
+# file: common/auster-check
+# use the version unmatched: --noted's first field goes into the sentence as it came
+s/^    \[\[ \${F\[0\]} =~ \$RE_VER \]\] && v=\${F\[0\]}$/    v=${F[0]}/

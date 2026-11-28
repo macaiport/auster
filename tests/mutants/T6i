@@ -1,0 +1,3 @@
+# file: common/auster-check
+# the check job checks the data root and _update alone, not every folder in the data root (as V6 left it)
+/^own_tree() {/,/^}/s/^  local bad$/  return 0/

@@ -1,0 +1,3 @@
+# file: common/auster-check
+# use the label unmatched: the waiting recipe's 13th field goes into the sentence as it came
+s/^    \[ "\$n" = 1 \] && \[\[ \$s =~ \$RE_LABEL \]\] && label=\$s$/    [ "$n" = 1 ] \&\& label=$s/
