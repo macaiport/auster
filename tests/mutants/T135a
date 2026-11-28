@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# leave out the whole data root: tmutil is asked for the data root rather than store/ and engines/
+/^au_step3_root() {/,/^}/s/^  elif tmutil addexclusion "\$AU_DATA\/store" "\$AU_DATA\/engines" /  elif tmutil addexclusion "$AU_DATA" /

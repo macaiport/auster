@@ -1,0 +1,25 @@
+#!/bin/bash
+# Stub tmutil (docs/plans/backup.md, section 7; T135): leaves nothing out of any backup, and answers as tmutil does,
+# argument by argument (measured on macOS 27.2.1, the plan's section 2). `addexclusion PATH...`: each PATH that is an
+# existing folder is left out silently; for any other, the real error on standard error, naming it ("PATH: Error
+# (100002) while attempting to change exclusion setting."), and once all are done `Command exited with status 100002.`
+# on standard output and exit 162. STUB_TMUTIL_FAIL=1 makes every PATH fail that way, as a tmutil that refuses would.
+# Any other verb, an option (-p, -v), or no PATH at all is stub_untold. Each call is logged as every stub's is
+# (STUB_LOG), so that a test sees what was asked; the tests' data roots are under the system's $TMPDIR, which Time
+# Machine already leaves out, so the stub is for the log and the failing case, not for safety.
+. "$(dirname "$0")/../stub-lib.sh"
+stub_begin "$@"
+[ "${1:-}" = addexclusion ] || stub_untold "tmutil $* is not answered"
+shift
+[ $# -gt 0 ] || stub_untold "tmutil addexclusion with no path is not answered"
+failed=0
+for p in "$@"; do
+  case "$p" in -*) stub_untold "tmutil addexclusion $p is not answered" ;; esac
+done
+for p in "$@"; do
+  if [ "${STUB_TMUTIL_FAIL:-0}" != 1 ] && [ -d "$p" ]; then continue; fi
+  printf '%s: Error (100002) while attempting to change exclusion setting.\n' "$p" >&2
+  failed=1
+done
+[ "$failed" = 0 ] || { echo "Command exited with status 100002."; exit 162; }
+exit 0

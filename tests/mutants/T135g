@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# section 5's line when the call failed: the question says Time Machine leaves them out whatever step 3 recorded
+/^au_facts() {/,/^}/s/^  if \[ "\$AU_TM" = ok \]; then$/  if :; then/
