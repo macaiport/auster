@@ -59,7 +59,7 @@ Side tracks, not phases: the name checks and funding. Their notes are kept priva
    code, a launchd job for the engine's speeds, and `auster update` opening its `.command` file in
    Terminal at the Mac's screen (the tests replace `open`, so no test opens Terminal).
 3. Build the rest of the update: U6's third part (an update fetches again a changed file of the build in use, the
-   owner's decision of 2026-11-27; plan D3.6; its order against BD18 waits for the owner), withdrawn builds (U8),
+   owner's decision of 2026-11-27; plan D3.6; the repair before Auster's programs, the owner's decision of 2026-11-28), withdrawn builds (U8),
    and the release gate (U9).
 
 **Parked, for later discussion** (not phased, not in any plan): [docs/concepts/](docs/concepts/).
