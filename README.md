@@ -1,3 +1,8 @@
+<p><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/mark/auster-mark-south-dark.svg">
+  <img src="docs/brand/mark/auster-mark-south-light.svg" alt="Auster" width="96" height="96">
+</picture></p>
+
 # Auster — local AI on Apple Silicon, one recipe per use
 
 The free pieces for running AI at home already exist: engines, open model weights, clients. Putting
