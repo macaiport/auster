@@ -33,7 +33,7 @@ Proposed instead:
 
 At the build, `README.md`'s principle takes these words; `docs/plans/local-layer.md` principle 1, T1 and
 LD15 point here; and the v0.1 plan's D3.10 ("Trust, and what this sends") gains a bullet: `auster report`
-writes `~/auster-report.txt` and sends nothing. The owner decides; recommended yes.
+writes `~/auster-report.txt` and sends nothing. **Accepted by the owner, 2026-11-28.**
 
 ## 3. The command
 
@@ -69,11 +69,13 @@ writes `~/auster-report.txt` and sends nothing. The owner decides; recommended y
 6. **Says what to do with it,** in fixed words that name the file as `~/auster-report.txt` (never the
    full path, which would show the account name): "Nothing was sent. The report above is in the file
    auster-report.txt in your home folder (in Finder: Go, Home). If you want to share it with the Auster
-   project, read it first, then email that file to <address> (RD3). It holds only the lines above."
+   project, read it first, then email that file to reports@auster.build (RD3). It holds only the lines
+   above."
 7. **Opens nothing and fetches nothing.** No network, no `open`, no Mail. Over SSH it is the same.
 8. **When the file cannot be written,** the report is still shown, and these words take the place of
    rule 6's: "Nothing was sent, and the report could not be written to ~/auster-report.txt: <reason>. If
-   you want to share it with the Auster project, copy the lines above into an email to <address>." The
+   you want to share it with the Auster project, copy the lines above into an email to
+   reports@auster.build." The
    reason is one of: "a folder has that name"; "Auster does not write into this home folder" (`au_dir_ok`
    refuses it); "the file could not be written" (`mktemp` or `mv` failed).
 9. **Exit codes:** 0, shown and written; 1, nothing was read (no data root, which `status` answers with
@@ -166,9 +168,9 @@ so is anything that hides the sender.
 
 | # | Question | Recommended |
 |---|---|---|
-| RD1 | The principle's new words (section 2) | Yes, as section 2 gives them |
-| RD2 | Where the file goes | `~/auster-report.txt`, the home folder itself. Not `~/Desktop`: on a Mac with iCloud's Desktop and Documents turned on (the development Mac has it on: `~/Desktop` carries `com.apple.file-provider-domain-id`, and iCloud Drive holds a link to it), a file written there is uploaded to iCloud before the person has decided anything; and macOS guards the Desktop with a permission prompt, which over SSH may refuse the write |
-| RD3 | The address reports go to | A project address at auster.build; the owner names it and who reads it. Until then the words name auster.build's support page |
+| RD1 | The principle's new words (section 2) | **Decided (owner, 2026-11-28): as section 2 gives them** |
+| RD2 | Where the file goes | **Decided (owner, 2026-11-28):** `~/auster-report.txt`, the home folder itself. Not `~/Desktop`: on a Mac with iCloud's Desktop and Documents turned on (the development Mac has it on: `~/Desktop` carries `com.apple.file-provider-domain-id`, and iCloud Drive holds a link to it), a file written there is uploaded to iCloud before the person has decided anything; and macOS guards the Desktop with a permission prompt, which over SSH may refuse the write |
+| RD3 | The address reports go to | **Decided (owner, 2026-11-28): reports@auster.build, read by the owner, who is named on the support page.** The owner sets the address up with the domain; until it receives mail, no tester is asked for a report (exit criterion 4) |
 | RD4 | Where the field list is published | auster.build, from `docs/report-fields.tsv` |
 | RD5 | Which release | The first v0.1.x after v0.1.0 that the beta can take: after U8, or with it |
 | RD6 | The recipe's test, question by question | Not in the first report: v0.1 keeps a test's result only while the run lasts (`au_candidate_test`, in the run's own folder). A record of it is a change to the install and the update, and a plan of its own |
@@ -203,7 +205,7 @@ disk rule (C6) is unchanged.
 
 ## 9. Exit criteria
 
-1. RD1 to RD3 decided by the owner; `README.md`'s principle, the local-layer plan's principle 1 and T1,
+1. RD1 to RD3 decided by the owner (done, 2026-11-28); `README.md`'s principle, the local-layer plan's principle 1 and T1,
    and the v0.1 plan's D3.10 changed as section 2 says.
 2. T119 to T126 pass, every mutant seen red (`tests/run.sh --mutants`), the whole suite green, T98's
    source check included.
@@ -211,7 +213,7 @@ disk rule (C6) is unchanged.
 4. Run once on the development Mac's real install, and the report read line by line by a person against
    section 5 before anyone is asked to send one. The tracking issue records that it was read, its number
    of fields and that no private value was in it; the report itself is kept in `private/`, since section 6
-   keeps reports out of public places.
+   keeps reports out of public places. Before that, reports@auster.build has received a test message.
 5. Released as a v0.1.x (RD5) and taken by the development Mac through the built-in update, `auster
    status` naming the new version.
 
