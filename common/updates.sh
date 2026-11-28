@@ -34,6 +34,10 @@
 # B5 step 6), which asks it after a check whose state line says fetched, and --recipes for a recipe's label to name;
 # nothing here changed but this header and --noted's comment. Its tests: T5's notification clause (--noted names
 # nothing while off or manual) and T37 (a third check of one version: --noted names nothing, as `noted` holds it twice).
+# The conventions' audit (2026-11-28, docs/conventions.md sections 1 and 2): the folder in $TMPDIR where each recipe is
+# judged (for --recipes, and for the state line's word) deleted on any exit, an interruption included (T137); the .command
+# file says what GitHub's answer was in plain words, the code only once it is one and never curl's exit code (T139); and
+# a code after the sentence of each `failed` line (T141).
 #
 # The update's .command file (D3.6; --open and --command), "Update Auster.command" in a new folder that only this
 # account can read (mktemp -d: mode 0700), mode 0700 itself. It holds constants only: curl's path, which is AU_CURL
@@ -73,11 +77,14 @@
 #   bash updates.sh --notes            the fetched notes of every version newer than the stamp's, cleaned
 #   bash updates.sh --noted            the offered version, at most twice for one version, or nothing
 #   bash updates.sh --open             opened, after it wrote the update's .command file and handed it to Terminal
-#                                      (AU_OPEN -a Terminal <file>); or failed TAB <one sentence> (U4)
+#                                      (AU_OPEN -a Terminal <file>); or failed TAB <one sentence> (U4) TAB <its code>:
+#                                      not-waiting, curl-path, no-folder, not-written, open-path or no-terminal (the
+#                                      code added 2026-11-28, so that bin/auster says it in its own words: T141)
 #   bash updates.sh --version-of <f>   that file's version, or nothing
 #   bash updates.sh --recipes          the state line, then one `recipe` line for each recipe this Mac serves (U3)
 #   bash updates.sh --command          written TAB <the .command file's path>, after it wrote that file as --open
-#                                      does, for a caller that runs it itself; or failed TAB <one sentence> (U4)
+#                                      does, for a caller that runs it itself; or failed TAB <one sentence> TAB <its
+#                                      code>, as --open gives them (U4)
 #   bash updates.sh --open --retry     as --open and --command, for a file that runs `update --retry`, with the word
 #   bash updates.sh --command --retry  current or ready (U5)
 # Every call exits 0 when it could answer and says the outcome in its output; a usage error exits 2.
@@ -624,8 +631,14 @@ _auu_recipes() {
   AUU_RECIPES=() AUU_WAITING=0
   case "$AUU_WORD" in current|ready) ;; *) judge=0 ;; esac
   if [ "$judge" = 1 ]; then
+    # Run as a program, an EXIT trap deletes the folder on any exit, an interruption included, for as long as it exists
+    # (T137). Only then: bash ends at once on TERM with no EXIT trap, and with one it waits for the program it runs, so a
+    # check stopped while curl waits still ends at once (T4)
+    _AUU_TMP=
+    [ "${_AUU_MAIN:-0}" != 1 ] || trap '[ -z "$_AUU_TMP" ] || /bin/rm -rf "$_AUU_TMP"' EXIT
     v=$(_auu_reg_version "$AU_UPDATE_DIR/registry") && [ "$v" = "$AUU_OFFERED" ] && ! auu_newer "$AUU_INSTALLED" "$AUU_OFFERED" \
-      && js=$(_auu_js) && auu_own && w=$(mktemp -d "${TMPDIR:-/tmp}/auster-recipes.XXXXXX" 2>/dev/null) || judge=0
+      && js=$(_auu_js) && auu_own && _AUU_TMP=$(mktemp -d "${TMPDIR:-/tmp}/auster-recipes.XXXXXX" 2>/dev/null) && w=$_AUU_TMP ||
+      judge=0
   fi
   if [ "$judge" = 1 ]; then
     if _auu_holdings "$w/disk"; then df -k "$root" > "$w/df" 2>/dev/null || rm -f "$w/df"; else rm -f "$w/disk"; fi
@@ -638,6 +651,8 @@ _auu_recipes() {
     else AUU_RECIPES+=("recipe$_AUU_T$r${_AUU_T}unknown$(printf "$_AUU_T%s" - - - - - - - - - - - -)"); fi
   done
   [ -z "$w" ] || rm -rf "$w"
+  _AUU_TMP=
+  [ "${_AUU_MAIN:-0}" != 1 ] || trap - EXIT
 }
 
 auu_recipes() { # -> the state line, then each recipe's line (the header gives the form)
@@ -714,20 +729,22 @@ auu_noted() {
 }
 
 # [--retry] -> AUU_COMMAND, the path of the update's .command file (the header gives it), written into a new folder that
-# only this account can read; or AUU_WHY, one sentence, and 1, leaving nothing. Only when the word is ready, or with
-# --retry current (U5)
+# only this account can read; or AUU_WHY, one sentence, with AUU_WHY_CODE, its code (the header's `failed` line), and 1,
+# leaving nothing. Only when the word is ready, or with --retry current (U5)
 _auu_command() {
   local PATH=/usr/bin:/bin:/usr/sbin:/sbin d= f curl=/usr/bin/curl retry=${1:-}
-  AUU_COMMAND= AUU_WHY=
+  AUU_COMMAND= AUU_WHY= AUU_WHY_CODE=
   _auu_state
-  case "$AUU_WORD:$retry" in ready:*|current:--retry) ;; *) AUU_WHY="No update is waiting."; return 1 ;; esac
+  case "$AUU_WORD:$retry" in ready:*|current:--retry) ;; *) AUU_WHY="No update is waiting." AUU_WHY_CODE=not-waiting; return 1 ;; esac
   if [ -n "${AU_CURL:-}" ]; then
-    [[ $AU_CURL =~ $_AUU_PROG ]] || { AUU_WHY="The update's file was not written: AU_CURL is not a plain absolute path."; return 1; }
+    [[ $AU_CURL =~ $_AUU_PROG ]] || {
+      AUU_WHY="The update's file was not written: AU_CURL is not a plain absolute path." AUU_WHY_CODE=curl-path; return 1; }
     curl=$AU_CURL
   fi
   d=$(mktemp -d "${TMPDIR:-/tmp}/auster-update.XXXXXX" 2>/dev/null) && [ "$(stat -f %Lp "$d" 2>/dev/null)" = 700 ] || {
     [ -z "$d" ] || rm -rf "$d"
     AUU_WHY="A folder for the update's file could not be made, so nothing was changed. Paste the installer line from the guide instead."
+    AUU_WHY_CODE=no-folder
     return 1
   }
   f="$d/Update Auster.command"
@@ -756,42 +773,56 @@ if [ "$rc" = 0 ] && [ "$code" = 200 ] && [ -f "$F" ] && [ ! -L "$F" ]; then
   exit "$rc"
 fi
 echo
-if [ "$code" = 404 ]; then echo "GitHub has no installer on Auster's release line, so nothing was changed. You can close this window."
-else echo "GitHub could not be reached (curl exit $rc, answer ${code:-none}), so nothing was changed. Check the network, then run auster update again."; fi
+[[ $code =~ ^[0-9]{1,3}$ ]] && [[ $code =~ [1-9] ]] || code=   # a code only once it is one: curl gives 000 for none
+case "$rc:$code" in
+  *:404) echo "GitHub has no installer on Auster's release line, so nothing was changed. You can close this window." ;;
+  6:*|7:*) echo "GitHub could not be reached (no network?), so nothing was changed. Check the network, then run auster update again." ;;
+  28:*) echo "GitHub did not give Auster's installer in time, so nothing was changed. Run auster update again in a few minutes." ;;
+  18:*|56:*) echo "GitHub's answer was cut short, so nothing was changed. Run auster update again in a few minutes." ;;
+  63:*|0:200) echo "What GitHub gave is not the installer Auster takes, so nothing was changed. Run auster update again in a few minutes." ;;
+  0:?*) echo "GitHub answered $code, so nothing was changed. Run auster update again in a few minutes." ;;
+  0:) echo "GitHub gave no answer this file can read, so nothing was changed. Run auster update again in a few minutes." ;;
+  *) echo "GitHub could not be reached: the connection failed, so nothing was changed. Check the network, then run auster update again." ;;
+esac
 exit 1
 EOS
   } > "$f" 2>/dev/null || ! chmod 700 "$f" 2>/dev/null; then
     rm -rf "$d"
     AUU_WHY="The update's file could not be written, so nothing was changed. Paste the installer line from the guide instead."
+    AUU_WHY_CODE=not-written
     return 1
   fi
   AUU_COMMAND=$f
 }
 
 # The update's .command file for a caller that runs it itself (`auster update` over SSH, D3.6): written TAB its path,
-# or failed TAB one sentence
+# or failed TAB one sentence TAB its code
 auu_command() {
-  if _auu_command "${1:-}"; then printf 'written\t%s\n' "$AUU_COMMAND"; else printf 'failed\t%s\n' "$AUU_WHY"; fi
+  if _auu_command "${1:-}"; then printf 'written\t%s\n' "$AUU_COMMAND"; else printf 'failed\t%s\t%s\n' "$AUU_WHY" "$AUU_WHY_CODE"; fi
 }
 
 # The update at the Mac's own screen (D3.6): its .command file written and handed to Terminal with AU_OPEN, then
-# `opened`; or failed TAB one sentence, leaving nothing. It refuses unless the word is ready (or current, with --retry)
+# `opened`; or failed TAB one sentence TAB its code, leaving nothing. It refuses unless the word is ready (or current,
+# with --retry)
 auu_open() {
   local PATH=/usr/bin:/bin:/usr/sbin:/sbin open=/usr/bin/open
   if [ -n "${AU_OPEN:-}" ]; then
-    [[ $AU_OPEN =~ $_AUU_PROG ]] || { printf 'failed\t%s\n' "Terminal was not opened: AU_OPEN is not a plain absolute path."; return 0; }
+    [[ $AU_OPEN =~ $_AUU_PROG ]] || {
+      printf 'failed\t%s\t%s\n' "Terminal was not opened: AU_OPEN is not a plain absolute path." open-path; return 0; }
     open=$AU_OPEN
   fi
-  _auu_command "${1:-}" || { printf 'failed\t%s\n' "$AUU_WHY"; return 0; }
+  _auu_command "${1:-}" || { printf 'failed\t%s\t%s\n' "$AUU_WHY" "$AUU_WHY_CODE"; return 0; }
   if ! "$open" -a Terminal "$AUU_COMMAND" > /dev/null 2>&1; then
     rm -rf "${AUU_COMMAND%/*}"
-    printf 'failed\t%s\n' "Terminal could not be opened for the update. Run auster update again, or paste the installer line from the guide."
+    printf 'failed\t%s\t%s\n' "Terminal could not be opened for the update. Run auster update again, or paste the installer line from the guide." \
+      no-terminal
     return 0
   fi
   echo opened
 }
 
 if [ "${BASH_SOURCE[0]:-$0}" = "$0" ]; then
+  _AUU_MAIN=1   # run as a program: _auu_recipes deletes its folder on any exit (T137)
   if [ -z "${AU_UPDATE_DIR:-}" ]; then AU_UPDATE_DIR=$(cd "$(/usr/bin/dirname "$0")" && pwd -P) || exit 1; fi
   case "${1:-}" in
     '') auu_state ;;

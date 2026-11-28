@@ -1,0 +1,3 @@
+# file: common/auster
+# remove lists du's KiB as they came, in KB, as before the audit
+/^au_left()/,/^}/s/^    printf '  %-24s %s\\n' "\${e##\*\/}" "\$s"$/    printf '  %-24s %s KB\\n' "${e##*\/}" "${k:-?}"/

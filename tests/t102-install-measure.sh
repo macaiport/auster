@@ -1,19 +1,20 @@
 # T102, the installer's half (V5; section C's half is t102-capability-list-devices.sh): step 4 runs the
 # engine's --list-devices (B3 step 4). With b12359's real output the GPU limit, 53,084 MiB, is the one
 # kept in builds/mac after the yes; with the altered copies (no MTL0, the columns swapped) the install
-# refuses before the question, names what it could not read, and guesses no limit.
-# Mutant: tests/mutants/T102b.
+# refuses before the question, says in fixed words what it could not read (never capability.js's code), and guesses
+# no limit. Mutants: tests/mutants/T102b, T102c (the code printed as it came).
 . "$TESTS/lib.sh"
 . "$TESTS/helpers.sh"
 . "$TESTS/install-helpers.sh"
 install_env
 before=$(snapshot "$H")
 
-for copy in no-mtl0:no-mtl0 columns-swapped:mtl0-form; do
+for copy in "no-mtl0:it names no GPU (MTL0)" "columns-swapped:its line for the GPU (MTL0) is in another form"; do
   engine_set '*' list-devices "${copy%%:*}"
   run_install $'no\nyes\nipad\n' "$IR"
   same "$RC" 1 "${copy%%:*}: exit 1"
-  says "The engine's report of this Mac's GPU (llama-server --list-devices) is not in the form Auster reads (${copy#*:}). No limit is guessed, so nothing was installed." "${copy%%:*}: it refuses, and says what it could not read"
+  says "The engine's report of this Mac's GPU (llama-server --list-devices) is not in the form Auster reads: ${copy#*:}. No limit is guessed, so nothing was installed." "${copy%%:*}: it refuses, and says what it could not read"
+  grep -qE "\((no-mtl0|mtl0-form)\)" "$W/out" && bad "${copy%%:*}: capability.js's code printed as it came" || ok "${copy%%:*}: in words, not its code"
   grep -q 'Auster is ready to install' "$W/out" && bad "${copy%%:*}: it asked the question" || ok "${copy%%:*}: no question"
   same "$(snapshot "$H")" "$before" "${copy%%:*}: nothing left"
 done

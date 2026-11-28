@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# step 4 takes any version sw_vers gives, and names it in its refusal
+s/^  \[\[ \$AU_MACOS =~ \$AU_RE_MACOS \]\] ||   # matched whole.*$/  [[ $AU_MACOS =~ $AU_RE_MACOS ]] || [ -n "$AU_MACOS" ] ||/

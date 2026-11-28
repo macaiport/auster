@@ -18,7 +18,7 @@ auster status
 same "$RC" 0 "status: exit 0"
 grep -qF "$OFF" "$W/out" && bad "with nothing switched off, status says a job is: $(cat "$W/out")" || ok "with nothing switched off, status says none is"
 outsays "Devices with a key: ipad." "it names the devices"
-outsays "The check job's last probe: ok, at 36.9 tokens a second." "it gives the check job's last probe"
+outsays "The check job's last probe: the server answered, at 36.9 tokens a second (ok)." "it gives the check job's last probe"
 
 launchctl disable "gui/$UIDN/$CJOB"
 auster status

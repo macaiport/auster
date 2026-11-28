@@ -1,0 +1,3 @@
+# file: common/auster
+# people says curl's exit and its code as they came, as before the audit
+s/au_say "GitHub did not give Auster's installer (\$(au_fetch_said "\$rc" "\$code")), so nothing/au_say "GitHub did not give Auster's installer (curl exit $rc, answer ${code:-none}), so nothing/

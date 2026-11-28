@@ -1,0 +1,3 @@
+# file: common/auster
+# status prints the engine job's start code alone, as before the audit
+s/^    au_start_read "\$r" && au_start_words "\$AU_ST_CODE"$/    au_start_read "$r" \&\& au_say "The engine job's last start: $AU_ST_CODE."/

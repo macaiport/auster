@@ -30,7 +30,7 @@ line() { AU_UPDATE_DIR="$DATA/_update" /bin/bash "$DATA/_update/updates.sh" --re
 cdn exit:18:1000 "$FX/models/standin-a.gguf"
 update_run $'yes\n'
 same "$RC" 3 "the CDN cuts the download off at 1,000 bytes: exit 3"
-says "The model's download stopped (curl exit 18, answer 200) at 1,000 bytes of 3,400 bytes." "  ...it says where it stopped"
+says "The model's download stopped (it answered 200, then the connection was cut) at 1,000 bytes of 3,400 bytes." "  ...it says where it stopped"
 same "$(stat -f %z "$P" 2>/dev/null)" 1000 "  ...the part kept in store/ for a resume"
 [ -e "$DATA/store/$SA" ] && bad "  ...model A in store/ whole" || ok "  ...and no model A in store/"
 same "$(line)" "waiting $IB1 2400" "  ...the rule file: order 1 still waiting, with 2,400 bytes left to fetch"

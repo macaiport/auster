@@ -102,7 +102,7 @@ for x in "$RECA $OA" "$RECB $OB" "$RECC $OC"; do set -- $x; eval "s0_$1=\$(cat \
 
 update_run $'yes\nyes\nyes\nyes\n'
 same "$RC" 3 "three recipes failing, each its own way, and the household recipe after them: exit 3"
-says "The model's download stopped (curl exit 56, answer 200) at 100 bytes" "  ...recipe A: its download cut off"
+says "The model's download stopped (it answered 200, then the connection was cut) at 100 bytes" "  ...recipe A: its download cut off"
 says "The model that arrived is not the file the registry names (its sha256 differs), so it was deleted." "  ...recipe B: the wrong content"
 says "Build $NC did not pass the recipe's test on this Mac. The recipe recipe-c stays on build $OC." "  ...recipe C: its candidate failed the test"
 p=8484

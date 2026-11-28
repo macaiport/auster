@@ -1,0 +1,3 @@
+# file: common/auster
+# the server check's folder made by mktemp alone, as before the audit: no EXIT trap knows of it
+s/^  au_tmp check || { au_tmp_drop "\$AU_TMP"; AU_CHECK_WHY="no temporary folder"; return 0; }$/  AU_TMP=$(mktemp -d "${TMPDIR:-\/tmp}\/auster-check.XXXXXX") || { AU_CHECK_WHY="no temporary folder"; return 0; }/

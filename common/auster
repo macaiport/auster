@@ -33,6 +33,12 @@
 # U9 (2026-11-28): with the word `unknown` and _update/tried readable, `status` and `update` say when the last check was
 # tried and that it did not read the release, not that no check has been made (au_tried_when; the first real install,
 # docs/phase-2.md section 13; T120).
+# The conventions' audit (2026-11-28, docs/conventions.md sections 1 and 2): the server check's key, and the folders of
+# `people` and `cleanup`, in folders of $TMPDIR that the EXIT traps of bin/auster and the driver delete on any exit, an
+# interruption included (au_tmp; T136, T137); curl's numbers in plain words (au_fetch_said; T138, T139); every value from a
+# program matched before a sentence names it, the account's short name among them, and the rule file's own sentences
+# never printed (au_update_why; T140, T141); `status`'s record codes, its serving line, the time the engine was stopped, and
+# `remove`'s sizes, each in the plain form section 2 gives (au_start_words, au_probe_words; T142).
 # Still to come, each marked TODO below: U8  the words of each withdrawal's reason in `status` and `rollback`.
 #
 # The readers (D3.1, Reading). Each checks the format first, from the first field of the first 4,096 bytes
@@ -152,7 +158,10 @@ AU_RE_UNIT='^(0(\.[0-9]{1,3})?|1(\.0{1,3})?)$'   # A3's temperature and top-p
 AU_RE_ROUTER='^[0-9a-f]{2}(:[0-9a-f]{2}){5}$'
 AU_RE_LOCALNAME='^[A-Za-z0-9-]{1,63}$'  # a LocalHostName, as `scutil --get LocalHostName` gives it
 AU_RE_VERSION='^v(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$'   # a version of Auster (D3.2)
+AU_RE_MACOS='^[1-9][0-9]?\.(0|[1-9][0-9]?)(\.(0|[1-9][0-9]?))?$'   # a macOS version, as sw_vers -productVersion gives it
+AU_RE_USER='^[A-Za-z0-9_][A-Za-z0-9_.-]{0,254}$'   # an account's short name, as `id -un` gives it on macOS
 AU_T=$'\t'
+AU_TMPS=()   # the temporary folders this run made in $TMPDIR (au_tmp), which its EXIT trap deletes (au_tmp_clean)
 if [[ ${AU_SERVER_CHECK_SECS:-} =~ ^[1-9][0-9]{0,2}$ ]]; then AU_CHECK_SECS=$AU_SERVER_CHECK_SECS; fi   # a test's limit
 
 # B6: the line the installer adds to ~/.zprofile on a yes, so that Terminal finds `auster`. Quoted, marked as
@@ -238,10 +247,55 @@ au_memory() { # MIB -> memory as About This Mac gives it: GB of 1,024 MiB
   printf '%s GB' "$(au_tenths "$1" 1024)"
 }
 
-au_identity() { # -> AU_UID, AU_USER, AU_DATA, AU_BOOT, AU_SELF_START; prints why and returns 1 when any is unknown
+au_fetch_said() { # RC CODE -> what a fetch by curl came to, in plain words with no full stop, for the parentheses of a
+  # sentence about it (docs/conventions.md, Words: no jargon, and nothing a program printed unmatched): the HTTP code of
+  # its answer, once CODE is matched as one (^[0-9]{1,3}$, and not 000, which curl gives for none), and from curl's exit
+  # code RC why the connection failed, never the number itself (T138, T139)
+  local rc=$1 code=$2 net
+  [[ $code =~ ^[0-9]{1,3}$ ]] && [[ $code =~ [1-9] ]] || code=
+  case "$rc" in
+    0) net= ;;
+    6) net="its address could not be found" ;;
+    7) net="it could not be reached" ;;
+    28) net="it was too slow, or did not answer in time" ;;
+    18|56) net="the connection was cut" ;;
+    63) net="it sent more than Auster takes" ;;
+    35|51|53|54|58|59|60|66|77|80|83|90|91) net="the secure connection failed" ;;
+    *) net="the connection failed" ;;
+  esac
+  if [ -n "$code" ] && [ -n "$net" ]; then printf 'it answered %s, then %s' "$code" "$net"
+  elif [ -n "$code" ]; then printf 'it answered %s' "$code"
+  elif [ -n "$net" ]; then printf '%s' "$net"
+  else printf 'it gave no answer Auster can read'; fi
+}
+
+au_tmp() { # WHAT -> AU_TMP: a new folder of mode 0700 in $TMPDIR named auster-WHAT.XXXXXX (mktemp -d), put in AU_TMPS by the
+  # command that makes it, so that the EXIT traps of bin/auster and the driver delete it on any exit, an interruption
+  # included (au_tmp_clean; docs/conventions.md, "A run's own temporary files"; T136, T137); 1 when none could be made
+  AU_TMPS+=("$(mktemp -d "${TMPDIR:-/tmp}/auster-$1.XXXXXX")")
+  AU_TMP=${AU_TMPS[${#AU_TMPS[@]} - 1]}
+  [ -n "$AU_TMP" ] && [ -d "$AU_TMP" ]
+}
+
+au_tmp_drop() { # DIR -> DIR, one of au_tmp's, deleted now and taken out of AU_TMPS
+  local d keep=()
+  [ -z "$1" ] || rm -rf "$1"
+  for d in ${AU_TMPS[@]+"${AU_TMPS[@]}"}; do [ "$d" = "$1" ] || keep+=("$d"); done
+  AU_TMPS=(${keep[@]+"${keep[@]}"})
+}
+
+au_tmp_clean() { # -> every folder au_tmp made and au_tmp_drop has not deleted, deleted (the EXIT traps)
+  local d
+  for d in ${AU_TMPS[@]+"${AU_TMPS[@]}"}; do [ -z "$d" ] || rm -rf "$d"; done
+  AU_TMPS=()
+}
+
+au_identity() { # -> AU_UID, AU_USER, AU_DATA, AU_BOOT, AU_SELF_START; prints why and returns 1 when any is unknown. The
+  # account's short name is matched once here (AU_RE_USER), since sentences name it (T140, T141)
   AU_UID=$(id -u 2>/dev/null)
   AU_USER=$(id -un 2>/dev/null)
   case "$AU_UID" in ''|*[!0-9]*) au_say "Auster cannot tell which account it runs as."; return 1 ;; esac
+  [[ $AU_USER =~ $AU_RE_USER ]] || { au_say "Auster cannot tell which account it runs as."; return 1; }
   if [ "$AU_UID" = 0 ]; then au_say "Auster does not run as root (with sudo): run it from your own account."; return 1; fi
   case "${HOME:-}" in /*) ;; *) au_say "Auster cannot tell where your home folder is."; return 1 ;; esac
   [ -d "$HOME" ] || { au_say "Your home folder is missing."; return 1; }
@@ -735,7 +789,9 @@ au_server_check() { # RECIPE T0 [KEYFILE] -> AU_CHECK: passed, open or unanswere
   # place have passed), then writes the speed into serving when it holds 0, so that nothing the server runs from is
   # written by programs still unchecked while jobs/previous/ exists (U6: `auster rollback`); open stops the engine (disable,
   # then bootout) and writes builds/stopped with the reason open; unanswered does nothing. AU_CHECK_WHY says why.
-  local r=$1 t0=$2 w key= kf now i=0 code left
+  # The household key it asks with is written into a folder of its own in $TMPDIR (au_tmp), which goes on any exit of the
+  # run, an interruption included, so that no key is left outside keys/ (B7; docs/conventions.md; T136)
+  local r=$1 t0=$2 w key= kf now i=0 code rc left
   AU_CHECK=unanswered AU_CHECK_WHY= AU_CHECK_SPEED=
   au_serving_read "$r" || { AU_CHECK_WHY="its descriptor cannot be read"; return 0; }
   for kf in ${3:+"$3"} "$AU_DATA"/keys/k*; do
@@ -745,10 +801,11 @@ au_server_check() { # RECIPE T0 [KEYFILE] -> AU_CHECK: passed, open or unanswere
     key=
   done
   [ -n "${key:-}" ] || { AU_CHECK_WHY="no household key could be read"; return 0; }
-  w=$(mktemp -d "${TMPDIR:-/tmp}/auster-check.XXXXXX") || { AU_CHECK_WHY="no temporary folder"; return 0; }
+  au_tmp check || { au_tmp_drop "$AU_TMP"; AU_CHECK_WHY="no temporary folder"; return 0; }
+  w=$AU_TMP
   ( umask 077; printf 'Authorization: Bearer %s\n' "$key" > "$w/key" )
   au_speed_request "$AU_DATA/store/$AU_SV_TEST" "$w/body" && au_speed_request "$AU_DATA/store/$AU_SV_TEST" "$w/nokey" 1 ||
-    { rm -rf "$w"; AU_CHECK_WHY="the recipe's test file cannot be read"; return 0; }
+    { au_tmp_drop "$w"; AU_CHECK_WHY="the recipe's test file cannot be read"; return 0; }
   while :; do
     now=$(date +%s)
     left=$((t0 + AU_CHECK_SECS - now))
@@ -764,7 +821,7 @@ au_server_check() { # RECIPE T0 [KEYFILE] -> AU_CHECK: passed, open or unanswere
     i=$((i + 1))
   done
   if [ -z "$AU_CHECK_SPEED" ]; then
-    rm -rf "$w"
+    au_tmp_drop "$w"
     if au_start_read "$r" && [ "$AU_ST_TIME" -ge "$t0" ]; then
       AU_CHECK_WHY="the engine job's last start says $AU_ST_CODE"
     else
@@ -777,11 +834,12 @@ au_server_check() { # RECIPE T0 [KEYFILE] -> AU_CHECK: passed, open or unanswere
   [ "$left" -ge 5 ] || left=5
   code=$(curl -q -sS --max-time "$left" -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' \
     --data-binary @"$w/nokey" "http://$AU_ST_ADDR:$AU_SV_PORT/v1/chat/completions" 2>/dev/null)
-  rm -rf "$w"
+  rc=$?
+  au_tmp_drop "$w"
   if [ "$code" != 401 ] && [ "$code" != 403 ]; then
     au_engine_stop
     au_stopped_write open
-    AU_CHECK=open AU_CHECK_WHY="it did not refuse a request that carried no key (it gave ${code:-no answer})"
+    AU_CHECK=open AU_CHECK_WHY="it did not refuse a request that carried no key ($(au_fetch_said "$rc" "$code"))"
     return 0
   fi
   if [ -e "$AU_DATA/jobs/previous" ] || [ -L "$AU_DATA/jobs/previous" ]; then rm -rf "$AU_DATA/jobs/previous"; fi
@@ -1025,19 +1083,20 @@ au_cmd_people() { # N -> C4, B6: the update's procedure for the build served onl
     au_say "Another run of Auster (process $AU_LOCK_PID) is installing, updating or changing the server. Wait for it to end, then try again."
     return 1
   fi
-  w=$(mktemp -d "${TMPDIR:-/tmp}/auster-people.XXXXXX") || { au_say "A temporary folder could not be made, so nothing was changed."; return 1; }
+  au_tmp people || { au_tmp_drop "$AU_TMP"; au_say "A temporary folder could not be made, so nothing was changed."; return 1; }
+  w=$AU_TMP   # deleted on any exit, an interruption included (au_tmp; T137)
   au_say "Fetching Auster's installer from github.com/macaiport/auster, for the recipe's limits ..."
   code=$(curl -q --proto =https --proto-redir =https --tlsv1.2 -sS -L --max-time 60 --max-filesize 1048576 \
     -o "$w/install.sh" -w '%{http_code}' "$AU_INSTALL_URL" 2>/dev/null)
   rc=$?
   if [ "$rc" != 0 ] || [ "$code" != 200 ] || [ ! -f "$w/install.sh" ] || [ -L "$w/install.sh" ] || [ "$(au_size "$w/install.sh")" -gt 1048576 ]; then
-    rm -rf "$w"
-    au_say "GitHub did not give Auster's installer (curl exit $rc, answer ${code:-none}), so nothing was changed. Check the network, then try again."
+    au_tmp_drop "$w"
+    au_say "GitHub did not give Auster's installer ($(au_fetch_said "$rc" "$code")), so nothing was changed. Check the network, then try again."
     return 1
   fi
   /bin/bash -c "$(cat "$w/install.sh")" auster-install people "$n"
   rc=$?
-  rm -rf "$w"
+  au_tmp_drop "$w"
   return "$rc"
 }
 
@@ -1378,9 +1437,10 @@ au_cmd_cleanup() { # RECIPE -> D3.6 step 6, C6, B6: what the disk rule would rem
   AU_CMD=cleanup
   au_recipe_pick "$1" || return $?
   r=$AU_RECIPE
-  w=$(mktemp -d "${TMPDIR:-/tmp}/auster-cleanup.XXXXXX") || { au_say "A temporary folder could not be made, so nothing was removed."; return 1; }
+  au_tmp cleanup || { au_tmp_drop "$AU_TMP"; au_say "A temporary folder could not be made, so nothing was removed."; return 1; }
+  w=$AU_TMP   # deleted on any exit, an interruption included (au_tmp; T137)
   if ! au_holdings > "$w/disk"; then
-    rm -rf "$w"
+    au_tmp_drop "$w"
     au_say "A record of a build in builds/ cannot be read, so Auster cannot tell which files are still in use. Nothing was removed."
     return 1
   fi
@@ -1401,7 +1461,7 @@ au_cmd_cleanup() { # RECIPE -> D3.6 step 6, C6, B6: what the disk rule would rem
         lines+=("$l") builds=$((builds + 1)) ;;
     esac
   done < "$w/out"
-  rm -rf "$w"
+  au_tmp_drop "$w"
   if [ -z "$floor" ] || [ "$bad" = 1 ]; then
     au_say "Auster could not work out the room on disk (df -k of the data root, and jobs/capability.js), so nothing was removed."
     return 1
@@ -1454,6 +1514,20 @@ au_command_ok() { # PATH -> 0 when it is the update's .command file as the rule 
   [ "$(stat -f %u "$p" 2>/dev/null)" = "$AU_UID" ] && [ "$(stat -f '%u %Lp' "$d" 2>/dev/null)" = "$AU_UID 700" ]
 }
 
+au_update_why() { # CODE -> why the rule file could not start the update, in this file's own words: CODE is the third field
+  # of its `failed` line (common/updates.sh, --open and --command), each code it gives answered with a fixed sentence. Its
+  # sentence, the second field, is never printed (docs/conventions.md, Words: never what a program printed), and any
+  # other code, or none (a rule file from before that field), says nothing more (T141)
+  case "$1" in
+    not-waiting) au_say "No update was waiting after all, so the update's file was not written." ;;
+    curl-path) au_say "AU_CURL is not a plain absolute path, so the update's file was not written." ;;
+    no-folder) au_say "A folder for the update's file could not be made in the temporary folder." ;;
+    not-written) au_say "The update's file could not be written." ;;
+    open-path) au_say "AU_OPEN is not a plain absolute path, so Terminal was not opened." ;;
+    no-terminal) au_say "Terminal could not be opened for the update." ;;
+  esac
+}
+
 au_cmd_update() { # [--retry] -> D3.6, B6: the update. At the Mac's own screen, the deployed rule file's --open writes the
   # update's .command file and hands it to Terminal, so that the person sees every line: 0. Over SSH, the same file (its
   # --command) runs in this session, so that the questions are asked where the person is (T38), and its exit code is
@@ -1489,10 +1563,13 @@ au_cmd_update() { # [--retry] -> D3.6, B6: the update. At the Mac's own screen, 
     ready) ;;
     off) au_say "Update checks are off (_update/off exists), so no update is offered. Deleting that file turns them on again."; return 1 ;;
     none) au_say "There is no record of what installed Auster (_update/scripts), so no update is offered. Pasting the installer line from the guide updates Auster."; return 1 ;;
-    manual)
+    manual)   # every value from the rule file matched before a sentence names it (D3.1, Reading; T141)
       case "${AU_F[3]:-}" in
         checkout) au_say "Auster was installed from a checkout, which is never offered an update, so nothing was changed." ;;
-        tag) au_say "Auster was installed as a named version (${AU_F[1]:-}), which is never offered an update, so nothing was changed." ;;
+        tag)
+          if [[ ${AU_F[1]:-} =~ $AU_RE_VERSION ]]; then
+            au_say "Auster was installed as a named version (${AU_F[1]}), which is never offered an update, so nothing was changed."
+          else au_say "Auster was installed as a named version, which is never offered an update, so nothing was changed."; fi ;;
         *) au_say "Auster was not installed from its release line, so it is never offered an update, and nothing was changed." ;;
       esac
       au_say "Pasting the installer line from the guide moves it to the release line."
@@ -1502,7 +1579,12 @@ au_cmd_update() { # [--retry] -> D3.6, B6: the update. At the Mac's own screen, 
       else au_say "No update check has been made yet, so no update is known to be waiting. The check job makes one soon after the Mac starts, then once a day."; fi
       return 1 ;;
     current)
-      [ -n "$retry" ] || { au_say "Nothing is waiting: Auster ${AU_F[1]:-} is the newest version at the last update check, and this Mac serves the build for it."; return 1; } ;;
+      if [ -z "$retry" ]; then
+        if [[ ${AU_F[1]:-} =~ $AU_RE_VERSION ]]; then
+          au_say "Nothing is waiting: Auster ${AU_F[1]} is the newest version at the last update check, and this Mac serves the build for it."
+        else au_say "Nothing is waiting: this version of Auster is the newest at the last update check, and this Mac serves the build for it."; fi
+        return 1
+      fi ;;
     *) au_say "Whether an update is waiting cannot be read (_update/updates.sh gave no state), so nothing was changed."; return 1 ;;
   esac
   if au_ssh; then
@@ -1512,7 +1594,7 @@ au_cmd_update() { # [--retry] -> D3.6, B6: the update. At the Mac's own screen, 
       au_say "Over SSH, the update runs here, in this session, and asks its questions here."
       exec /bin/bash "${AU_F[1]}"
     fi
-    [ "${AU_F[0]:-}" != failed ] || [ -z "${AU_F[1]:-}" ] || au_say "${AU_F[1]}"
+    [ "${AU_F[0]:-}" != failed ] || au_update_why "${AU_F[2]:-}"
     au_say "The update could not be started here, so nothing was changed. Pasting the installer line from the guide updates Auster."
     return 1
   fi
@@ -1520,7 +1602,7 @@ au_cmd_update() { # [--retry] -> D3.6, B6: the update. At the Mac's own screen, 
   au_split "$out"
   case "${AU_F[0]:-}" in
     opened) au_say "The update opens in a Terminal window on this Mac's screen, which shows every step and asks its questions there."; return 0 ;;
-    failed) [ -z "${AU_F[1]:-}" ] || au_say "${AU_F[1]}" ;;
+    failed) au_update_why "${AU_F[2]:-}" ;;
   esac
   au_say "The update could not be started, so nothing was changed. Pasting the installer line from the guide updates Auster."
   return 1
@@ -1740,13 +1822,15 @@ au_zprofile_remove() { # -> AU_ZPROFILE_LINE taken out of ~/.zprofile wherever a
 
 # --- what is left, and removing (B8) ------------------------------------------------------------------
 
-au_left() { # -> lists what the data root holds, with sizes
-  local e k
+au_left() { # -> lists what the data root holds, each with its size as Finder gives it (au_bytes): du -sk's KiB, matched
+  # first, times 1,024; a size du cannot give is said to be unknown (T142)
+  local e k s
   au_say "What is left, in $AU_DATA:"
   for e in "$AU_DATA"/* "$AU_DATA"/.[!.]*; do
     [ -e "$e" ] || [ -L "$e" ] || continue
     k=$(du -sk "$e" 2>/dev/null | cut -f1)
-    printf '  %-24s %s KB\n' "${e##*/}" "${k:-?}"
+    if [[ $k =~ ^(0|[1-9][0-9]{0,11})$ ]]; then s=$(au_bytes $((k * 1024))); else s="size unknown"; fi
+    printf '  %-24s %s\n' "${e##*/}" "$s"
   done
 }
 
@@ -1824,6 +1908,34 @@ au_probe_read() { # -> AU_PR_RESULT, AU_PR_SPEED from the check job's record, _u
   AU_PR_RESULT=${v[0]} AU_PR_SPEED=${v[1]}
 }
 
+au_start_words() { # CODE -> the engine job's last start (builds/<recipe>/start, read by au_start_read, so a code it matched)
+  # as `status` says it: a fixed sentence for each code, with the code itself after it in parentheses (B6; T142)
+  case "$1" in
+    starting) au_say "The engine job's last start: it started the engine (starting)." ;;
+    keys) au_say "The engine job's last start: the engine's key file (keys/engine.keys) holds no key it can use, so it did not start the engine (keys)." ;;
+    engine-hash) au_say "The engine job's last start: a check it makes at every start failed (engine-hash)." ;;   # status says why next
+    not-home) au_say "The engine job's last start: this Mac is not on the home network Auster was installed on, so it did not start the engine (not-home)." ;;
+    no-network) au_say "The engine job's last start: this Mac had no network connection, so it did not start the engine (no-network)." ;;
+  esac
+}
+
+au_probe_words() { # RESULT SPEED -> the check job's last probe (_update/engine, read by au_probe_read, so both matched) as
+  # `status` says it: a fixed sentence for each result, with the result itself after it in parentheses (B5 step 2; T142)
+  case "$1:$2" in
+    ok:-) au_say "The check job's last probe: the server answered (ok)." ;;
+    ok:*) au_say "The check job's last probe: the server answered, at $2 tokens a second (ok)." ;;
+    slow:-) au_say "The check job's last probe: the server answered slowly (slow)." ;;
+    slow:*) au_say "The check job's last probe: the server answered slowly, at $2 tokens a second, below half the speed its server check measured (slow)." ;;
+  esac
+  case "$1" in
+    open) au_say "The check job's last probe: the server answered a request that carried no key (open)." ;;
+    broken) au_say "The check job's last probe: the server is up, but failed to answer a question (broken)." ;;
+    failed) au_say "The check job's last probe: the server did not answer a question as it should (failed)." ;;
+    down) au_say "The check job's last probe: nothing was listening on the server's address (down)." ;;
+    stopped) au_say "The check job's last probe: none was made, since the server is stopped (stopped)." ;;
+  esac
+}
+
 au_tried_when() { # -> 0 with AU_TRIED, the time of the last update check that was tried (_update/tried, D3.2: written
   # before the fetch, whether it then worked or not) as `YYYY-MM-DD HH:MM:SS UTC`, when that record can be read; else 1.
   # With the word `unknown` there is no offer, so a check that was tried did not read the release (U9: the first real
@@ -1862,7 +1974,10 @@ au_status_updates() { # -> T5, D3.1: whether update checks are made, from the st
     manual:*)
       case "${AU_F[3]:-}" in
         checkout) au_say "Update checks are not made: Auster was installed from a checkout, which is never offered an update." ;;
-        tag) au_say "Update checks are not made: Auster was installed as a named version (${AU_F[1]:-}), which is never offered an update." ;;
+        tag)   # the version matched before it is named (D3.1, Reading; T141)
+          if [[ ${AU_F[1]:-} =~ $AU_RE_VERSION ]]; then
+            au_say "Update checks are not made: Auster was installed as a named version (${AU_F[1]}), which is never offered an update."
+          else au_say "Update checks are not made: Auster was installed as a named version, which is never offered an update."; fi ;;
         *) au_say "Update checks are not made: Auster was not installed from its release line, so it is never offered an update." ;;
       esac ;;
     unknown:*)
@@ -1949,7 +2064,7 @@ au_status() { # -> B6: what serves, the engine job's last start, why the engine 
   # off without Auster knowing (launchctl print-disabled), the check job's last probe, the devices, the sleep
   # setting, whether update checks are made (T5), a `.local` name macOS has changed (T116), and every record of a
   # newer format (T95); after whether update checks are made, each recipe's line (U3)
-  local s r l pd job i rc port=
+  local s r l pd job i rc at port=
   au_root_check "$AU_DATA" || return 1
   [ "$AU_ROOT_NEW" = 0 ] || { au_say "Auster is not installed."; return 0; }
   if au_newer_records; then
@@ -1963,7 +2078,7 @@ au_status() { # -> B6: what serves, the engine job's last start, why the engine 
     case "$rc" in
       0)
         port=$AU_SV_PORT
-        au_say "Serving build $AU_SV_BUILD for $AU_SV_PEOPLE people at $AU_SV_CONTEXT each, on port $AU_SV_PORT."
+        au_say "Serving build $AU_SV_BUILD for $AU_SV_PEOPLE people at a time, each with a context of $(au_commas "$AU_SV_CONTEXT") tokens, on port $AU_SV_PORT."
         if [ "$AU_SV_SPEED" = 0 ]; then   # A5: not yet checked
           au_say "It has not passed a server check since the switch: \`auster restart\` checks it."
           [ -z "$(ls -A "$AU_DATA/builds/$r/kept" 2>/dev/null)" ] ||
@@ -1972,7 +2087,7 @@ au_status() { # -> B6: what serves, the engine job's last start, why the engine 
       2) ;;   # said above
       *) au_say "The record of what serves (builds/$r/serving) cannot be read." ;;
     esac
-    au_start_read "$r" && au_say "The engine job's last start: $AU_ST_CODE."
+    au_start_read "$r" && au_start_words "$AU_ST_CODE"
     if [ "$AU_ST_CODE" = engine-hash ]; then   # B4 step 4, AD13 (T34)
       au_say "So it did not start the engine: a file it checks at every start (the engine's files, the template or the system prompt) has changed, or the record of what serves cannot be read. \`auster verify\` says which file, and pasting the installer line again fetches it again."
     fi
@@ -1991,11 +2106,12 @@ au_status() { # -> B6: what serves, the engine job's last start, why the engine 
     fi
   fi
   au_stopped_read
+  at="${AU_STOPPED_AT:0:10} ${AU_STOPPED_AT:11:8} UTC"   # as au_tried_when gives a time (AU_RE_UTC matched it; T142)
   case "$AU_STOPPED:$AU_STOPPED_WHY" in
     no:*) ;;
     newer:*) au_say "The engine is stopped, and builds/stopped was written by a newer version of Auster." ;;
-    yes:household) au_say "The engine is stopped: the household stopped it (auster stop) at $AU_STOPPED_AT. \`auster start\` starts it." ;;
-    yes:open) au_say "The engine is stopped: Auster stopped it at $AU_STOPPED_AT, because it answered a request that carried no key. \`auster start\` starts it and checks it again." ;;
+    yes:household) au_say "The engine is stopped: the household stopped it (auster stop) at $at. \`auster start\` starts it." ;;
+    yes:open) au_say "The engine is stopped: Auster stopped it at $at, because it answered a request that carried no key. \`auster start\` starts it and checks it again." ;;
     *) au_say "The engine is stopped, for a reason that cannot be read (builds/stopped). \`auster start\` starts it." ;;
   esac
   pd=$(launchctl print-disabled "gui/$AU_UID" 2>/dev/null)
@@ -2011,13 +2127,7 @@ au_status() { # -> B6: what serves, the engine job's last start, why the engine 
       au_say "Auster's $job is not loaded."
     fi
   done
-  if au_probe_read; then
-    case "$AU_PR_RESULT" in
-      -) ;;
-      ok|slow) au_say "The check job's last probe: $AU_PR_RESULT, at $AU_PR_SPEED tokens a second." ;;
-      *) au_say "The check job's last probe: $AU_PR_RESULT." ;;
-    esac
-  fi
+  if au_probe_read; then au_probe_words "$AU_PR_RESULT" "$AU_PR_SPEED"; fi
   au_key_list
   l=
   for ((i = 0; i < ${#AU_KEY_NAMES[@]}; i++)); do l+="${l:+, }${AU_KEY_NAMES[$i]}"; done
@@ -2045,7 +2155,7 @@ auster_main() {
   export LC_ALL=C
   local rc=2
   au_identity || exit 1
-  trap 'au_lock_release; au_qr_leave' EXIT
+  trap 'au_lock_release; au_qr_leave; au_tmp_clean' EXIT   # and this run's temporary folders (au_tmp; T136, T137)
   trap 'exit 130' INT
   trap 'exit 143' TERM
   case "${1:-}:$#" in

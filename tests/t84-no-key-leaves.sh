@@ -4,9 +4,9 @@
 # engine was given (the devices', Auster's own, the install's test key: each start's keys, as the stub engine
 # recorded them) is searched for in every stub's logged arguments (STUB_LOG), in the headers and bodies of every
 # request the stub curl sent anywhere but to the engine's own addresses, in logs/, in the check job's output, in
-# the notifier's arguments, in what each command printed, and in every file under the home folder but keys/, and
-# found nowhere.
-# Mutant: tests/mutants/T84a.
+# the notifier's arguments, in what each command printed, in every file under the home folder but keys/, and (since the
+# conventions' audit, 2026-11-28) in every file under the runs' own TMPDIR, which holds no folder of Auster's after them,
+# and found nowhere. Mutant: tests/mutants/T84a.
 . "$TESTS/lib.sh"
 . "$TESTS/helpers.sh"
 . "$TESTS/install-helpers.sh"
@@ -14,6 +14,7 @@
 . "$TESTS/command-helpers.sh"
 . "$TESTS/update-run-helpers.sh"
 cmd_install
+mkdir -p "$W/tmp" && export TMPDIR="$W/tmp/"   # the runs' own: what they leave in it is searched below
 cp "$W/out" "$W/printed"
 engine_up
 AU_CHECK_LIMIT=5 check_job
@@ -58,4 +59,6 @@ same "$(grep -lF -f "$W/keys" "$DATA"/logs/* "$W/check.out" 2>/dev/null)" "" "no
 same "$(grep -F -f "$W/keys" "$STUB_NOTIFY_LOG")" "" "no key in the notifier's arguments"
 same "$(grep -F -f "$W/keys" "$W/printed")" "" "no key in what the install and the commands printed"
 same "$(grep -rlF -f "$W/keys" --exclude-dir=keys "$H" 2>/dev/null)" "" "no key in any file under the home folder but keys/"
+same "$(grep -rlF -f "$W/keys" "$W/tmp" 2>/dev/null)" "" "no key in any file under the runs' TMPDIR"
+same "$(ls -A "$W/tmp" | grep '^auster-' | tr '\n' ' ')" "" "  ...and no folder of Auster's left in it"
 done_

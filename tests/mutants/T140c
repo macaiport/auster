@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# BD14 takes any folder in builds/ for a recipe, and names it in its refusal
+/^au_bd14()/,/^}/{/^    \[\[ \$r =~ \$AU_RE_RECIPE \]\] || continue$/d;}

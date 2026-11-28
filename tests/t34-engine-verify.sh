@@ -42,7 +42,7 @@ start_says starting "a first start"
 chmod 644 "$DATA/store/$T"; printf '{# one more line #}\n' >> "$DATA/store/$T"
 start_says engine-hash "the template changed, the next start"
 auster status
-outsays "The engine job's last start: engine-hash." "  ...auster status gives the code"
+outsays "The engine job's last start: a check it makes at every start failed (engine-hash)." "  ...auster status gives the code"
 outsays "$STATUS_SAYS" "  ...and says in a sentence that the engine was not started, naming auster verify"
 auster verify
 same "$RC" 1 "  ...auster verify: exit 1"

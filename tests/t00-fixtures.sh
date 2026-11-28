@@ -39,6 +39,8 @@ same "$(cat "$W/cut")" "hello, stub world" "curl, cut then resumed: the whole fi
 curl_route GET https://example.test/norange 200 hello "X-Stub-No-Ranges: 1"
 head -c 3 "$C/hello" > "$W/nr"
 curl -s -C - -o "$W/nr" https://example.test/norange; same $? 33 "curl -C - when the server ignores ranges: exit 33"
+curl_route GET https://example.test/badcode 200 hello "X-Stub-Code: 2OO"
+same "$(curl -s -o /dev/null -w '%{http_code}' https://example.test/badcode; echo " $?")" "2OO 0" "curl -w with X-Stub-Code: its text for the code, exit 0"
 
 curl_route GET https://example.test/moved 302 - "Location: https://cdn.example.test/hello"
 curl_route GET https://cdn.example.test/hello 200 hello

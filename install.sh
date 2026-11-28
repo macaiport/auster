@@ -97,11 +97,19 @@ auster_install_get() { # URL FILE MAX [HEADER] -> 0 when curl exits 0, the code 
   [ "$AUSTER_RC" = 0 ] && [ "$AUSTER_CODE" = 200 ] && [ -f "$2" ] && [ "$(stat -f %z "$2")" -le "$3" ]
 }
 
-auster_install_unreached() { # WHAT -> one sentence for a fetch that failed
-  case "$AUSTER_RC:$AUSTER_CODE" in
+auster_install_unreached() { # WHAT -> one sentence for a fetch that failed, in plain words: the HTTP code only once it
+  # is matched as one (^[0-9]{1,3}$, and not 000, which curl gives for none), and never curl's exit code (T138)
+  local code=$AUSTER_CODE
+  [[ $code =~ ^[0-9]{1,3}$ ]] && [[ $code =~ [1-9] ]] || code=
+  case "$AUSTER_RC:$code" in
     0:404|0:422|22:404|22:422) echo "GitHub has no $1, so nothing was installed. Check the line against the guide." ;;
     6:*|7:*) echo "GitHub could not be reached (no network?). Check the connection, then paste the line again." ;;
-    *) echo "GitHub did not give the $1 (curl exit $AUSTER_RC, answer ${AUSTER_CODE:-none}). Try again in a few minutes." ;;
+    28:*) echo "GitHub did not give the $1 in time, so nothing was installed. Try again in a few minutes." ;;
+    18:*|56:*) echo "GitHub's answer for the $1 was cut short, so nothing was installed. Try again in a few minutes." ;;
+    63:*|0:200) echo "What GitHub gave for the $1 is larger than Auster takes, so nothing was installed. Try again in a few minutes." ;;
+    0:?*|22:?*) echo "GitHub answered $code for the $1, so nothing was installed. Try again in a few minutes." ;;
+    0:) echo "GitHub gave no answer Auster can read for the $1, so nothing was installed. Try again in a few minutes." ;;
+    *) echo "GitHub did not give the $1: the connection failed, so nothing was installed. Try again in a few minutes." ;;
   esac
 }
 
