@@ -177,6 +177,8 @@ carries history and bookmarks, which here hold only `127.0.0.1`.
 
 ## 7. Decisions
 
+All seven accepted by the owner as recommended, 2026-11-28.
+
 | # | Question | Recommended |
 |---|---|---|
 | AP1 | Whether the app is in the beta | Yes: in v0.1.0 if built and checked in time; otherwise the first v0.1.x |
@@ -236,7 +238,7 @@ well, so that T129 compares with it in a mutant's copy too.
 
 ## 10. Exit criteria
 
-1. AP1 to AP7 decided by the owner (AP3 before T129 is written).
+1. AP1 to AP7 decided by the owner (done, 2026-11-28: as recommended).
 2. Section 8's measurements still to make, made at the Mac and recorded in `docs/phase-2.md`; one that fails
    applies its fallback before any code.
 3. T129 to T134 pass, with T70's and T98's cases; `tests/run.sh --mutants 129 130 131 132 133 134 70 98`
