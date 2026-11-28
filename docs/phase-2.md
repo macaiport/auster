@@ -351,6 +351,42 @@ cost in time on every answer.
 whether a low lowest-probability predicts a wrong answer (by the graders' verdicts), and the threshold
 for each build. Then, perhaps, asking twice and comparing (more costly, for night work rather than chat).
 
+### 13. The first real install from zero (2026-11-28)
+
+Until then the installer had only run against the test stubs. Its driver was run for real on the
+development Mac (Mac Studio, M5 Max, 64 GB, macOS 27.2.1), from a clean copy of commit `49747d8`, with no
+`release` branch yet: `common/driver.sh install <the household recipe> --line release --version v0.1.0`.
+The answers came from a file, through the test variable `AU_TTY`: keep the Mac awake, four people, the
+first device `ipad`, no line in `~/.zprofile`. `AU_SCREEN` sent the QR code to `/dev/null`, so that no key
+reached a log. Everything else was real: the downloads from GitHub and Hugging Face, the engine, the two
+launchd jobs, the keys and the server check on the home network.
+
+- **It installed, exit 0, in 24 min 47 s.** The 44.4 GB model (order 1) was fetched and checked in about
+  23 min 50 s, about 31 MB/s. The question had said about 44 minutes, from the speed of the engine's
+  16.9 MB fetch.
+- **The recipe's test passed 12 of 12, 8 of 8 mandatory, in 5 s of its 180,** and reported 80.4 tokens a
+  second.
+- **The server check passed on the home network** at 75.2 tokens a second (128 tokens after a 572-token
+  prompt, read at 1,210 tokens a second), and a request with no key was refused (401). The engine listens
+  on `127.0.0.1` and the home address, port 8484, and nowhere else. The check runs under launchd and the
+  test does not, and their prompts differ, so the two speeds are not one measurement.
+- **`auster verify` took 18 s** and found every file the one the registry names. `auster status` gave
+  the build, the people, the device and the sleep setting.
+- **The check job's probe,** run once by hand with `launchctl kickstart`: ok, 75.7 tokens a second.
+
+Found, and recorded in the plan's table of what is left:
+
+- The check job runs as soon as its job is loaded at step 12, before step 15 writes `_update/`. Its log
+  then says "the checks are off until the installer line is pasted again", which is untrue a minute later.
+- With no `release` branch, the check's fetch was refused (404). It wrote `tried` and no `offer`, and
+  `auster status` says "No update check has been made yet", although one was tried. The same words would
+  cover any check that fails to read the release.
+- The engine's own chat page answers 415 to a client that does not accept gzip (`curl` without
+  `--compressed`), and 200 with it. Browsers accept gzip; this is llama.cpp's, not Auster's.
+
+Not covered by it: the iPad reading the QR code, `auster update`'s `.command` file, a restart, and two
+devices with one key revoked.
+
 ### Still open, and why
 
 These need the owner, another device or another Mac, or a lasting change to this Mac:
