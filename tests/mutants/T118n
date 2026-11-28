@@ -1,0 +1,6 @@
+# file: common/driver.sh
+# run step 15 after a repair passed over, declined or failed: the stamp and _update/updates.sh are written all the same
+/^au_repair_end() {/,/^}/{
+/^  exit 3$/i\
+  au_step15_stamp
+}

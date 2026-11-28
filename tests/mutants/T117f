@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# fetch the archive again when only its unpacked files changed: a repair fetches the engine's archive whatever store/ holds
+/^au_step9_engine() {/,/^}/s/^  if ! au_store_has "\$sha" "\$size"; then$/  if [ "$AU_REPAIRING" = 1 ] || ! au_store_has "$sha" "$size"; then/

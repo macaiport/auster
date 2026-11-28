@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# no disk rule for a repair's download: there is always room for it
+/^au_repair_room() {/,/^}/s/^  local l$/  local l; return 0/

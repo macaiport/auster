@@ -1,0 +1,4 @@
+# file: common/driver.sh
+# check the engine against engines/<sha256>/files alone: its unpacked files are judged by their own list, not as the engine job checks them
+/^au_update_files() {/,/^}/s/^  au_engine_whole "\$AU_DATA\/engines\/\$AU_SV_ENGINE" "\$AU_SV_LIST" || AU_RP+=" unpacked"$/  au_engine_intact "$AU_DATA\/engines\/$AU_SV_ENGINE" || AU_RP+=" unpacked"/
+/^au_step9_engine() {/,/^}/s/! au_engine_whole "\$d" "\$AU_RP_LIST"; }/! au_engine_intact "$d"; }/

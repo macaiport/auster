@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# rewrite serving on a repair: the descriptor of the build in use is written again, by rename, once its files are back
+/^au_repair() {/,/^}/s/^  AU_RP_DONE=1 AU_RP_WAIT=\$r$/  AU_PEOPLE=$AU_SV_PEOPLE AU_CONTEXT=$AU_SV_CONTEXT AU_PORT=$AU_SV_PORT AU_LISTSHA=$AU_SV_LIST; au_descriptor "$AU_DATA\/builds\/$r\/serving" "$AU_SV_SPEED"; &/

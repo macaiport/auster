@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# check the model by its size alone: a model of the right size counts as whole, whatever its sha256
+/^au_update_files() {/,/^}/s/^  au_store_has "\$AU_SV_MODEL" "\$AU_SV_MODEL_SIZE" || AU_RP+=" model"$/  [ "$(au_size "$AU_DATA\/store\/$AU_SV_MODEL")" = "$AU_SV_MODEL_SIZE" ] || AU_RP+=" model"/

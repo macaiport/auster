@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# restart twice: a repair restarts the engine itself once its files are back, and the check before the stamp restarts it again
+/^au_repair() {/,/^}/s/^  AU_RP_DONE=1 AU_RP_WAIT=\$r$/  au_engine_start; &/

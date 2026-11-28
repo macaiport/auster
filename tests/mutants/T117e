@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# no server check after a repair: a repair that completed leaves nothing for the check before the stamp
+/^au_repair() {/,/^}/s/^  AU_RP_DONE=1 AU_RP_WAIT=\$r$/  AU_RP_DONE=1 AU_RP_WAIT=/

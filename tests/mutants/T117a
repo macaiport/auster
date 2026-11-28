@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# judge the build in use OK without checking its files: the update checks no file of the build it serves
+/^au_update_files() {/,/^}/s/^  au_serving_read "\$1" || return 0$/  return 0/

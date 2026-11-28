@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# a move that leaves the build in use as it is: only a repair alone fetches the build in use's files again
+/^au_update_yes() {/,/^}/s/^  if \[ -n "\$AU_RP" \] && \[ -n "\${1:-}" \] && ! au_repair "\$1"; then/  if [ "$AU_JK" = repair ] \&\& ! au_repair "$1"; then/

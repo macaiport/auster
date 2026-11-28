@@ -3,7 +3,8 @@
 # untouched install `auster verify` finds each of the six things serving names the same and exits 0. A first start says
 # starting; with the template then changed in store/, the next start says engine-hash and starts nothing, `auster status`
 # says in a sentence that the engine was not started because a file it checks has changed, and names `auster verify`,
-# which names the template and exits 1. An engine file changed at the same size stops the next start the same way, and
+# which names the template and exits 1; both say that pasting the installer line again fetches it again (D3.6, U6's third
+# part). An engine file changed at the same size stops the next start the same way, and
 # `auster verify` names the engine's unpacked files (T97 holds every other kind of change to them). The model changed at
 # the same size: the engine still starts, and `auster verify` names the model, and nothing else, and exits 1.
 # Mutants: tests/mutants/T34a (skip the engine's hash), T34b (hash the model at start), T34c (skip the template's hash),
@@ -16,7 +17,7 @@
 job_install
 T=$(sed -n 2p "$DATA/builds/$IR/serving" | cut -f5)   # the template
 R="$ED/root/llama-stub"
-STATUS_SAYS="So it did not start the engine: a file it checks at every start (the engine's files, the template or the system prompt) has changed, or the record of what serves cannot be read. \`auster verify\` says which file."
+STATUS_SAYS="So it did not start the engine: a file it checks at every start (the engine's files, the template or the system prompt) has changed, or the record of what serves cannot be read. \`auster verify\` says which file, and pasting the installer line again fetches it again."
 same_lines() { grep -c '^  same ' "$W/out"; }
 start_says() { # CODE LABEL -> the engine job, started now, wrote CODE into start; with engine-hash, it started no engine
   engine_job; engine_wait
@@ -46,6 +47,7 @@ outsays "$STATUS_SAYS" "  ...and says in a sentence that the engine was not star
 auster verify
 same "$RC" 1 "  ...auster verify: exit 1"
 outsays "  CHANGED   the template (store/$T)" "  ...it names the template"
+outsays "Pasting the installer line again fetches it again" "  ...and says that pasting the installer line again fetches it again (D3.6, U6's third part)"
 job_reset
 start_says starting "the template put back, a start"
 

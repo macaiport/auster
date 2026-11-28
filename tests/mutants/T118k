@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# pass the recipe over when the report has no line for the build in use: a build the latest order no longer names is not repaired
+/^au_repair_ask() {/,/^}/s/^  if \[ -n "\$(au_build_field "\$AU_SV_BUILD" 5)" \]; then$/  [ -n "$(au_build_field "$AU_SV_BUILD" 5)" ] || { AU_RP_SAY="The registry has no line for build $AU_SV_BUILD. $keep"; return 1; }; &/

@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# change the programs in a run whose build in use was passed over with a changed file: the programs-only question is asked
+/^au_update() {/,/^}/s/^  if \[ "\$asked" = 0 \] && \[ "\$AU_PROGRAMS_CHANGE" = 1 \] && \[ "\$AU_RP_BAD" = 0 \]; then$/  if [ "$asked" = 0 ] \&\& [ "$AU_PROGRAMS_CHANGE" = 1 ]; then/

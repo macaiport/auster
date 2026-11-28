@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# decide what the Mac holds by the file existing: no HEAD before the question for a changed model that is still in store/
+/^au_repair_ask() {/,/^}/s/^    if ! au_publisher_ask "\$url" "\$AU_SV_MODEL_SIZE" "\$AU_SV_MODEL"; then$/    if [ ! -e "$AU_DATA\/store\/$AU_SV_MODEL" ] \&\& ! au_publisher_ask "$url" "$AU_SV_MODEL_SIZE" "$AU_SV_MODEL"; then/

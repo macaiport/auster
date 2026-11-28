@@ -1,0 +1,6 @@
+# file: common/driver.sh
+# take serving's lines after the judge without reading it again: the repair uses whatever descriptor the judge read last
+/^au_update_files() {/,/^}/s/^  au_serving_read "\$1" || return 0$/  :/
+/^au_repair_ask() {/,/^}/s/^  if ! au_serving_read "\$r"; then /  if false; then /
+/^au_repair() {/,/^}/s/^  if ! au_serving_read "\$r"; then /  if false; then /
+s/^  \[ -z "\$AU_RP" \] || au_serving_read "\$AU_RP_RECIPE"$/  :/

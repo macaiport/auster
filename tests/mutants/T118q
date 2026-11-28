@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# pass over a recipe section C passes over without repairing it: its files are not checked
+/^au_update() {/,/^}/s/^    \[ "\${#AU_URECIPES\[@\]}" != 1 \] || au_update_files "\$r"   # .*$/    [ "${#AU_URECIPES[@]}" != 1 ] || [ "$AU_J" = passed ] || au_update_files "$r"/

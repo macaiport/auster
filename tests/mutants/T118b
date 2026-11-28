@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# take the file's URL and size from _update/registry: the repair's report is the registry an earlier check left, not serving's lines
+/^au_repair_report() {/,/^}/s/^  local f="\$AU_RUN\/registry-repair.out" b e m$/&; osascript -l JavaScript "$AU_TREE\/common\/registry.js" "$AU_DATA\/_update\/registry" "$AU_RP_RECIPE" > "$f" 2>\/dev\/null; AU_REGOUT=$f; return 0/

@@ -44,6 +44,15 @@
 # U6, its second part (2026-11-27): the disk holdings and the removal of the earlier builds the disk rule names are
 # common/auster's (au_holdings, au_builds_remove), which `auster cleanup` shares; the update no longer sources the rule file
 # (T7, T10, T17, T30).
+# U6, its third part (2026-11-28): a changed file of the build in use is fetched again (D3.6, "A changed file of the
+# build in use is fetched again"; BD18). Before the question every run checks the files of the build its one recipe
+# serves (au_update_files); one that is changed or missing makes the recipe a repair, whatever else the run does with
+# it, taken from serving's own lines (au_repair_report) and checked before the question as any download is
+# (au_repair_ask). After the yes the repair comes first (au_repair: steps 7 to 9, no test, serving not rewritten), then
+# Auster's programs, then `mac`, then a change of setting or of build; its server check is the first the run makes after
+# it. A repair passed over, declined or failed restarts nothing, checks nothing, changes no program and ends the run
+# with no step 15 (au_repair_end). A second paste checks the server while the engine job's last start is engine-hash;
+# `auster people` refuses while a file the engine job checks has changed (T117, T118; T33, T94 and T112 point there).
 #
 # builds/paused (D3.1, B4 step 1): one line, `auster-record 1`, the process, the boot session and the process's start time,
 # as the lock names this run; written by rename just before an update in turn stops the engine for its test, and removed
@@ -84,6 +93,7 @@ AU_AWAKE=no AU_DEVICE= AU_LOCKED=0 AU_ROOT_NEW=0 AU_MADE_ROOT=0 AU_CANDIDATE= AU
 AU_FETCH_SECS=0 AU_FETCH_BYTES=0 AU_WITHDRAWALS= AU_MEASURED_ENGINE=
 AU_PROGRAMS_CHANGE=0 AU_PROGRAMS_DONE=0 AU_MAC_DONE=0 AU_CHANGED=0 AU_JGPUL= AU_JGPUFROM=
 AU_UPDATING=0 AU_RETRY=0 AU_JFAILED= AU_PAUSED=0
+AU_RP= AU_RP_RECIPE= AU_RP_BAD=0 AU_RP_DONE=0 AU_RP_WAIT= AU_REPAIRING=0 AU_PROGRAMS_IN=0 AU_JMOVEOFF=0   # the repair (D3.6; U6)
 
 au_usage() {
   { au_say "usage: driver.sh install|check <recipe id> --commit C --line release|tag --version V [--withdrawals FILE]"
@@ -344,6 +354,18 @@ au_program_in() { # ENGINE-DIR -> the one file named llama-server in its list, r
 
 au_engine_intact() { # ENGINE-DIR -> 0 when its files are still those its list names
   [ -d "$1/root" ] && [ ! -L "$1/root" ] && [ -f "$1/files" ] && [ ! -L "$1/files" ] && au_list "$1/root" | cmp -s - "$1/files"
+}
+
+au_engine_whole() { # ENGINE-DIR LIST-SHA -> 0 when its files pass the check the engine job makes at every start (B4
+  # step 4, common/auster-engine): their list, made again, has the sha256 LIST-SHA (serving's launch line), and its one
+  # program named llama-server is executable; whatever engines/<sha256>/files says (D3.6, "The check")
+  local l p out
+  [ -d "$1/root" ] && [ ! -L "$1/root" ] || return 1
+  l=$(au_list "$1/root") && [ -n "$l" ] || return 1
+  out=$(printf '%s\n' "$l" | openssl dgst -sha256 2>/dev/null); out=${out##*= }
+  [ "$out" = "$2" ] || return 1
+  p=$(printf '%s\n' "$l" | awk -F'\t' '$2 != "link" && ($1 == "llama-server" || $1 ~ /\/llama-server$/) { print $1 }')
+  [ -n "$p" ] && [ "$(printf '%s\n' "$p" | wc -l | tr -d ' ')" = 1 ] && [ -x "$1/root/$p" ]
 }
 
 # --- step 4: measuring the Mac ------------------------------------------------------------------------
@@ -643,6 +665,7 @@ au_step7_model() { # the model: the publisher asked first, then fetched, resumab
   # au_fail's: exit 5 at an install; on an update, 1 and this recipe stopped. A download cut short is kept for a resume
   local sha size repo commit file url code pid got again="Pasting the line again resumes it."
   [ "$AU_UPDATING" = 0 ] || again="Updating again (\`auster update\`, or pasting the line) resumes it."
+  [ "$AU_REPAIRING" = 0 ] || again="Pasting the installer line again resumes it."   # a repair's way in (D3.6, "The words")
   repo=$(au_build_field "$AU_CH_BUILD" 26); commit=$(au_build_field "$AU_CH_BUILD" 27)
   file=$(au_build_field "$AU_CH_BUILD" 28); size=$(au_build_field "$AU_CH_BUILD" 29); sha=$(au_build_field "$AU_CH_BUILD" 30)
   if [ -e "$AU_DATA/store/$sha" ]; then
@@ -695,8 +718,11 @@ au_step8_assets() { # the template, the system prompt and the test, from the tre
   done
 }
 
-au_step9_engine() { # the engine, in store/ and unpacked into engines/<sha256>/ with its file list (B3 step 9); a failure is
-  # au_fail's, as at step 7
+au_step9_engine() { # the engine, in store/ and unpacked into engines/<sha256>/ with its file list (B3 step 9); a
+  # failure is au_fail's, as at step 7. For a repair of the build in use (AU_REPAIRING, D3.6), the engine is unpacked
+  # again when its files fail the engine job's check at every start (au_engine_whole, against serving's list sha256,
+  # AU_RP_LIST), not only when they differ from engines/<sha256>/files, and the list it then writes must have serving's
+  # sha256, or the repair stops
   local sha size nb file d t got
   nb=$(au_build_field "$AU_CH_BUILD" 20); file=$(au_build_field "$AU_CH_BUILD" 21)
   size=$(au_build_field "$AU_CH_BUILD" 22); sha=$(au_build_field "$AU_CH_BUILD" 23)
@@ -713,9 +739,12 @@ au_step9_engine() { # the engine, in store/ and unpacked into engines/<sha256>/ 
     au_store_put "$t" "$sha" || { au_fail "The engine could not be put in place."; return 1; }
   fi
   d="$AU_DATA/engines/$sha"
-  if ! au_engine_intact "$d"; then
+  if { [ "$AU_REPAIRING" = 0 ] && ! au_engine_intact "$d"; } || { [ "$AU_REPAIRING" = 1 ] && ! au_engine_whole "$d" "$AU_RP_LIST"; }; then
     t="$AU_DATA/engines/.$sha.new.$$"
     au_unpack "$AU_DATA/store/$sha" "$t" || { rm -rf "$t"; au_fail "The engine was not unpacked, so it is not used."; return 1; }
+    if [ "$AU_REPAIRING" = 1 ] && [ "$(au_sha "$t/files")" != "$AU_RP_LIST" ]; then
+      rm -rf "$t"; au_fail "The engine unpacked again does not give the file list the build in use was installed with, so it is not used."; return 1
+    fi
     rm -rf "$d"
     mv "$t" "$d" || { au_fail "The engine could not be put in place."; return 1; }
   fi
@@ -919,32 +948,41 @@ au_step15_stamp() { # the stamp (D3.1): the line followed, the version, the comm
 # `update` (install.sh update, which `auster update` runs) and a second paste of the installer line on a Mac that serves
 # the recipe (T65) run B3's steps for recipes already installed. Step 3 takes the lock and writes no program: Auster's
 # own programs change only after the yes (B3 step 6, BD18). Step 4 measures with the engine already in engines/ and
-# fetches nothing; it records neither the router nor the `.local` name, chooses no port and writes no `mac` (T65,
-# T100). Every size and sha256 comes from the registry in this tree (AU_REG), never from _update/registry. Each recipe
-# that has `serving` is judged by section C with the household's number of people carried over (C4) and is OK (its
-# build and setting are the ones served), held, passed over (and why) or withdrawn, one line each; or its build or
-# setting would change, and it goes to the question (D3.6 step 2), after its template, system prompt and test are
-# found in store/ or this tree's assets/ (step 8's lookup, made before the question so that no yes is asked for a
-# build this tree cannot install: T54). A no leaves everything as it was and the build waiting (T7, T35). A yes (U5,
-# au_update_yes) changes Auster's own programs first when they differ, or checks the server first when jobs/previous/
-# shows an earlier change never checked (au_update_programs: B3 step 6, BD18, T94); then writes `mac` (au_update_mac);
-# then switches a change of setting (au_switch_setting), or, for a change of build, fetches its files (au_update_build:
-# room again, the removals the question named, B3 steps 7 to 9), then tests it in isolation and switches to it
+# fetches nothing; it records neither the router nor the `.local` name, chooses no port and writes no `mac` (T65, T100).
+# Every size and sha256 comes from the registry in this tree (AU_REG), never from _update/registry. Each recipe that has
+# `serving` is judged by section C with the household's number of people carried over (C4) and is OK (its build and
+# setting are the ones served), held, passed over (and why) or withdrawn, one line each; or its build or setting would
+# change, and it goes to the question (D3.6 step 2), after its template, system prompt and test are found in store/ or
+# this tree's assets/ (step 8's lookup, made before the question so that no yes is asked for a build this tree cannot
+# install: T54). A no leaves everything as it was and the build waiting (T7, T35). With one recipe, the files of the
+# build it serves are checked before the question (au_update_files: the model and the engine's archive by size and
+# sha256, the template, system prompt and test by sha256, the engine's unpacked files as the engine job checks them);
+# one changed or missing makes the recipe a repair (D3.6, "A changed file of the build in use is fetched again"), with
+# its own pre-checks (au_repair_ask) and its lines in the question, and its files fetched again from serving's own lines
+# (au_repair_report). A yes (U5, au_update_yes) first repairs the build in use when it must (au_repair: steps 7 to 9 for
+# it, no test, serving not rewritten), the one thing that comes before Auster's programs; then changes Auster's own
+# programs when they differ, or checks the server when jobs/previous/ shows an earlier change never checked
+# (au_update_programs: B3 step 6, BD18, T94), before anything else is fetched; then writes `mac` (au_update_mac); then
+# switches a change of setting (au_switch_setting), or, for a change of build, fetches its files (au_update_build: room
+# again, the removals the question named, B3 steps 7 to 9), then tests it in isolation and switches to it
 # (au_update_test: fit and the way worked out again, side by side or in turn, D3.6 steps 4 and 5). A failed test puts
 # the build in failed/ and leaves serving as it was (exit 3); a switch whose server check fails ends the run (exit 4). A
 # change of build goes to the question only after its pre-checks (au_update_ask, D3.6 step 1: the engine's macOS floor,
-# and the publisher's HEAD for each file store/ does not hold); a recipe that fails one is passed over (exit 3).
+# and the publisher's HEAD for each file store/ does not hold whole); a recipe that fails one is passed over (exit 3). A
+# repair passed over, declined or failed ends the run with no restart, no server check, no program changed and no step
+# 15 (au_repair_end; exit 3, or 1 for a no).
 # `update --retry` (AU_RETRY) judges every recipe without its failed/, so that a build that failed its test here is
 # offered again (D3.7, BD12), and its question says so.
-# Then, and with nothing to change, the run makes the server check when a `serving` has a speed of 0 or jobs/previous/
-# is there (B3 step 13), shows the devices' keys when the Mac had no stamp (an install that never finished,
-# T65), and writes step 15, with _update's registry, notes and offer when the stamp moved (U4: so that each recipe's
-# line is not `unknown` until the next check). No record is written before the question but the lock, nor after the
-# yes before the programs have passed their check, and step 15 is reached only when Auster's programs are byte for
-# byte this tree's, so no record of a format the programs in use do not read is ever written by a run that has not
-# changed them and seen them pass (D3.1; the row "a record's format and rollback").
+# Then, and with nothing to change, the run makes the server check when a `serving` has a speed of 0, jobs/previous/ is
+# there, a repair completed with no restart since, or the engine job's last start is engine-hash (B3 step 13, D3.6),
+# shows the devices' keys when the Mac had no stamp (an install that never finished, T65), and writes step 15, with
+# _update's registry, notes and offer when the stamp moved (U4: so that each recipe's line is not `unknown` until the
+# next check). No record is written before the question but the lock, nor after the yes before the programs have passed
+# their check (a repair writes only files of store/ and engines/ before them), and step 15 is reached only when Auster's
+# programs are byte for byte this tree's, so no record of a format the programs in use do not read is ever written by a
+# run that has not changed them and seen them pass (D3.1; the row "a record's format and rollback").
 # `people` (au_people, below the update) is the same procedure for the build each recipe serves, at the number of
-# people asked: no other build, no download, no test, no program changed and no stamp (B6).
+# people asked: no other build, no download, no repair, no test, no program changed and no stamp (B6).
 
 au_later() { # X Y -> 0 when version X is later than version Y, both matched to AU_RE_VERSION, compared as numbers (D3.2)
   local x=${1#v} y=${2#v} i a b
@@ -1027,7 +1065,7 @@ au_update_judge() { # RECIPE -> AU_J: ok, held, passed, withdrawn or change, wit
   # D3.1) and failed/ (none with --retry: D3.7, BD12), the build loaded when the engine's job is loaded (C5), and the
   # figures of step 4. AU_JFAILED is the date the build a change picks last failed its test here, when it has
   local r=$1 l f id seen=0 held= lf=() cf=() opts=()
-  AU_J=passed AU_J_SAY= AU_JK= AU_JREMOVE=() AU_JNAME="This Mac's recipe" AU_JLABEL= AU_JFAILED=
+  AU_J=passed AU_J_SAY= AU_JK= AU_JREMOVE=() AU_JNAME="This Mac's recipe" AU_JLABEL= AU_JFAILED= AU_JMOVEOFF=0
   AU_REGOUT="$AU_RUN/registry-$r.out"
   osascript -l JavaScript "$AU_TREE/common/registry.js" "$AU_REG" "$r" > "$AU_REGOUT" 2>/dev/null
   l=$(awk -F'\t' '$1 == "recipe"' "$AU_REGOUT"); au_split "$l"
@@ -1080,7 +1118,7 @@ au_update_judge() { # RECIPE -> AU_J: ok, held, passed, withdrawn or change, wit
         AU_J=change AU_JK=build AU_JPICK=${lf[2]} AU_JDL=${lf[5]}
         [[ $AU_JDL =~ ^(0|[1-9][0-9]{0,14})$ ]] || AU_JDL=0
         if ! au_update_assets "$AU_JPICK"; then
-          AU_J=passed AU_J_SAY="This version of Auster holds no $AU_MISSING with the sha256 build $AU_JPICK names. $AU_JNAME is not updated: it keeps serving build $AU_JNOW."
+          AU_J=passed AU_JMOVEOFF=1 AU_J_SAY="This version of Auster holds no $AU_MISSING with the sha256 build $AU_JPICK names. $AU_JNAME is not updated: it keeps serving build $AU_JNOW."
         fi
         for f in "$AU_DATA/builds/$r"/failed/*-"$AU_JPICK"; do
           au_entry_read "$f" && AU_JFAILED=${f##*/} AU_JFAILED=${AU_JFAILED%%T*}
@@ -1096,90 +1134,338 @@ au_update_judge() { # RECIPE -> AU_J: ok, held, passed, withdrawn or change, wit
   esac
 }
 
-au_update_ask() { # -> D3.6 step 1's last pre-checks, before the question, for the build au_update_judge picked for a change:
-  # the engine it names must run on this macOS (the engine line's oldest macOS against the major version now, as a first
-  # install judges it, B3 step 4), and each file store/ does not hold, the model and the engine archive, must still be
-  # offered by its publisher as the registry names it (au_publisher_ask: a HEAD, nothing fetched; T29, T110). Otherwise the
-  # recipe is passed over (AU_J passed) with one sentence, AU_J_SAY, and the update ends with exit 3
+au_update_ask() { # -> D3.6 step 1's last pre-checks, before the question, for the build au_update_judge picked for a
+  # change: the engine it names must run on this macOS (the engine line's oldest macOS against the major version now, as
+  # a first install judges it, B3 step 4), and each file store/ does not hold whole (au_store_has: a file that is there
+  # but has changed counts as not held, D3.6), the model and the engine archive, must still be offered by its publisher
+  # as the registry names it (au_publisher_ask: a HEAD, nothing fetched; T29, T110). Otherwise the recipe is passed over
+  # (AU_J passed, AU_JMOVEOFF 1) with one sentence, AU_J_SAY, and the update ends with exit 3
   local v major e_mac sha url file keep="$AU_JNAME is not updated: it keeps serving build $AU_JNOW."
   v=$(sw_vers -productVersion 2>/dev/null); major=${v%%.*}
   e_mac=$(au_build_field "$AU_JPICK" 24)
   if ! [[ $major =~ ^[1-9][0-9]?$ ]] || ! [[ $e_mac =~ ^[1-9]?[0-9]$ ]] || [ "$major" -lt "$e_mac" ]; then
-    AU_J=passed AU_J_SAY="Build $AU_JPICK needs an engine that runs on macOS $e_mac or later, and this Mac has macOS ${v:-of a version that cannot be read}. $keep"
+    AU_J=passed AU_JMOVEOFF=1 AU_J_SAY="Build $AU_JPICK needs an engine that runs on macOS $e_mac or later, and this Mac has macOS ${v:-of a version that cannot be read}. $keep"
     return 0
   fi
   sha=$(au_build_field "$AU_JPICK" 30) file=$(au_build_field "$AU_JPICK" 28)
   url="$AU_MODEL_HOST/$(au_build_field "$AU_JPICK" 26)/resolve/$(au_build_field "$AU_JPICK" 27)/$file"
-  if [ ! -f "$AU_DATA/store/$sha" ] && ! au_publisher_ask "$url" "$(au_build_field "$AU_JPICK" 29)" "$sha"; then
-    AU_J=passed AU_J_SAY="$(au_publisher_said "$file" "Hugging Face"), so nothing was fetched. $keep"
+  if ! au_store_has "$sha" "$(au_build_field "$AU_JPICK" 29)" && ! au_publisher_ask "$url" "$(au_build_field "$AU_JPICK" 29)" "$sha"; then
+    AU_J=passed AU_JMOVEOFF=1 AU_J_SAY="$(au_publisher_said "$file" "Hugging Face"), so nothing was fetched. $keep"
     return 0
   fi
   sha=$(au_build_field "$AU_JPICK" 23) file=$(au_build_field "$AU_JPICK" 21)
   url="$AU_ENGINE_HOST/$(au_build_field "$AU_JPICK" 20)/$file"
-  if [ ! -f "$AU_DATA/store/$sha" ] && ! au_publisher_ask "$url" "$(au_build_field "$AU_JPICK" 22)" "$sha"; then
-    AU_J=passed AU_J_SAY="$(au_publisher_said "$file" "GitHub"), so nothing was fetched. $keep"
+  if ! au_store_has "$sha" "$(au_build_field "$AU_JPICK" 22)" && ! au_publisher_ask "$url" "$(au_build_field "$AU_JPICK" 22)" "$sha"; then
+    AU_J=passed AU_JMOVEOFF=1 AU_J_SAY="$(au_publisher_said "$file" "GitHub"), so nothing was fetched. $keep"
   fi
 }
 
-au_update_question() { # -> 0 on a yes, 1 on a no (D3.6 step 2), for the recipe au_update_judge judged a change: what will
-  # change, in figures, with the household's number of people carried over (C4); the download; the earlier builds the
-  # disk rule would remove; which way the switch goes on this Mac and how long the server will not answer; and whether
-  # Auster's own programs change. Nothing has been fetched, and nothing is written whatever the answer
-  local file= repo= parts= l n=0 m_sha e_sha
+# --- the repair of the build in use (D3.6, "A changed file of the build in use is fetched again"; U6, T117, T118) -----
+# One recipe at most has a repair (BD14); with several recipes no file is checked, and each is judged as before. Its
+# files' addresses, sizes and sha256s are serving's own lines 2 to 4 (A5), never _update's registry, so a build the
+# latest order no longer names can still be repaired. serving is read again before its check, its pre-checks, its
+# question and steps 7 to 9, since the judge reads failed/ entries after it and each read replaces every AU_SV_*
+# (au_entry_read). AU_RP holds what is changed or missing, AU_RP_RECIPE its recipe; AU_RP_BAD is 1 once it is passed
+# over or has failed (no restart, no check, no program changed, no step 15: au_repair_end); AU_RP_WAIT names the recipe
+# while its server check is still to come.
+
+au_update_files() { # RECIPE -> AU_RP: the files of the build RECIPE serves that are changed or missing, each a word, in
+  # the order the question names them: model and engine (its archive) by size and sha256 (au_store_has), unpacked (the
+  # engine's unpacked files, as the engine job checks them at every start: au_engine_whole), template, system-prompt and
+  # test by sha256. Empty when every one matches, or when serving cannot be read (it names no files, and the judge
+  # passes the recipe over). It reads and never writes, so a run whose files all match changes nothing (T65); the
+  # model's hash is its cost (AD13), so it says so first
+  AU_RP=
+  au_serving_read "$1" || return 0
+  au_say "Checking each file of build $AU_SV_BUILD against its sha256; the model, $(au_bytes "$AU_SV_MODEL_SIZE"), takes the longest..."
+  au_store_has "$AU_SV_MODEL" "$AU_SV_MODEL_SIZE" || AU_RP+=" model"
+  au_store_has "$AU_SV_ENGINE" "$AU_SV_ENGINE_SIZE" || AU_RP+=" engine"
+  au_engine_whole "$AU_DATA/engines/$AU_SV_ENGINE" "$AU_SV_LIST" || AU_RP+=" unpacked"
+  au_store_has "$AU_SV_TEMPLATE" || AU_RP+=" template"
+  au_store_has "$AU_SV_SYSTEM" || AU_RP+=" system-prompt"
+  au_store_has "$AU_SV_TEST" || AU_RP+=" test"
+  AU_RP=${AU_RP# }
+}
+
+au_repair_report() { # -> AU_REGOUT pointed at $AU_RUN/registry-repair.out, a one-build report in registry.js's
+  # numbering (common/registry.js's header) from lines 2 to 4 of the serving read last (AU_SV_LINES): `build`, position
+  # 1, ok and -, then the build line's fields 2 to 14 as fields 5 to 17, the engine's 2 to 8 as 18 to 24 and the model's
+  # 2 to 10 as 25 to 33; then the three `raw` lines. So the repo, commit and numbered build of every address come from
+  # serving alone. The caller points AU_REGOUT back at the tree's report
+  local f="$AU_RUN/registry-repair.out" b e m
+  b=$(printf '%s\n' "${AU_SV_LINES[1]}" | cut -f2-14) e=$(printf '%s\n' "${AU_SV_LINES[2]}" | cut -f2-8)
+  m=$(printf '%s\n' "${AU_SV_LINES[3]}" | cut -f2-10)
+  { printf 'build\t1\tok\t-\t%s\t%s\t%s\n' "$b" "$e" "$m"
+    printf 'raw\t%s\tbuild\t%s\n' "$AU_SV_BUILD" "${AU_SV_LINES[1]}"
+    printf 'raw\t%s\tengine\t%s\n' "$AU_SV_BUILD" "${AU_SV_LINES[2]}"
+    printf 'raw\t%s\tmodel\t%s\n' "$AU_SV_BUILD" "${AU_SV_LINES[3]}"; } > "$f" || return 1
+  AU_REGOUT=$f
+}
+
+au_repair_download() { # -> AU_RP_DL, the bytes the repair still fetches, from the serving read last: the model's size
+  # less any part of it already down (store/<sha256>.part), when it is changed or missing, and the engine's archive when
+  # it is. The changed model still counts as held: the engine maps it until it restarts, so deleting it frees nothing
+  # until then
+  local p=0
+  AU_RP_DL=0
+  case " $AU_RP " in *" model "*)
+    [ ! -f "$AU_DATA/store/$AU_SV_MODEL.part" ] || p=$(au_size "$AU_DATA/store/$AU_SV_MODEL.part")
+    [[ $p =~ $AU_RE_SIZE ]] || p=0
+    [ "$p" -ge "$AU_SV_MODEL_SIZE" ] || AU_RP_DL=$((AU_SV_MODEL_SIZE - p)) ;;
+  esac
+  case " $AU_RP " in *" engine "*) AU_RP_DL=$((AU_RP_DL + AU_SV_ENGINE_SIZE)) ;; esac
+}
+
+au_repair_room() { # RECIPE -> 0 when C6's disk rule leaves room for AU_RP_DL with the disk as it is, measured last
+  # (au_update_disk): free disk, less the download, at least the floor, both given by section C's own rule for these
+  # figures (capability.js --cleanup, which removes nothing). With nothing to fetch, or no disk figures (a descriptor
+  # that cannot be read, D3.3), no disk rule is applied, as for any download. Otherwise 1, with AU_RP_SAY naming `auster
+  # cleanup`
+  local l
+  [ "$AU_RP_DL" -gt 0 ] && [ "${#AU_DISKARGS[@]}" -gt 0 ] || return 0
+  l=$(osascript -l JavaScript "$AU_TREE/common/capability.js" --cleanup "$1" "${AU_DISKARGS[@]}" 2>/dev/null | awk -F'\t' '$1 == "disk"')
+  au_split "$l"
+  [[ ${AU_F[2]:-} =~ $AU_RE_SIZE ]] && [[ ${AU_F[3]:-} =~ $AU_RE_SIZE ]] || return 0
+  [ $((AU_F[3] - AU_RP_DL)) -lt "${AU_F[2]}" ] || return 0
+  AU_RP_SAY="There is not room on this Mac's disk to fetch it again: it has $(au_bytes "${AU_F[3]}") free, and the download, $(au_bytes "$AU_RP_DL"), needs $(au_bytes $((AU_RP_DL + AU_F[2]))) free (Auster keeps the larger of 20 GB and 5% of the disk free). \`auster cleanup\` lists what it can remove."
+  return 1
+}
+
+au_repair_ask() { # RECIPE -> 0 when the repair can be asked; 1 with AU_RP_SAY, nothing deleted or fetched, when it is
+  # passed over before the question, as for any download (D3.6 step 1, D3.10): the tree's report has the build on raw
+  # lines other than serving's (the registry contradicts itself); a changed template, system prompt or test is in no
+  # assets/ of this tree (au_update_assets); the publisher's HEAD refuses a changed model or archive (au_publisher_ask);
+  # or the download fails C6's disk rule with the disk as it is (au_repair_room). serving is read again first; AU_REGOUT
+  # is the tree's report on entry and on return
+  local r=$1 tree=$AU_REGOUT k l keep url file
+  if ! au_serving_read "$r"; then AU_RP_SAY="What $AU_JNAME serves (builds/$r/serving) cannot be read, so nothing was fetched."; return 1; fi
+  keep="$AU_JNAME keeps serving build $AU_SV_BUILD, and nothing was fetched."
+  if [ -n "$(au_build_field "$AU_SV_BUILD" 5)" ]; then
+    for k in 1:build 2:engine 3:model; do
+      l=$(au_raw "$AU_SV_BUILD" "${k#*:}")
+      [ "$l" = "${AU_SV_LINES[${k%%:*}]}" ] && continue
+      AU_RP_SAY="The registry of Auster $AU_VERSION names build $AU_SV_BUILD on lines other than the ones it was installed from (builds/$r/serving), so the registry contradicts itself and no file of it is fetched again. $keep"
+      return 1
+    done
+  fi
+  au_repair_report || { AU_RP_SAY="The files of build $AU_SV_BUILD could not be listed from builds/$r/serving. $keep"; return 1; }
+  if ! au_update_assets "$AU_SV_BUILD"; then
+    AU_REGOUT=$tree AU_RP_SAY="This version of Auster holds no $AU_MISSING with the sha256 build $AU_SV_BUILD names, so it cannot be put back. $keep"
+    return 1
+  fi
+  case " $AU_RP " in *" model "*)
+    url="$AU_MODEL_HOST/$(au_build_field "$AU_SV_BUILD" 26)/resolve/$(au_build_field "$AU_SV_BUILD" 27)/$AU_SV_MODEL_FILE"
+    if ! au_publisher_ask "$url" "$AU_SV_MODEL_SIZE" "$AU_SV_MODEL"; then
+      AU_REGOUT=$tree AU_RP_SAY="$(au_publisher_said "$AU_SV_MODEL_FILE" "Hugging Face"), so it cannot be fetched again. $keep"
+      return 1
+    fi ;;
+  esac
+  case " $AU_RP " in *" engine "*)
+    file=$(au_build_field "$AU_SV_BUILD" 21) url="$AU_ENGINE_HOST/$(au_build_field "$AU_SV_BUILD" 20)/$(au_build_field "$AU_SV_BUILD" 21)"
+    if ! au_publisher_ask "$url" "$AU_SV_ENGINE_SIZE" "$AU_SV_ENGINE"; then
+      AU_REGOUT=$tree AU_RP_SAY="$(au_publisher_said "$file" "GitHub"), so it cannot be fetched again. $keep"
+      return 1
+    fi ;;
+  esac
+  AU_REGOUT=$tree
+  au_repair_download
+  au_repair_room "$r" || { AU_RP_SAY+=" $keep"; return 1; }
+}
+
+au_repair_lines() { # [first] -> the question's lines for a repair (D3.6, "The question"), from the serving read last:
+  # each file, changed or missing, and what fetching it again takes: the model's size, from its publisher; the
+  # archive's, from GitHub; the template, system prompt or test from this version of Auster; an engine whose archive
+  # still matches is unpacked again with nothing fetched. With first (a change of setting or of build), they have a line
+  # of their own saying why they come first
+  local w how mrepo p=0
+  au_split "${AU_SV_LINES[3]}"; mrepo=${AU_F[2]:-}
+  if [ -n "${1:-}" ]; then
+    au_say "  Repair      These files of build $AU_SV_BUILD, which it serves now, are fetched again first, so that the build this Mac"
+    au_say "              serves is whole before anything restarts it:"
+  else
+    au_say "  Repair      These files of build $AU_SV_BUILD, which it serves, are fetched again:"
+  fi
+  for w in $AU_RP; do
+    case "$w" in
+      model)
+        how="has changed"; [ -e "$AU_DATA/store/$AU_SV_MODEL" ] || how="is missing"
+        [ ! -f "$AU_DATA/store/$AU_SV_MODEL.part" ] || p=$(au_size "$AU_DATA/store/$AU_SV_MODEL.part")
+        if [[ $p =~ ^[1-9][0-9]*$ ]] && [ "$p" -lt "$AU_SV_MODEL_SIZE" ]; then
+          au_say "              the model $AU_SV_MODEL_FILE, which $how: $(au_bytes $((AU_SV_MODEL_SIZE - p))) of its $(au_bytes "$AU_SV_MODEL_SIZE") still to fetch from Hugging Face ($mrepo)"
+        else
+          au_say "              the model $AU_SV_MODEL_FILE, which $how: $(au_bytes "$AU_SV_MODEL_SIZE") from Hugging Face ($mrepo)"
+        fi ;;
+      engine)
+        how="has changed"; [ -e "$AU_DATA/store/$AU_SV_ENGINE" ] || how="is missing"
+        au_say "              the engine's archive, which $how: $(au_bytes "$AU_SV_ENGINE_SIZE") from GitHub" ;;
+      unpacked)
+        how="have changed"; [ -e "$AU_DATA/engines/$AU_SV_ENGINE/root" ] || how="are missing"
+        au_say "              the engine's unpacked files, which $how: unpacked again from its archive, with nothing fetched for them" ;;
+      template|system-prompt|test)
+        case "$w" in template) how=$AU_SV_TEMPLATE ;; system-prompt) how=$AU_SV_SYSTEM ;; *) how=$AU_SV_TEST ;; esac
+        if [ -e "$AU_DATA/store/$how" ]; then how="has changed"; else how="is missing"; fi
+        case "$w" in test) w="recipe's test" ;; system-prompt) w="system prompt" ;; esac
+        au_say "              the $w, which $how: from this version of Auster" ;;
+    esac
+  done
+}
+
+au_repair() { # RECIPE -> D3.6, "After the yes", for a repair: steps 7 to 9 for the build in use, first of anything
+  # after the yes, with AU_CH_BUILD set to it and AU_REGOUT at the one-build report of serving's lines, read again (and
+  # back at the tree's report after): the room worked out again with the disk measured now, as after any yes; the model,
+  # when it is changed or missing, deleted and fetched again resumably, the Mac kept awake during its download when
+  # `mac` says so (BD10); a template, system prompt or test copied from the tree and renamed over the old one; the
+  # archive fetched again; the engine unpacked again when its files fail the engine job's check, its list then serving's
+  # (au_step9_engine). No isolated test: the files are byte for byte the ones the build passed its test with. serving is
+  # not rewritten, nothing goes into kept/, and nothing restarts here: the run's next server check is the repair's
+  # (AU_RP_WAIT, until a restart). 0 once every file is whole; 1, having said why, when it failed (a download cut short
+  # keeps its part for a resume)
+  local r=$1 tree=$AU_REGOUT rc=0
+  if ! au_serving_read "$r"; then au_say "What $AU_JNAME serves (builds/$r/serving) cannot be read now, so no file of it was fetched again."; return 1; fi
+  au_repair_report || { au_say "The files of build $AU_SV_BUILD could not be listed from builds/$r/serving, so none was fetched again."; return 1; }
+  au_update_disk
+  au_repair_download
+  if ! au_repair_room "$r"; then
+    AU_REGOUT=$tree
+    au_say "What this Mac can hold changed since the question. $AU_RP_SAY"
+    return 1
+  fi
+  AU_CH_BUILD=$AU_SV_BUILD AU_RP_LIST=$AU_SV_LIST AU_REPAIRING=1
+  au_mac_read
+  AU_AWAKE=no
+  [ "$AU_MAC" != ok ] || AU_AWAKE=${AU_MAC_LINES[6]#keep-awake"$AU_T"}
+  au_say "Putting back the files of build $AU_CH_BUILD, which this Mac serves..."
+  case " $AU_RP " in *" model "*) au_step7_model || rc=1 ;; esac
+  [ "$rc" = 1 ] || au_step8_assets || rc=1
+  [ "$rc" = 1 ] || au_step9_engine || rc=1
+  AU_REPAIRING=0 AU_REGOUT=$tree
+  if [ "$rc" = 1 ]; then
+    au_say "So the files of build $AU_CH_BUILD are not whole: nothing restarts the server, which serves on from what it has loaded."
+    return 1
+  fi
+  AU_RP_DONE=1 AU_RP_WAIT=$r
+  au_say "The files of build $AU_CH_BUILD are whole again, byte for byte the ones it passed its test with, so it is not tested again."
+}
+
+au_repair_end() { # -> after a repair passed over or failed (D3.6, "Order against B3 step 6"): this run restarts
+  # nothing, makes no server check (au_update_check's included, whatever jobs/previous/ or the engine job's last start
+  # say), changes none of Auster's programs and shows no device key, and has no step 15, so _update/updates.sh and the
+  # stamp are left as they were; then the words by state, as au_update_unfinished's are, and the closing line. Exit 3
+  local s="Pasting the installer line again fetches it again."
+  au_say ""
+  [ "$AU_PROGRAMS_CHANGE" = 0 ] ||
+    au_say "Auster's own programs of $AU_VERSION are not put in place while a file of the build this Mac serves cannot be fetched again."
+  if [ "$AU_HAD_STAMP" = 0 ]; then
+    au_say "The install is not finished: paste the line again to fetch it again and finish, or remove it with: \"$AU_DATA/bin/auster\" remove"
+  else
+    if [ -n "$(ls -A "$AU_DATA/builds/$AU_RP_RECIPE/kept" 2>/dev/null)" ]; then
+      s+=" \`auster rollback\` goes back to what it served before, with no download"
+      if [ -e "$AU_DATA/jobs/previous" ] || [ -L "$AU_DATA/jobs/previous" ]; then
+        s+=" (run it twice: the first time puts Auster's previous programs back)"
+      fi
+      s+="."
+    fi
+    au_say "$s"
+  fi
+  au_say ""
+  if [ "$AU_PROGRAMS_CHANGE" = 1 ] && [ "$AU_PROGRAMS_IN" = 0 ]; then
+    au_say "Auster $AU_VERSION is not in place on this Mac yet: the lines above say why."
+  else
+    au_say "Auster $AU_VERSION is on this Mac, but not everything was updated: the lines above say why."
+  fi
+  exit 3
+}
+
+au_update_question() { # -> 0 on a yes, 1 on a no (D3.6 step 2), for the recipe au_update_judge judged a change: what
+  # will change, in figures, with the household's number of people carried over (C4); the download; the earlier builds
+  # the disk rule would remove; which way the switch goes on this Mac and how long the server will not answer; and
+  # whether Auster's own programs change. With a repair of the build in use (AU_RP, D3.6 "The question"), serving is
+  # read again and each of its files to fetch again has a line (au_repair_lines): the question's own when the repair is
+  # all that changes (AU_JK repair), and in a change of setting or of build a line of their own, with what comes first;
+  # a changed file the chosen build shares is fetched once, so the build's download leaves it out. Nothing has been
+  # fetched, and nothing is written whatever the answer
+  local file= repo= parts= l n=0 m_sha e_sha dl=${AU_JDL:-0}
+  [ -z "$AU_RP" ] || au_serving_read "$AU_RP_RECIPE"
   au_say ""
   if [ "$AU_JK" = build ]; then
     au_say "$AU_JNAME: an update is waiting. Nothing has been fetched, and nothing changes without a yes."
     file=$(au_build_field "$AU_JPICK" 28) repo=$(au_build_field "$AU_JPICK" 26)
+  elif [ "$AU_JK" = repair ]; then
+    au_say "$AU_JNAME: a file of the build it serves has changed or is missing, and is fetched again. Nothing has been fetched, and nothing changes without a yes."
   else
     au_say "$AU_JNAME: its setting would change, on the build it serves. Nothing changes without a yes."
   fi
   au_say ""
   au_say "  Now         build $AU_JNOW${AU_JNOWFILE:+ ($AU_JNOWFILE)}, $AU_JP0 people at a time, each with a context of $(au_commas "$AU_JC0") tokens."
-  if [ "$AU_JK" = build ]; then
-    au_say "  After       build $AU_JPICK${file:+ ($file)}, $AU_JP people at a time, each with a context of $(au_commas "$AU_JC") tokens,"
+  if [ "$AU_JK" = repair ]; then
+    au_repair_lines
+    [ "$AU_PROGRAMS_CHANGE" = 1 ] || [ -e "$AU_DATA/jobs/previous" ] || [ -L "$AU_DATA/jobs/previous" ] ||
+      au_say "  Restart     The server restarts once on the files put back, to check them, and does not answer for a few seconds."
   else
-    au_say "  After       the same build, $AU_JP people at a time, each with a context of $(au_commas "$AU_JC") tokens,"
-  fi
-  au_say "              holding $(au_memory "$AU_JALL") of this Mac's $(au_memory $((AU_JMEM / 1048576))) of memory, $(au_memory "$AU_JGPU") of it on the GPU."
-  if [ "$AU_MODE" = people ]; then au_say "  People      $AU_JP people at a time, as asked, in place of $AU_JP0."
-  elif [ "$AU_JP" = "$AU_JP0" ]; then au_say "  People      The household's number of people, $AU_JP, is kept."
-  else au_say "  People      The recipe now allows at most $AU_JP people at a time, so the household's $AU_JP0 is lowered to $AU_JP."; fi
-  if [ "$AU_JK" = setting ]; then
-    au_say "  Download    Nothing: it is the build this Mac serves, with its files already here."
-  elif [ "$AU_JDL" = 0 ]; then
-    au_say "  Download    Nothing: the files it needs are already on this Mac."
-  else
-    m_sha=$(au_build_field "$AU_JPICK" 30) e_sha=$(au_build_field "$AU_JPICK" 23)
-    [ -f "$AU_DATA/store/$m_sha" ] || parts="$file from Hugging Face ($repo)"
-    [ -f "$AU_DATA/store/$e_sha" ] || parts+="${parts:+, and }the engine $(au_build_field "$AU_JPICK" 20) from GitHub"
-    au_say "  Download    $(au_bytes "$AU_JDL")${parts:+: $parts}."
-  fi
-  for l in ${AU_JREMOVE[@]+"${AU_JREMOVE[@]}"}; do
-    au_split "$l"
-    n=$((n + 1))
-    [ "$n" != 1 ] || au_say "  Removed     To make room, these earlier builds are removed, and they stay removed if the download then fails:"
-    case "${AU_F[2]:-}" in
-      failed) au_say "              build ${AU_F[4]:-}, which failed its test here on ${AU_F[3]%%T*};" ;;
-      *) if [ "${AU_F[5]:-}" = yes ]; then
-           au_say "              build ${AU_F[4]:-}, kept since ${AU_F[3]%%T*}: the one before the build in use, so \`auster rollback\` could no longer go back to it;"
-         else au_say "              build ${AU_F[4]:-}, kept since ${AU_F[3]%%T*};"; fi ;;
-    esac
-  done
-  if [ "$AU_JK" = setting ]; then
-    au_say "  Switch      Nothing is fetched or tested: the server restarts once on the new setting, and does not answer for a few seconds."
-  elif [ "$AU_JWAY" = side-by-side ]; then
-    au_say "  Switch      This Mac can hold both builds at once: the new one is tested beside the one serving, which keeps answering"
-    au_say "              (a test that fails restarts it: a few seconds without answers). The server then restarts once on the new"
-    au_say "              build and does not answer for a few seconds, up to about 15 s when the model is read from disk."
-  else
-    au_say "  Switch      This Mac cannot hold both builds at once: the server does not answer while the new build is tested,"
-    au_say "              up to about 3 minutes, and then restarts on it."
+    if [ "$AU_JK" = build ]; then
+      au_say "  After       build $AU_JPICK${file:+ ($file)}, $AU_JP people at a time, each with a context of $(au_commas "$AU_JC") tokens,"
+    else
+      au_say "  After       the same build, $AU_JP people at a time, each with a context of $(au_commas "$AU_JC") tokens,"
+    fi
+    au_say "              holding $(au_memory "$AU_JALL") of this Mac's $(au_memory $((AU_JMEM / 1048576))) of memory, $(au_memory "$AU_JGPU") of it on the GPU."
+    if [ "$AU_MODE" = people ]; then au_say "  People      $AU_JP people at a time, as asked, in place of $AU_JP0."
+    elif [ "$AU_JP" = "$AU_JP0" ]; then au_say "  People      The household's number of people, $AU_JP, is kept."
+    else au_say "  People      The recipe now allows at most $AU_JP people at a time, so the household's $AU_JP0 is lowered to $AU_JP."; fi
+    if [ "$AU_JK" = setting ] && [ -n "$AU_RP" ]; then
+      au_say "  Download    Only the files of the build it serves named below: it is the build this Mac serves."
+    elif [ "$AU_JK" = setting ]; then
+      au_say "  Download    Nothing: it is the build this Mac serves, with its files already here."
+    else
+      m_sha=$(au_build_field "$AU_JPICK" 30) e_sha=$(au_build_field "$AU_JPICK" 23)
+      if [ -n "$AU_RP" ]; then   # what the repair fetches first is fetched once (D3.6, "When the run moves the recipe")
+        case " $AU_RP " in *" model "*) if [ "$m_sha" = "$AU_SV_MODEL" ]; then [ -f "$AU_DATA/store/$m_sha" ] || dl=$((dl - AU_SV_MODEL_SIZE)); m_sha=; fi ;; esac
+        case " $AU_RP " in *" engine "*) if [ "$e_sha" = "$AU_SV_ENGINE" ]; then [ -f "$AU_DATA/store/$e_sha" ] || dl=$((dl - AU_SV_ENGINE_SIZE)); e_sha=; fi ;; esac
+        [ "$dl" -ge 0 ] || dl=0
+      fi
+      if [ "$dl" = 0 ]; then
+        au_say "  Download    Nothing: the files it needs are already on this Mac."
+      else
+        [ -z "$m_sha" ] || [ -f "$AU_DATA/store/$m_sha" ] || parts="$file from Hugging Face ($repo)"
+        [ -z "$e_sha" ] || [ -f "$AU_DATA/store/$e_sha" ] || parts+="${parts:+, and }the engine $(au_build_field "$AU_JPICK" 20) from GitHub"
+        au_say "  Download    $(au_bytes "$dl")${parts:+: $parts}."
+      fi
+    fi
+    for l in ${AU_JREMOVE[@]+"${AU_JREMOVE[@]}"}; do
+      au_split "$l"
+      n=$((n + 1))
+      [ "$n" != 1 ] || au_say "  Removed     To make room, these earlier builds are removed, and they stay removed if the download then fails:"
+      case "${AU_F[2]:-}" in
+        failed) au_say "              build ${AU_F[4]:-}, which failed its test here on ${AU_F[3]%%T*};" ;;
+        *) if [ "${AU_F[5]:-}" = yes ]; then
+             au_say "              build ${AU_F[4]:-}, kept since ${AU_F[3]%%T*}: the one before the build in use, so \`auster rollback\` could no longer go back to it;"
+           else au_say "              build ${AU_F[4]:-}, kept since ${AU_F[3]%%T*};"; fi ;;
+      esac
+    done
+    [ -z "$AU_RP" ] || au_repair_lines first
+    if [ "$AU_JK" = setting ] && [ -n "$AU_RP" ]; then
+      au_say "  Switch      The server restarts once on the new setting, and does not answer for a few seconds."
+    elif [ "$AU_JK" = setting ]; then
+      au_say "  Switch      Nothing is fetched or tested: the server restarts once on the new setting, and does not answer for a few seconds."
+    elif [ "$AU_JWAY" = side-by-side ]; then
+      au_say "  Switch      This Mac can hold both builds at once: the new one is tested beside the one serving, which keeps answering"
+      au_say "              (a test that fails restarts it: a few seconds without answers). The server then restarts once on the new"
+      au_say "              build and does not answer for a few seconds, up to about 15 s when the model is read from disk."
+    else
+      au_say "  Switch      This Mac cannot hold both builds at once: the server does not answer while the new build is tested,"
+      au_say "              up to about 3 minutes, and then restarts on it."
+    fi
   fi
   [ "$AU_JWD" = - ] || au_say "  Withdrawn   The build it serves now has been withdrawn."
-  [ -z "$AU_JFAILED" ] || au_say "  Tried again Build $AU_JPICK failed its test on this Mac on $AU_JFAILED; it is tested again before it serves."
-  if [ "$AU_PROGRAMS_CHANGE" = 1 ]; then
+  [ "$AU_JK" != build ] || [ -z "$AU_JFAILED" ] || au_say "  Tried again Build $AU_JPICK failed its test on this Mac on $AU_JFAILED; it is tested again before it serves."
+  if [ "$AU_PROGRAMS_CHANGE" = 1 ] && [ -n "$AU_RP" ]; then
+    au_say "  Programs    Auster's own programs change too (${AU_FROM:+from $AU_FROM }to $AU_VERSION): they are put in place once the files"
+    au_say "              above are whole, before anything else is downloaded, and the server restarts once to check them."
+  elif [ "$AU_PROGRAMS_CHANGE" = 1 ]; then
     au_say "  Programs    Auster's own programs change too (${AU_FROM:+from $AU_FROM }to $AU_VERSION): they are put in place first, before"
     au_say "              anything is downloaded, and the server restarts once to check them."
+  elif { [ -e "$AU_DATA/jobs/previous" ] || [ -L "$AU_DATA/jobs/previous" ]; } && [ -n "$AU_RP" ]; then
+    au_say "  Programs    Auster's own programs were changed by an earlier update and never checked: the server restarts"
+    au_say "              once to check them, once the files above are whole."
   elif [ -e "$AU_DATA/jobs/previous" ] || [ -L "$AU_DATA/jobs/previous" ]; then
     au_say "  Programs    Auster's own programs were changed by an earlier update and never checked: the server restarts"
     au_say "              once to check them first."
@@ -1188,6 +1474,11 @@ au_update_question() { # -> 0 on a yes, 1 on a no (D3.6 step 2), for the recipe 
   if [ "$AU_MODE" = people ]; then
     au_yes "Change ${AU_JLABEL:-this recipe} to $AU_JP people at a time now?" && return 0
     au_say "Nothing was changed."
+    return 1
+  fi
+  if [ "$AU_JK" = repair ]; then
+    au_yes "Fetch the files of ${AU_JLABEL:-this recipe} again now?" && return 0
+    au_say "Nothing was changed: pasting the installer line again offers this again."
     return 1
   fi
   au_yes "Update ${AU_JLABEL:-this recipe} now?" && return 0
@@ -1209,33 +1500,46 @@ au_update_programs_question() { # -> 0 on a yes, 1 on a no: Auster's own program
   return 1
 }
 
-au_update_yes() { # [RECIPE] -> what follows a yes (B3 steps 6 to 13, D3.6), for the recipe au_update_judge judged a change,
-  # or with none for Auster's programs alone: the programs first (au_update_programs), then `mac` (au_update_mac), then a
-  # change of setting switched (au_switch_setting) or a change of build fetched, tested and switched (au_update_build). 0
-  # once all of that has passed; 1 when the recipe stopped (a change of build passed over after the yes, cut short in its
-  # download, or failing its test: it keeps serving its build), having said why. The run then goes on to the server
-  # check of every recipe that needs one and to step 15, and ends with exit 3 after a 1. Open or not answered end the run
-  # with exit 4 on the way
+au_update_yes() { # [RECIPE] -> what follows a yes (B3 steps 6 to 13, D3.6), for the recipe au_update_judge judged a
+  # change, or with none for Auster's programs alone: a repair of the build in use first, when it has one (au_repair,
+  # D3.6: the one thing before Auster's programs, BD18), then the programs (au_update_programs), then `mac`
+  # (au_update_mac), then a change of setting switched (au_switch_setting) or a change of build fetched, tested and
+  # switched (au_update_build); a repair alone (AU_JK repair) has nothing after `mac`. 0 once all of that has passed; 1
+  # when the recipe stopped (a change of build passed over after the yes, cut short in its download, or failing its
+  # test: it keeps serving its build), having said why. A repair that fails is a 1 with AU_RP_BAD set: nothing after it
+  # runs, and the run ends with au_repair_end. Otherwise the run then goes on to the server check of every recipe that
+  # needs one and to step 15, and ends with exit 3 after a 1. Open or not answered end the run with exit 4 on the way
+  if [ -n "$AU_RP" ] && [ -n "${1:-}" ] && ! au_repair "$1"; then AU_RP_BAD=1; return 1; fi
   au_update_programs
   au_update_mac
   [ -n "${1:-}" ] || return 0
   if [ "$AU_JK" = build ]; then au_update_build "$1"; return $?; fi
+  [ "$AU_JK" != repair ] || return 0
   au_switch_setting "$1"
 }
 
-au_update_build() { # RECIPE -> D3.6 step 3 for the build au_update_judge picked (AU_JPICK), after the yes and once Auster's
-  # programs and `mac` are done: room worked out again (section C, with the disk measured now); the earlier builds the
-  # disk rule names removed now that the room is needed, only if the question named each of them (so the one before the
-  # build in use goes only on the person's yes); then the first install's steps 7 to 9, which skip a file store/ holds by
-  # its sha256, ask the publisher, fetch from the address that names its commit with no login and the person's curl
-  # settings ignored, resume from that same address, check the size then the sha256, delete a mismatch, and keep the Mac
-  # awake during the model's download when `mac` says so (BD10); then the test in isolation and the switch (au_update_test,
-  # D3.6 steps 4 and 5). 0 once switched and checked; 1 when this recipe stops, having said why: its serving is the build
-  # it was, and the files fetched stay in store/, a cache the disk rule counts. A server check that fails ends the run (4)
-  local r=$1 pick=$AU_JPICK p=$AU_JP c=$AU_JC way=$AU_JWAY named=() l n ok
+au_update_build() { # RECIPE -> D3.6 step 3 for the build au_update_judge picked (AU_JPICK), after the yes and once
+  # Auster's programs and `mac` are done: room worked out again (section C, with the disk measured now); the earlier
+  # builds the disk rule names removed now that the room is needed, only if the question named each of them (so the one
+  # before the build in use goes only on the person's yes); then the first install's steps 7 to 9, which skip a file
+  # store/ holds by its sha256, ask the publisher, fetch from the address that names its commit with no login and the
+  # person's curl settings ignored, resume from that same address, check the size then the sha256, delete a mismatch,
+  # and keep the Mac awake during the model's download when `mac` says so (BD10); then the test in isolation and the
+  # switch (au_update_test, D3.6 steps 4 and 5). 0 once switched and checked; 1 when this recipe stops, having said why:
+  # its serving is the build it was, and the files fetched stay in store/, a cache the disk rule counts. A server check
+  # that fails ends the run (4). After a repair of the build in use (AU_RP_DONE), section C judges again with the disk
+  # as the repair left it: a move that no longer fits, or is no longer the one asked, stops here, and the repair's own
+  # check follows (D3.6, "When the run moves the recipe to another build")
+  local r=$1 pick=$AU_JPICK p=$AU_JP c=$AU_JC way=$AU_JWAY named=() l n ok jn
   named=(${AU_JREMOVE[@]+"${AU_JREMOVE[@]}"})
   au_update_disk
   au_update_judge "$r"
+  if [ "$AU_RP_DONE" = 1 ] && { [ "$AU_J" != change ] || [ "$AU_JK" != build ] || [ "$AU_JPICK" != "$pick" ] ||
+       [ "$AU_JP" != "$p" ] || [ "$AU_JC" != "$c" ]; }; then
+    jn="$(printf '%s' "${AU_JNAME:0:1}" | tr 'A-Z' 'a-z')${AU_JNAME:1}"
+    au_say "The build this Mac serves is whole again, but what this Mac can hold changed since the question: $jn is not moved, and keeps serving build $AU_JNOW."
+    return 1
+  fi
   if [ "$AU_J" != change ]; then
     au_say "$AU_J_SAY"
     return 1
@@ -1362,6 +1666,7 @@ au_update_test() { # RECIPE WAY -> D3.6 steps 4 and 5 for the build au_update_bu
   else
     au_engine_start || up=0
   fi
+  AU_RP_WAIT=   # the check below is a repair's too: the engine now runs on the files it put back (D3.6)
   if [ "$rc" = 0 ]; then
     if [ "$up" = 0 ]; then
       au_say "launchd did not start Auster's engine job, so the server was not checked. \`auster status\` says why."
@@ -1404,13 +1709,16 @@ au_update_remove() { # -> the earlier builds the disk rule named (AU_JREMOVE), r
   au_builds_remove "$keep" ${AU_JREMOVE[@]+"${AU_JREMOVE[@]}"}
 }
 
-au_update_programs() { # -> B3 step 6 after the yes (BD18, T94), once a run, before anything else changes or is fetched, on the
-  # build already serving. When Auster's own programs change: the new bin/auster answers `status` once from its temporary
-  # name, or nothing is renamed and the run ends with exit 3; the programs in use are copied into jobs/previous/, unless it
-  # exists (an earlier change never checked: nothing is copied over it); the new ones are put in place by rename. Then,
-  # and also when jobs/previous/ is there with the programs unchanged, the engine is restarted and the server checked
-  # (step 13): passed deletes jobs/previous/ and the update goes on; open and not answered end the run with exit 4,
-  # naming `auster rollback`, which puts the previous programs back. Nothing is put back by itself
+au_update_programs() { # -> B3 step 6 after the yes (BD18, T94), once a run, before anything else changes or is fetched,
+  # on the build already serving; only a repair of the build in use comes before it (au_repair, D3.6), so that its
+  # restart meets the files the build was tested with and a failure here is still the programs' alone. When Auster's own
+  # programs change: the new bin/auster answers `status` once from its temporary name, or nothing is renamed and the run
+  # ends with exit 3 (after a repair, saying that the files it put back stay whole); the programs in use are copied into
+  # jobs/previous/, unless it exists (an earlier change never checked: nothing is copied over it); the new ones are put
+  # in place by rename (AU_PROGRAMS_IN). Then, and also when jobs/previous/ is there with the programs unchanged, the
+  # engine is restarted and the server checked (step 13), which serve as a repair's too: passed deletes jobs/previous/
+  # and the update goes on; open and not answered end the run with exit 4, naming `auster rollback`, which puts the
+  # previous programs back. Nothing is put back by itself
   local p d t prev="$AU_DATA/jobs/previous" r
   [ "$AU_PROGRAMS_DONE" = 0 ] || return 0
   AU_PROGRAMS_DONE=1
@@ -1422,7 +1730,12 @@ au_update_programs() { # -> B3 step 6 after the yes (BD18, T94), once a run, bef
       { rm -f "$t"; au_stop "The new auster command could not be written, so none of Auster's programs was changed."; }
     if ! au_limited 60 "$AU_RUN/trial.out" /bin/bash "$t" status; then
       rm -f "$t"
-      au_say "The auster command of $AU_VERSION did not answer \`auster status\` on this Mac, so none of Auster's programs was changed, and nothing else was either."
+      if [ "$AU_RP_DONE" = 1 ]; then   # after a repair (D3.6): its files stay, and the next start takes them up
+        au_say "The auster command of $AU_VERSION did not answer \`auster status\` on this Mac, so none of Auster's programs was changed."
+        au_say "The files put back above stay whole; the server takes them up at its next start."
+      else
+        au_say "The auster command of $AU_VERSION did not answer \`auster status\` on this Mac, so none of Auster's programs was changed, and nothing else was either."
+      fi
       exit 3
     fi
     if [ ! -e "$prev" ] && [ ! -L "$prev" ]; then
@@ -1438,7 +1751,7 @@ au_update_programs() { # -> B3 step 6 after the yes (BD18, T94), once a run, bef
     else
       au_say "jobs/previous already holds the programs from before an earlier change that was never checked, so nothing is copied over it."
     fi
-    AU_CHANGED=1
+    AU_CHANGED=1 AU_PROGRAMS_IN=1
     mv -f "$t" "$AU_DATA/bin/auster" || au_stop "bin/auster could not be put in place. \`auster rollback\` puts the previous programs back."
     for p in $AU_PROGRAMS; do
       d=$(printf '%s' "$p" | cut -d: -f2)
@@ -1453,6 +1766,7 @@ au_update_programs() { # -> B3 step 6 after the yes (BD18, T94), once a run, bef
   else
     return 0
   fi
+  AU_RP_WAIT=   # this restart and check are a repair's too (D3.6, "Order against B3 step 6")
   if ! au_engine_start; then
     au_say "launchd did not start Auster's engine job, so the server was not checked. \`auster status\` says why."
     au_programs_failed
@@ -1508,6 +1822,7 @@ au_switch_setting() { # RECIPE -> D3.6, a change of setting, the update's and `a
   AU_CHANGED=1
   AU_CH_BUILD=$AU_JPICK AU_PEOPLE=$AU_JP AU_CONTEXT=$AU_JC AU_PORT=$AU_SV_PORT AU_LISTSHA=$AU_SV_LIST
   au_descriptor "$AU_DATA/builds/$r/serving" 0 || au_stop "The record of what serves (builds/$r/serving) could not be written."
+  AU_RP_WAIT=   # the switch's restart and check are a repair's too (D3.6, "No restart of its own")
   if ! au_engine_start; then
     au_say "launchd did not start Auster's engine job, so the server was not checked. \`auster status\` says why."
     au_say "Nothing switches back by itself: \`auster rollback\` goes back to what it served before, with no download."
@@ -1536,17 +1851,31 @@ au_switch_check() { # RECIPE -> the server check (B3 step 13) after a switch, of
   esac
 }
 
-au_update_check() { # B3 step 13 before step 15, on a run that changed nothing or after its changes passed: a recipe whose serving
-  # has a speed of 0 has not passed a server check since its switch (A5), and jobs/previous/ means that Auster's programs
-  # have not passed one since an update changed them (B3 step 6, T94); either way the engine is started again, as `auster
-  # start` starts it, and checked before step 15 writes the stamp. Passed goes on (and deletes jobs/previous/); open and
-  # not answered end the run with exit 4 and no stamp
-  local r need=() prev=0
+au_update_check() { # B3 step 13 before step 15, on a run that changed nothing or after its changes passed: a recipe
+  # whose serving has a speed of 0 has not passed a server check since its switch (A5), and jobs/previous/ means that
+  # Auster's programs have not passed one since an update changed them (B3 step 6, T94); a repair that completed with no
+  # restart after it (AU_RP_WAIT) has its check here (D3.6, "No restart of its own"); and a recipe whose engine job's
+  # last start is engine-hash, whose serving can be read and whose files all match (a repair is made otherwise, or with
+  # several recipes none is checked), is checked too, so that a second paste never ends 0 while the engine job refuses
+  # its files (D3.6). Each way the engine is started again, as `auster start` starts it, and checked before step 15
+  # writes the stamp. Passed goes on (and deletes jobs/previous/); open and not answered end the run with exit 4 and no
+  # stamp. A run whose repair was passed over or failed never comes here (au_repair_end)
+  local r need=() prev=0 why=speed
   if [ -e "$AU_DATA/jobs/previous" ] || [ -L "$AU_DATA/jobs/previous" ]; then prev=1; fi
-  for r in "${AU_URECIPES[@]}"; do au_serving_read "$r" && { [ "$AU_SV_SPEED" = 0 ] || [ "$prev" = 1 ]; } && need+=("$r"); done
+  for r in "${AU_URECIPES[@]}"; do
+    au_serving_read "$r" || continue
+    if [ "$AU_SV_SPEED" = 0 ] || [ "$prev" = 1 ]; then need+=("$r")
+    elif [ "$AU_RP_WAIT" = "$r" ]; then need+=("$r"); why=repair
+    elif au_start_read "$r" && [ "$AU_ST_CODE" = engine-hash ]; then need+=("$r"); [ "$why" = repair ] || why=hash
+    fi
+  done
   [ "${#need[@]}" -gt 0 ] || return 0
   if [ "$prev" = 1 ]; then
     au_say "Auster's own programs were changed by an earlier update whose server check never passed (jobs/previous holds the ones before), so the server is started again and checked on the home network before anything else..."
+  elif [ "$why" = repair ]; then
+    au_say "The files of the build this Mac serves are whole again, so the server is started again on them and checked on the home network..."
+  elif [ "$why" = hash ]; then
+    au_say "The engine job's last start found a file it checks changed (engine-hash), and every file of the build is whole now, so the server is started again and checked on the home network..."
   else
     au_say "The server has not passed a check since its build was last switched, so it is started again and checked on the home network..."
   fi
@@ -1555,6 +1884,7 @@ au_update_check() { # B3 step 13 before step 15, on a run that changed nothing o
     au_update_unfinished "${need[0]}"
     exit 4
   fi
+  AU_RP_WAIT=
   for r in "${need[@]}"; do
     au_server_check "$r" "$AU_T0"
     case "$AU_CHECK" in
@@ -1615,7 +1945,8 @@ au_update_known() { # -> after a run that wrote a new stamp on the release line:
 
 au_update() { # -> the update (D3.6; the comment above): exits. 0 done, or nothing needed changing; 1 refused or answered no,
   # and nothing changed; 3 a recipe passed over (before its question, at its download or before its test), a new build
-  # that failed its test, or a new bin/auster that does not answer `status`; 4 the server check failed
+  # that failed its test, a new bin/auster that does not answer `status`, or a repair of the build in use passed over or
+  # failed (au_repair_end); 4 the server check failed
   local s r no=0 short=0 asked=0 did=0
   AU_UPDATING=1   # a download that fails stops its recipe, not the run (au_fail)
   au_refuse_stopped || au_refuse   # B6: while builds/stopped exists, whatever it holds, the update refuses
@@ -1638,19 +1969,31 @@ au_update() { # -> the update (D3.6; the comment above): exits. 0 done, or nothi
   for r in "${AU_URECIPES[@]}"; do
     au_update_judge "$r"
     [ "$AU_J:$AU_JK" != change:build ] || au_update_ask
+    AU_RP=
+    [ "${#AU_URECIPES[@]}" != 1 ] || au_update_files "$r"   # one recipe at most has a repair (BD14): with several, none
+    if [ -n "$AU_RP" ]; then   # a repair, whatever else the run does with the recipe (D3.6, "A repair")
+      AU_RP_RECIPE=$r
+      case "$AU_J" in
+        ok|change) ;;
+        *) au_say "$AU_J_SAY"; [ "$AU_JMOVEOFF" = 0 ] || short=1 ;;   # it keeps serving its build: the question is the repair's
+      esac
+      if ! au_repair_ask "$r"; then au_say "$AU_RP_SAY"; AU_RP_BAD=1 short=1; continue; fi
+      [ "$AU_J" = change ] || AU_J=change AU_JK=repair
+    fi
     case "$AU_J" in
       ok|held) au_say "$AU_J_SAY" ;;
       change) asked=1; if au_update_question; then au_update_yes "$r" || short=1; did=1; else no=1; fi ;;
       *) au_say "$AU_J_SAY"; short=1 ;;
     esac
   done
-  if [ "$asked" = 0 ] && [ "$AU_PROGRAMS_CHANGE" = 1 ]; then
+  if [ "$asked" = 0 ] && [ "$AU_PROGRAMS_CHANGE" = 1 ] && [ "$AU_RP_BAD" = 0 ]; then
     if au_update_programs_question; then au_update_yes; did=1; else no=1; fi
   fi
   if [ "$no" = 1 ]; then
     if [ "$did" = 0 ]; then au_undo; exit 1; fi
     short=1   # another recipe's no: not everything was updated
   fi
+  [ "$AU_RP_BAD" = 0 ] || au_repair_end   # D3.6: no restart, no server check, no program changed and no step 15
   au_update_check
   [ "$AU_HAD_STAMP" = 1 ] || au_update_keys
   au_step15_stamp
@@ -1719,15 +2062,30 @@ au_people_judge() { # RECIPE -> AU_J: ok (its setting at AU_PEOPLE_N people is t
   AU_J=change AU_JK=setting
 }
 
-au_people() { # -> `auster people <n>` (B6, C4; T112), run by release's install.sh with `people <n>` and so from release's newest
-  # tree: the update's procedure for the build each recipe serves, at AU_PEOPLE_N people. This tree's registry gives the
-  # recipe's limits (1 to its default), and section C the largest context per person that fits (C4), for the build served
-  # only. A setting that would change goes to the question (au_update_question), and on a yes it is the update's switch
-  # (au_switch_setting), after the server check that jobs/previous/ calls for, made first as an update makes it
-  # (au_update_programs, which changes no program here). No other build is chosen, nothing is downloaded or tested, none
-  # of Auster's programs is changed, and no stamp and no `mac` are written, even when this tree is of a newer version
-  # (B6). Exits: 0 done, or nothing to
-  # change; 1 refused or answered no, and nothing changed; 3 a recipe not changed while another was; 4 the server check
+au_people_files() { # RECIPE -> D3.6, "auster people": it fetches nothing and repairs nothing, and before any restart it
+  # checks what the engine job checks at every start (B4 step 4): the engine's unpacked files against serving's list
+  # sha256, with llama-server executable (au_engine_whole), the template and the system prompt; never the model's hash.
+  # serving is read again. One that has changed makes the recipe refused (AU_J), naming the installer line, which
+  # fetches it again
+  local what=
+  au_serving_read "$1" || return 0
+  au_engine_whole "$AU_DATA/engines/$AU_SV_ENGINE" "$AU_SV_LIST" || what="the engine's files"
+  au_store_has "$AU_SV_TEMPLATE" || what+="${what:+, }the template"
+  au_store_has "$AU_SV_SYSTEM" || what+="${what:+, }the system prompt"
+  [ -n "$what" ] || return 0
+  AU_J=refused AU_J_SAY="A file of the build this Mac serves has changed ($what). Pasting the installer line again fetches it again."
+}
+
+au_people() { # -> `auster people <n>` (B6, C4; T112), run by release's install.sh with `people <n>` and so from
+  # release's newest tree: the update's procedure for the build each recipe serves, at AU_PEOPLE_N people. This tree's
+  # registry gives the recipe's limits (1 to its default), and section C the largest context per person that fits (C4),
+  # for the build served only. A setting that would change goes to the question (au_update_question), and on a yes it is
+  # the update's switch (au_switch_setting), after the server check that jobs/previous/ calls for, made first as an
+  # update makes it (au_update_programs, which changes no program here). No other build is chosen, nothing is downloaded
+  # or tested, none of Auster's programs is changed, and no stamp and no `mac` are written, even when this tree is of a
+  # newer version (B6). Nothing is repaired either: a change is refused before the question while a file the engine job
+  # checks at every start has changed (au_people_files, D3.6). Exits: 0 done, or nothing to change; 1 refused or
+  # answered no, and nothing changed; 3 a recipe not changed while another was; 4 the server check
   local s r no=0 short=0 did=0
   au_refuse_stopped || au_refuse
   AU_URECIPES=()
@@ -1741,6 +2099,7 @@ au_people() { # -> `auster people <n>` (B6, C4; T112), run by release's install.
   au_update_measure
   for r in "${AU_URECIPES[@]}"; do
     au_people_judge "$r"
+    [ "$AU_J" != change ] || au_people_files "$r"   # D3.6: before any restart, refused while a file it checks has changed
     case "$AU_J" in
       ok) au_say "$AU_J_SAY" ;;
       change) if au_update_question; then au_update_programs; au_switch_setting "$r"; did=1; else no=1; fi ;;

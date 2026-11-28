@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# a move while the programs change that leaves the build in use as it is: the repair is skipped when step 6 is to restart the engine
+/^au_update_yes() {/,/^}/s/^  if \[ -n "\$AU_RP" \] && \[ -n "\${1:-}" \] && ! au_repair "\$1"; then/  if [ -n "$AU_RP" ] \&\& [ -n "${1:-}" ] \&\& { [ "$AU_PROGRAMS_CHANGE" = 0 ] || [ "$AU_JK" != build ]; } \&\& ! au_repair "$1"; then/

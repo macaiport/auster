@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# run the isolated test on a repair: the build in use, its files put back, is tested as a candidate before its check
+/^au_repair() {/,/^}/s/^  AU_RP_DONE=1 AU_RP_WAIT=\$r$/  au_candidate_test 1 8192; &/

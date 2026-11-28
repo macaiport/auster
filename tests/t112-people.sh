@@ -8,7 +8,8 @@
 # rollback`, serving at the new setting with a speed of 0, the earlier setting kept, nothing in failed/; `auster rollback`
 # then goes back to two people with a speed of 0 until its check passes (watched while the check waits on an engine still
 # loading), writes no `hold` and nothing in failed/, and lists the three-person entry as never checked. More people than
-# the recipe's default, a no, a live lock and no installer from GitHub each change nothing.
+# the recipe's default, a no, a live lock and no installer from GitHub each change nothing. (Its refusal while a file the
+# engine job checks has changed is T118 (xiv), tests/t118-repair-refusals.sh.)
 # Mutants: tests/mutants/T112a (run the test), T112b (rewrite serving in place), T112c (skip the server check), T112d
 # (hold the build itself on that rollback), T112e (change the build), T112f (write the stamp).
 . "$TESTS/lib.sh"

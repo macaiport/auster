@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# check the server after a repair passed over while the engine job's last start is engine-hash
+/^au_update() {/,/^}/s/^  \[ "\$AU_RP_BAD" = 0 \] || au_repair_end   # .*$/  [ "$AU_RP_BAD" = 0 ] || { au_start_read "$AU_RP_RECIPE" \&\& [ "$AU_ST_CODE" = engine-hash ] \&\& au_update_check; au_repair_end; }/

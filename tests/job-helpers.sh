@@ -18,7 +18,9 @@
 #   probe_field KEY [N] field N (default 1) of the line KEY in _update/engine
 #   speed_set SPEED     serving's launch line with that speed
 #   serving_put BUILD MODEL PEOPLE CONTEXT [SPEED]  builds/<recipe>/serving for that build, its lines from
-#                       the fixture registry, the installed engine's list, and its template put in store/
+#                       the fixture registry, the installed engine's list, and its template and model (a stand-in, A or B)
+#                       put in store/ when it lacks them, so that the build in use is whole (an update checks every file of
+#                       it, D3.6, U6's third part)
 #   notes / last_note   how many notifications the stub notifier has had / the sentence of the last one
 # and for the notification of an update waiting (U7: T5's, T19's and T35's notification clauses, T20, T37):
 #   release_says VERSION   release's CHANGELOG.md names VERSION (of 2026-12-01) and its registry.tsv is install_registry's
@@ -120,7 +122,7 @@ speed_set() {
 }
 
 serving_put() {
-  local s="$DATA/builds/$IR/serving" bl el ml list tsha f
+  local s="$DATA/builds/$IR/serving" bl el ml list tsha f msha
   bl=$(grep "^build	$1	" "$FX/registry.tsv"); el=$(grep "^engine	$IE	" "$FX/registry.tsv"); ml=$(grep "^model	$2	" "$FX/registry.tsv")
   list=$(sed -n 5p "$W/pristine/builds/$IR/serving" | cut -f5)
   tsha=$(printf '%s\n' "$bl" | cut -f5)
@@ -129,6 +131,9 @@ serving_put() {
       [ "$(shasum -a 256 < "$f" | cut -c1-64)" = "$tsha" ] && { cp "$f" "$DATA/store/$tsha"; chmod 444 "$DATA/store/$tsha"; }
     done
   fi
+  msha=$(printf '%s\n' "$ml" | cut -f7)
+  case "$2" in "$IMA") f=standin-a.gguf ;; "$IMB") f=standin-b.gguf ;; *) f= ;; esac
+  if [ -n "$f" ] && [ ! -e "$DATA/store/$msha" ]; then cp "$FX/models/$f" "$DATA/store/$msha"; chmod 444 "$DATA/store/$msha"; fi
   printf 'auster-descriptor 1\n%s\n%s\n%s\nlaunch\t%s\t%s\t8484\t%s\t%s\n' "$bl" "$el" "$ml" "$3" "$4" "$list" "${5:-36.9}" > "$s"
 }
 

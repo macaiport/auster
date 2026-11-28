@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# `auster people` restarting with a changed template: it checks no file before its switch
+/^au_people() {/,/^}/s/^    \[ "\$AU_J" != change \] || au_people_files "\$r"   # .*$/    :/

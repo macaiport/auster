@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# judge the move's room once, before the repair, and move whatever the disk then holds: no judge again after the yes
+/^au_update_build() {/,/^}/s/^  au_update_judge "\$r"$/  :/

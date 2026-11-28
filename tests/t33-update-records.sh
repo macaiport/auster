@@ -6,7 +6,8 @@
 # (release at v0.4.0), the stamp names v0.4.0 and its commit, serving names order 1 with the speed the server check
 # measured, and kept/ holds order 2's descriptor byte for byte, named by the date and the build. Killed between the
 # switch's two writes (a stand-in mv that kills the update at the second of them): the old build still has a descriptor,
-# kept/'s copy of it, and serving is still order 2's.
+# kept/'s copy of it, and serving is still order 2's. (A repair of the build in use passed over, declined or failed has no
+# step 15 at all: tests/t118-repair-*.sh, U6's third part.)
 # Mutants: tests/mutants/T33b (replace serving before copying the old descriptor to kept/), T33c (an update writes kept/
 # and serving before the test; T33a is the install's).
 . "$TESTS/lib.sh"

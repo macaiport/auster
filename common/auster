@@ -27,6 +27,9 @@
 # U6, its second part (2026-11-27): `cleanup`, the disk rule's removals at the household's asking (D3.6 step 6, C6); the
 # disk holdings (au_holdings) and the removal of what the disk rule names (au_builds_remove), which the driver's update
 # now shares; and `status`'s sentence for a start stopped by a changed file (T17, T26's cleanup half, T30, T34, T45).
+# U6, its third part (2026-11-28): `verify`'s closing words and `status`'s sentence after engine-hash say that pasting the
+# installer line again fetches a changed file again, which the driver now does (D3.6, "A changed file of the build in use is
+# fetched again"; T34, T117).
 # Still to come, each marked TODO below: U8  the words of each withdrawal's reason in `status` and `rollback`.
 #
 # The readers (D3.1, Reading). Each checks the format first, from the first field of the first 4,096 bytes
@@ -1000,8 +1003,7 @@ au_cmd_verify() { # -> AD13: every file serving names, against its sha256: the m
   if [ "$out" = "$AU_SV_LIST" ]; then au_say "  same      the engine's unpacked files"
   else au_say "  CHANGED   the engine's unpacked files (engines/$AU_SV_ENGINE)"; bad=1; fi
   if [ "$bad" = 0 ]; then au_say "Every file is the one the registry names."; return 0; fi
-  au_say "A file has changed since it was checked. Pasting the installer line does not fetch again a file of the build this Mac serves:"
-  au_say "removing Auster with all its files (\`auster remove\`) and then pasting the line installs it afresh, with new keys for the devices."
+  au_say "A file has changed since it was checked. Pasting the installer line again fetches it again, and keeps the devices' keys."
   return 1
 }
 
@@ -1955,7 +1957,7 @@ au_status() { # -> B6: what serves, the engine job's last start, why the engine 
     esac
     au_start_read "$r" && au_say "The engine job's last start: $AU_ST_CODE."
     if [ "$AU_ST_CODE" = engine-hash ]; then   # B4 step 4, AD13 (T34)
-      au_say "So it did not start the engine: a file it checks at every start (the engine's files, the template or the system prompt) has changed, or the record of what serves cannot be read. \`auster verify\` says which file."
+      au_say "So it did not start the engine: a file it checks at every start (the engine's files, the template or the system prompt) has changed, or the record of what serves cannot be read. \`auster verify\` says which file, and pasting the installer line again fetches it again."
     fi
   done
   if [ -e "$AU_DATA/jobs/previous" ] || [ -L "$AU_DATA/jobs/previous" ]; then   # B3 step 6, T94

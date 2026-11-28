@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# au_update_check ignores the engine job's start code: a run whose files all match checks nothing while the engine job refuses them
+/^au_update_check() {/,/^}/s/^    elif au_start_read "\$r" && \[ "\$AU_ST_CODE" = engine-hash \]; then .*$/    elif false; then :/
