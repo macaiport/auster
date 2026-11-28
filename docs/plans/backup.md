@@ -1,5 +1,14 @@
 # Keep the model and the engine out of Time Machine
 
+> **🔧 As-built (2026-11-28):** built, commit `44570a4`, merged in `fc4b8d9` (`common/driver.sh`:
+> `au_step3_root`, `au_tm_said`, `au_facts`; `tests/stubs/tmutil`; T135 with mutants a to g). Deviations: the
+> Backups line sits after Firewall and Laptop; section 5's size is the model plus the archive, as section 4's
+> is; T135 also covers a newer-record refusal and the failure sentence at a second paste and `people`; at an
+> update the failure sentence is said straight after step 3, before the update's own refusals; CHANGELOG is
+> left for v0.1.0's section. Still open: exit criterion 3, `tmutil isexcluded` on the real data root after
+> the update that brings it. Verify against: `common/driver.sh`, `tests/t135-time-machine.sh`,
+> `tests/stubs/tmutil`.
+>
 > **Status: planned, 2026-11-28; check-it'd 2026-11-28 — build-ready-with-fixes (pass 1), fixes folded.** Asked for by the owner on 2026-11-28 ("do both and check
 > them"), after `docs/conventions.md` found that Auster does not follow Apple's convention that data which
 > can be downloaded again is kept out of backups. For v0.1.0: testers' Macs should not back up 14 to 44 GB
@@ -117,7 +126,7 @@ the log and the failing case, not for safety.) The file is `tests/t135-<name>.sh
 
 ## 8. Exit criteria
 
-1. BK1 to BK3 decided by the owner.
+1. BK1 to BK3 decided by the owner (asked for on 2026-11-28: "do both"; taken as the recommendations).
 2. T135 passes, its mutants are seen red (`tests/run.sh --mutants 135`), and the whole suite is green.
 3. On the development Mac, after the update that brings it: `tmutil isexcluded` says `[Excluded]` for the
    real data root's `store/` and `engines/`, and `[Included]` for `keys/` and `builds/`.
