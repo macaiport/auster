@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# `people` takes the choice's figures unmatched into its question, as before the second pass
+/^au_people_judge() {/,/^}/s/^  if ! \[\[ \$AU_JPICK =~ \$AU_RE_BUILD \]\] || ! au_choice_whole .*; then .*$/  if false; then/

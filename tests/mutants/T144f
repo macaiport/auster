@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# the update takes the choice's figures unmatched into its question, as before the second pass
+/^au_update_judge() {/,/^}/s/^  if \[ "\${#cf\[@\]}" -ge 8 \] && ! au_choice_whole /  if false \&\& ! au_choice_whole /

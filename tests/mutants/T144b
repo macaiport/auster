@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# the room refusal names capability.js's figures unmatched, as before the second pass
+/^au_refusal() {/,/^}/s/^      if au_whole "\$AU_FREE" "\${AU_F\[2\]:-}" "\${AU_F\[3\]:-}"; then$/      if :; then/

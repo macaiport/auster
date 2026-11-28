@@ -38,7 +38,9 @@
 # interruption included (au_tmp; T136, T137); curl's numbers in plain words (au_fetch_said; T138, T139); every value from a
 # program matched before a sentence names it, the account's short name among them, and the rule file's own sentences
 # never printed (au_update_why; T140, T141); `status`'s record codes, its serving line, the time the engine was stopped, and
-# `remove`'s sizes, each in the plain form section 2 gives (au_start_words, au_probe_words; T142).
+# `remove`'s sizes, each in the plain form section 2 gives (au_start_words, au_probe_words; T142). Its second pass
+# (2026-11-28): the server check's reason when it is not answered says the engine job's last start in a fixed sentence
+# for each code au_start_read matches, the code after it in parentheses, as `status` does, never the code alone (T143).
 # Still to come, each marked TODO below: U8  the words of each withdrawal's reason in `status` and `rollback`.
 #
 # The readers (D3.1, Reading). Each checks the format first, from the first field of the first 4,096 bytes
@@ -823,7 +825,15 @@ au_server_check() { # RECIPE T0 [KEYFILE] -> AU_CHECK: passed, open or unanswere
   if [ -z "$AU_CHECK_SPEED" ]; then
     au_tmp_drop "$w"
     if au_start_read "$r" && [ "$AU_ST_TIME" -ge "$t0" ]; then
-      AU_CHECK_WHY="the engine job's last start says $AU_ST_CODE"
+      # A code au_start_read matched, in a fixed sentence for each, the code itself after it in parentheses, as
+      # au_start_words says it in `status` (docs/conventions.md section 2; T143)
+      case "$AU_ST_CODE" in
+        starting) AU_CHECK_WHY="the engine job started the engine, but the engine did not answer the recipe's question (starting)" ;;
+        keys) AU_CHECK_WHY="the engine's key file (keys/engine.keys) holds no key it can use, so the engine job did not start the engine (keys)" ;;
+        engine-hash) AU_CHECK_WHY="a check the engine job makes at every start failed, so it did not start the engine (engine-hash)" ;;
+        not-home) AU_CHECK_WHY="this Mac is not on the home network Auster was installed on, so the engine job did not start the engine (not-home)" ;;
+        no-network) AU_CHECK_WHY="this Mac had no network connection, so the engine job did not start the engine (no-network)" ;;
+      esac
     else
       AU_CHECK_WHY="the engine job has not run since this run started it"
     fi

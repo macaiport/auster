@@ -30,14 +30,14 @@ same "$RC" 1 "an update answered no: exit 1"
 kept "answered no"
 AU_SERVER_CHECK_SECS=4 update_run $'yes\n'
 same "$RC" 4 "an update answered yes to a change of build, behind another router: exit 4, the engine off its home network"
-says "the engine job's last start says not-home" "  ...the switch's server check: the engine job says not-home"
+says "this Mac is not on the home network Auster was installed on, so the engine job did not start the engine (not-home)." "  ...the switch's server check: the engine job says not-home, in words"
 same "$(sed -n 6,7p "$DATA/builds/mac")" "$(printf '%s\n' "$mac" | sed -n 6,7p)" "  ...builds/mac's router and keep-awake those of the install"
 same "$(cat "$DATA/builds/local-name")" "$name" "  ...builds/local-name as it was"
 [ -f "$DATA/store/$SA" ] || cp "$W/pristine/store/$SA" "$DATA/store/$SA"   # the yes above fetched it
 serving_put "$IB1" "$IMA" 4 16384 36.9
 AU_GPU_MIB=50000 AU_SERVER_CHECK_SECS=4 update_run $'yes\n'
 same "$RC" 4 "a change of setting answered yes, behind another router: exit 4, the engine off its home network"
-says "the engine job's last start says not-home" "  ...the engine job says not-home"
+says "this Mac is not on the home network Auster was installed on, so the engine job did not start the engine (not-home)." "  ...the engine job says not-home, in words"
 same "$(sed -n 2p "$DATA/builds/mac")" "gpu-mib	50000" "  ...builds/mac written with the GPU limit this run measured"
 same "$(sed -n 6,7p "$DATA/builds/mac")" "$(printf '%s\n' "$mac" | sed -n 6,7p)" "  ...and the router and keep-awake of the install"
 same "$(cat "$DATA/builds/local-name")" "$name" "  ...builds/local-name as it was"

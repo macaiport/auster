@@ -1,0 +1,3 @@
+# file: common/auster
+# the sentence for keys loses its code in parentheses
+/^au_server_check() {/,/^}/s/ so the engine job did not start the engine (keys)" ;;$/ so the engine job did not start the engine" ;;/

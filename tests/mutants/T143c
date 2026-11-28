@@ -1,0 +1,3 @@
+# file: common/auster
+# no sentence for engine-hash: the reason is left empty
+/^au_server_check() {/,/^}/{/^        engine-hash) AU_CHECK_WHY=/d;}
