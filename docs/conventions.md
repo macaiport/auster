@@ -65,8 +65,13 @@ How Auster speaks to a person, in Terminal, in a notification, in an alert or in
   never as 000, which curl gives when there was no answer. curl's exit code is never shown. It is put into
   words: the address could not be found, the connection was cut, it did not answer in time
   (`au_fetch_said`, `install.sh`'s `auster_install_unreached`, the update's `.command` file; T138, T139).
-- **Record codes** in `auster status` come at the end of a fixed sentence, in parentheses, so that they can
-  be looked up: "it started the engine (starting)" (`au_start_words`, `au_probe_words`; T142).
+- **Record codes** come at the end of a fixed sentence, in parentheses, so that they can be looked up, and
+  never alone: "it started the engine (starting)". `auster status`'s start and probe lines, and the server
+  check's reason when it is not answered (`au_start_words`, `au_probe_words`, `au_server_check`; T142, T143).
+- **Figures a program prints,** capability.js's among them, are matched as whole numbers before a sentence
+  names them or bash's arithmetic takes them, since arithmetic on a value that is no number runs what it
+  holds (`a[$(...)]`). One that does not match gets a sentence that names no figure (`au_whole`,
+  `au_choice_whole` in `common/driver.sh`; T144).
 - **Times** read `2026-11-28 14:05:09 UTC` (`au_tried_when`, and the time the engine was stopped).
 - **Say what happened, then the way on:** which command, or "pasting the installer line again". Name the
   way back when there is one, and only when it would work (`docs/plans/v0.1.md` D3.6, "The words after it").
@@ -98,4 +103,4 @@ icon come under this repository's MIT licence.
 | Date | Pass | Lenses | Method | Models | Read against | Verdict |
 |---|---|---|---|---|---|---|
 | 2026-11-28 | 1, the whole page | accuracy: every path, mode, label, citation and rule against the code and plans; Apple's conventions against Apple's own pages | one agent | Opus; fold by Opus 5.5 | Auster `99e5065` | accurate-with-fixes; folded: Apple's Application Support convention (by bundle identifier, so Auster differs), `local.` (not Apple's form), `~/Applications` written only when the person directs it, the link rule, where the home address appears, sources and modes corrected |
-| 2026-11-28 | 2, the code against sections 1 and 2 | an audit of every sentence a person sees and every write outside the data root | one agent | Opus | Auster `277307b` | consistent-with-fixes: the faults (a device key left in `$TMPDIR` by an interrupted server check, numbers without commas, unmatched values, missing traps) go to the code; the deliberate cases are now listed here (launchd's record, the LaunchAgents folder, the hidden files beside a target, every temporary folder, logs, names found in the data root). The faults were fixed in `9e31e2e` (merged `aa11fe6`; T136 to T142), and the rules that fix made are now in section 2 (a program's own sentences, curl's numbers, record codes, times). Three of the same kind were left for a further fix: the server check's unanswered reason names the start code raw, capability.js's figures reach `au_refusal` and `au_facts` unmatched, and no test reaches an unreadable `e_mac` |
+| 2026-11-28 | 2, the code against sections 1 and 2 | an audit of every sentence a person sees and every write outside the data root | one agent | Opus | Auster `277307b` | consistent-with-fixes: the faults (a device key left in `$TMPDIR` by an interrupted server check, numbers without commas, unmatched values, missing traps) go to the code; the deliberate cases are now listed here (launchd's record, the LaunchAgents folder, the hidden files beside a target, every temporary folder, logs, names found in the data root). The faults were fixed in `9e31e2e` (merged `aa11fe6`; T136 to T142), and the rules that fix made are now in section 2 (a program's own sentences, curl's numbers, record codes, times). Three of the same kind were left for a second pass, `5fd8c23` (merged `87238d9`): the server check's unanswered reason now says each start code in words (T143); capability.js's figures are matched in `au_refusal`, `au_facts`, step 5 and the choices of an update and of `people` (T144); an unreadable `e_mac` cannot be reached through registry.js, which prints only 0 to 99, so it stays untested |

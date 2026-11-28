@@ -1594,7 +1594,7 @@ au_update_question() { # -> 0 on a yes, 1 on a no (D3.6 step 2), for the recipe 
 
 au_update_programs_question() { # -> 0 on a yes, 1 on a no: Auster's own programs change and no recipe does (B3 step 6)
   au_say ""
-  au_say "Auster's own programs change (${AU_FROM:+from $AU_FROM }to $AU_VERSION), and every recipe on this Mac serves what it should."
+  au_say "Auster's own programs change (${AU_FROM:+from $AU_FROM }to $AU_VERSION), and no recipe on this Mac changes."
   au_say "  Programs    They are put in place, and the server restarts once to check them: a few seconds without answers."
   au_say ""
   au_yes "Update Auster's programs now?" && return 0

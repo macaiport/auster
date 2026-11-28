@@ -48,7 +48,7 @@ cp "$W/pristine/builds/$IR/serving" "$DATA/builds/$IR/serving"
 before=$(data_snap)
 update_run $'no\n'
 same "$RC" 1 "the programs alone change, answered no: exit 1"
-says "Auster's own programs change (from v0.1.0 to v0.2.0), and every recipe on this Mac serves what it should." "  ...the question is about the programs"
+says "Auster's own programs change (from v0.1.0 to v0.2.0), and no recipe on this Mac changes." "  ...the question is about the programs"
 says "The recipe household: OK." "  ...after the recipe's OK"
 same "$(data_snap)" "$before" "  ...and the no changed nothing: no program, no stamp"
 done_
