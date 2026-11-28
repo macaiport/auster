@@ -52,6 +52,13 @@ Side tracks, not phases: the name checks and funding. Their notes are kept priva
 
 **Current phase:** 2, building: V1 to V8 and U1 to U7 done, U6's third part next. Phase 1's last items need the owner, and so do three of phase 2's first-step checks ([docs/phase-2.md](docs/phase-2.md)). The household recipe's model is chosen: Mistral Small 4, then Magistral Small (plan A6)
 
+**First beta (owner, 2026-11-28):** installable well before 2026-12-17, for a few testers. It is
+**v0.1.0**, with "beta" said in the README and on auster.build; fixes go out as v0.1.1 and up, through the
+built-in update. In order: a real install from zero on the Studio (begun 2026-11-28); U6's third part; U9
+and the first `release` branch and tag (public, on the owner's word); the D12 checks at the Mac; U8 as
+v0.1.1, taken by the Studio as the first real update; auster.build's how-to. A tester's Mac, by section C:
+Apple Silicon with 32 GB or more (24 GB is refused), on macOS 27 (BD15).
+
 **Next:**
 1. Phase 1's last items: the restart tests for AD15 (they need the owner at the Mac and an administrator),
    and two devices at once with one key revoked.
