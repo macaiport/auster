@@ -1,0 +1,3 @@
+# file: common/auster
+# status prints the check job's probe result alone, as before the audit
+s/^  if au_probe_read; then au_probe_words "\$AU_PR_RESULT" "\$AU_PR_SPEED"; fi$/  if au_probe_read; then au_say "The check job's last probe: $AU_PR_RESULT."; fi/

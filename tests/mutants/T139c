@@ -1,0 +1,3 @@
+# file: common/auster
+# the open server check's reason in the old words, the code as it came
+s/AU_CHECK_WHY="it did not refuse a request that carried no key (\$(au_fetch_said "\$rc" "\$code"))"/AU_CHECK_WHY="it did not refuse a request that carried no key (it gave ${code:-no answer})"/

@@ -1,0 +1,3 @@
+# file: common/auster
+# status prints the context raw and without tokens, as before the audit
+s/for \$AU_SV_PEOPLE people at a time, each with a context of \$(au_commas "\$AU_SV_CONTEXT") tokens, on port/for $AU_SV_PEOPLE people at $AU_SV_CONTEXT each, on port/

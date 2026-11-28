@@ -15,9 +15,11 @@
 #             hang          nothing, ever, whatever --max-time says: only a kill ends it
 #             A,B,C         the first call gets A, the second B, and so on; the last one repeats
 #   BODYFILE  a file, relative to STUB_CURL_DIR unless absolute, or - for an empty body
-#   HEADER    a response header, "Name: value". Two directives are not sent:
+#   HEADER    a response header, "Name: value". Three directives are not sent:
 #             "X-Stub-No-Ranges: 1"            the server ignores ranges (a resume then exits 33)
 #             "X-Stub-Ignore-Max-Filesize: 1"  the body is delivered past --max-filesize, exit 0
+#             "X-Stub-Code: TEXT"              -w gives TEXT for %{http_code}, as no real curl does: for a
+#                                              caller that must match the code before it says it (T138, T139)
 #
 # Engine addresses: http://HOST:PORT/... where STUB_ENGINE_DIR/ports/PORT is registered is answered
 # by that stub engine (tests/stubs/llama-server --stub-answer), not by the routes: refused (exit 7)
@@ -224,7 +226,7 @@ proto_ok() { # scheme, is-redirect
 }
 
 # --- results
-code=000 size=0 nredir=0 final_url=$url redirect_url= ctype=
+code=000 size=0 nredir=0 final_url=$url redirect_url= ctype= stubcode=
 msg() { if [ "$silent" = 0 ] || [ "$showerr" = 1 ]; then printf 'curl: (%s) %s\n' "$1" "$2" >&2; fi; }
 
 write_out() {
@@ -237,7 +239,7 @@ write_out() {
       '%{'*'}'*)
         nm=${f#%\{}; nm=${nm%%\}*}; f=${f#*\}}
         case "$nm" in
-          http_code|response_code) v=$code ;; size_download) v=$size ;; url_effective) v=$final_url ;;
+          http_code|response_code) v=${stubcode:-$code} ;; size_download) v=$size ;; url_effective) v=$final_url ;;
           redirect_url) v=$redirect_url ;; num_redirects) v=$nredir ;; content_type) v=$ctype ;;
           exitcode) v=$1 ;;
           *) stub_untold "-w %{$nm} is not understood by the stub" ;;
@@ -421,6 +423,7 @@ while :; do
   # an HTTP answer
   code=$r_status
   directives=$(printf '%s' "$r_headers" | grep -i '^X-Stub-' || true)
+  stubcode=$(printf '%s\n' "$directives" | sed -n 's/^[Xx]-[Ss]tub-[Cc]ode: *//p' | head -n 1 | tr -d '\r')
   sent_headers=$(printf '%s' "$r_headers" | grep -v -i '^X-Stub-' | grep -v '^$' || true)
   bsize=$(file_size "$r_body")
   slice="$r_body"; crange=

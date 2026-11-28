@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# the update names what sw_vers gave, matched as nothing, as before the audit
+s/and this Mac has a version of macOS that cannot be read\. \$keep"/and this Mac has macOS ${v:-of a version that cannot be read}. $keep"/

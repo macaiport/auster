@@ -1,0 +1,3 @@
+# file: common/auster
+# au_fetch_said takes whatever curl gave for the code, matched as nothing
+/^au_fetch_said()/,/^}/{/^  \[\[ \$code =~/d;}

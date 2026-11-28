@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# the refusal prints capability.js's code for a report with no MTL0 as it came, as before the audit
+s/^            no-mtl0) say=": it names no GPU (MTL0)" ;;$/            no-mtl0) say=" (no-mtl0)" ;;/

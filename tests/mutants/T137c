@@ -1,0 +1,3 @@
+# file: common/updates.sh
+# run as a program, the rule file sets no EXIT trap for the folder where it judges the recipes, as before the audit
+/^    \[ "\${_AUU_MAIN:-0}" != 1 \] || trap '\[ -z "\$_AUU_TMP" \]/d

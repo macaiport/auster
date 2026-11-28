@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# the driver's cleanup deletes its own run folder only, not the server check's
+/^au_cleanup()/,/^}/{/^  au_tmp_clean/d;}

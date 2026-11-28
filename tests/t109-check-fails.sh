@@ -78,6 +78,6 @@ says "The device keys are made but not shown" "  ...the keys made but not shown"
 same "$(wc -c < "$W/screen" | tr -d ' ')" 0 "  ...no QR code drawn"
 [ -e "$DATA/_update/scripts" ] && bad "  ...a stamp was written" || ok "  ...no stamp"
 auster status
-outsays "The engine job's last start: starting." "  ...auster status gives the engine job's start code"
+outsays "The engine job's last start: it started the engine (starting)." "  ...auster status gives the engine job's start code"
 engine_set 'port=8484' behaviour ok
 done_

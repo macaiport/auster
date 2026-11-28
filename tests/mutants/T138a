@@ -1,0 +1,3 @@
+# file: install.sh
+# the installer says whatever curl gave for the code, matched as nothing
+/^auster_install_unreached()/,/^}/{/^  \[\[ \$code =~/d;}

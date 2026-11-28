@@ -53,6 +53,10 @@
 # it. A repair passed over, declined or failed restarts nothing, checks nothing, changes no program and ends the run
 # with no step 15 (au_repair_end). A second paste checks the server while the engine job's last start is engine-hash;
 # `auster people` refuses while a file the engine job checks has changed (T117, T118; T33, T94 and T112 point there).
+# The conventions' audit (2026-11-28, docs/conventions.md sections 1 and 2): au_cleanup also deletes the server check's
+# folder, which holds a household key (common/auster's au_tmp; T136); curl's numbers in plain words (au_fetch_said, and the
+# publisher's code matched; T138, T139); macOS's version, the engine's oldest macOS, section C's codes and the name of a folder
+# in builds/ each matched or put in fixed words before a sentence names them (T102, T140, T141).
 #
 # builds/paused (D3.1, B4 step 1): one line, `auster-record 1`, the process, the boot session and the process's start time,
 # as the lock names this run; written by rename just before an update in turn stops the engine for its test, and removed
@@ -150,6 +154,7 @@ au_cleanup() {
   au_paused_release
   au_lock_release
   rm -rf "$AU_RUN"
+  au_tmp_clean   # the server check's folder, which holds a household key (common/auster's au_tmp; T136)
 }
 
 au_made() { AU_CREATED+=("$1"); }
@@ -226,11 +231,13 @@ au_raw() { # BUILD KIND -> that registry line, byte for byte (A5), without its n
   return 1
 }
 
-au_bd14() { # -> refuses when the Mac already serves another recipe (BD14), before anything is written
+au_bd14() { # -> refuses when the Mac already serves another recipe (BD14), before anything is written. A folder whose
+  # name is not a recipe id (AU_RE_RECIPE, as au_recipe_pick matches it) serves no recipe, and is never named (T140)
   local s r
   for s in "$AU_HOME_DATA"/builds/r*/serving; do
     [ -e "$s" ] || [ -L "$s" ] || continue
     r=${s%/serving}; r=${r##*/}
+    [[ $r =~ $AU_RE_RECIPE ]] || continue
     [ "$r" = "$AU_RECIPE" ] && continue
     au_refuse "This Mac already serves another recipe ($r), and this version of Auster serves one recipe on a Mac." \
       "Nothing was changed. To serve this one instead, remove Auster first: \"$AU_HOME_DATA/bin/auster\" remove"
@@ -376,8 +383,12 @@ au_step4_measure() {
   e_nb=$(au_build_field "$first" 20); e_file=$(au_build_field "$first" 21)
   e_size=$(au_build_field "$first" 22); e_sha=$(au_build_field "$first" 23); e_mac=$(au_build_field "$first" 24)
   AU_MACOS=$(sw_vers -productVersion 2>/dev/null)
+  [[ $AU_MACOS =~ $AU_RE_MACOS ]] ||   # matched whole before a sentence names it, as install.sh does (T140)
+    au_refuse "Auster cannot tell which version of macOS this Mac has, so nothing was installed."
+  [[ $e_mac =~ ^[1-9]?[0-9]$ ]] ||
+    au_refuse "The registry of this version does not say which macOS the recipe's engine needs, so nothing was installed."
   major=${AU_MACOS%%.*}
-  [[ $major =~ ^[1-9][0-9]?$ ]] && [ "$major" -ge "$e_mac" ] ||
+  [ "$major" -ge "$e_mac" ] ||
     au_refuse "This Mac has macOS $AU_MACOS; the engine this recipe uses needs macOS $e_mac or later, so nothing was installed."
   AU_MEASURED_ENGINE=$e_sha
   dir="$AU_DATA/engines/$e_sha"
@@ -390,7 +401,7 @@ au_step4_measure() {
     au_fetch "$AU_ENGINE_HOST/$e_nb/$e_file" "$AU_RUN/engine.archive" "$e_size"; got=$?
     secs=$(( $(date +%s) - secs ))
     [ "$got" = 0 ] && [ "$AU_CODE" = 200 ] ||
-      au_refuse "The engine could not be fetched from GitHub (curl exit $got, answer ${AU_CODE:-none}). Check the network, then paste the line again."
+      au_refuse "The engine could not be fetched from GitHub ($(au_fetch_said "$got" "$AU_CODE")). Check the network, then paste the line again."
     [ "$(au_size "$AU_RUN/engine.archive")" = "$e_size" ] && [ "$(au_sha "$AU_RUN/engine.archive")" = "$e_sha" ] ||
       au_refuse "The engine GitHub sent is not the one the registry names (its size or sha256 differs), so nothing was installed."
     [ "$secs" -ge 1 ] || secs=1
@@ -476,7 +487,7 @@ au_step5_choose() { # [PEOPLE] -> AU_CH_BUILD, AU_PEOPLE, AU_CONTEXT, AU_GPU, AU
 }
 
 au_refusal() { # -> section C's refusal, in this Mac's figures; exit 1
-  local l why detail
+  local l why detail say
   l=$(awk -F'\t' '$1 == "refused"' "$AU_RUN/choice.out"); au_split "$l"
   why=${AU_F[1]:-} detail=${AU_F[2]:-}
   case "$why" in
@@ -487,13 +498,25 @@ au_refusal() { # -> section C's refusal, in this Mac's figures; exit 1
     room)
       l=$(awk -F'\t' '$1 == "room"' "$AU_RUN/choice.out" | tail -n 1); au_split "$l"
       au_refuse "There is not room on this Mac's disk: it has $(au_bytes "$AU_FREE") free, and the smallest download that fits, $(au_bytes "${AU_F[2]}"), needs $(au_bytes "${AU_F[3]}") free (Auster keeps the larger of 20 GB and 5% of the disk free). Nothing was fetched." ;;
-    figures)
+    figures)   # capability.js's codes, each in fixed words, never printed as they came (T102)
       case "$detail" in
-        gpu,*) au_refuse "The engine's report of this Mac's GPU (llama-server --list-devices) is not in the form Auster reads (${detail#gpu,}). No limit is guessed, so nothing was installed." ;;
+        gpu,*)
+          case "${detail#gpu,}" in
+            no-mtl0) say=": it names no GPU (MTL0)" ;;
+            mtl0-form) say=": its line for the GPU (MTL0) is in another form" ;;
+            mtl0-twice) say=": it names the GPU (MTL0) twice" ;;
+            mtl0-figure) say=": its figure for the GPU's memory is out of range" ;;
+            not-list-devices) say=": it is not a list of devices" ;;
+            too-large) say=": it is longer than Auster reads" ;;
+            *) say= ;;
+          esac
+          au_refuse "The engine's report of this Mac's GPU (llama-server --list-devices) is not in the form Auster reads$say. No limit is guessed, so nothing was installed." ;;
         mac,*) au_refuse "This Mac's figures were written by a newer version of Auster. Paste the installer line from the guide, or remove Auster first." ;;
-        *) au_refuse "This Mac's figures cannot be read ($detail), so nothing was installed." ;;
+        memory,*) au_refuse "This Mac's memory cannot be read, so nothing was installed." ;;
+        disk,*) au_refuse "The free space on this Mac's disk cannot be read (df -k), so nothing was installed." ;;
+        *) au_refuse "This Mac's figures cannot be read, so nothing was installed." ;;
       esac ;;
-    none) au_refuse "None of this recipe's builds can be used on this Mac ($detail), so nothing was installed." ;;
+    none) au_refuse "None of this recipe's builds can be used on this Mac ($(au_reason_words "$detail")), so nothing was installed." ;;
     *) au_refuse "The registry of this version cannot be read for this recipe, so nothing was installed." ;;
   esac
 }
@@ -644,7 +667,9 @@ au_publisher_ask() { # URL SIZE SHA -> 0 when the publisher still offers that fi
   case "$code" in
     404) AU_PUB_WHY=gone; return 1 ;;
     200|301|302|303|307|308) ;;
-    *) AU_PUB_WHY=${code:-none}; return 1 ;;
+    *)   # the code it answered, once matched as one (000 is none: au_fetch_said; T138)
+      if [[ $code =~ ^[0-9]{1,3}$ ]] && [[ $code =~ [1-9] ]]; then AU_PUB_WHY=$code; else AU_PUB_WHY=none; fi
+      return 1 ;;
   esac
   if [ -n "$hsize" ] && [ "$hsize" != "$2" ]; then AU_PUB_WHY=size; return 1; fi
   etag=${etag#W/}; etag=${etag//\"/}; etag=$(printf '%s' "$etag" | tr 'A-F' 'a-f')
@@ -657,7 +682,8 @@ au_publisher_said() { # FILE HOST -> AU_PUB_WHY in words, with no full stop: why
     gone) printf 'The publisher no longer offers %s' "$1" ;;
     size) printf "The publisher reports a size for %s other than the registry's" "$1" ;;
     sha) printf "The publisher reports a sha256 for %s other than the registry's" "$1" ;;
-    *) printf '%s answered %s when asked about %s' "$2" "$AU_PUB_WHY" "$1" ;;
+    none) printf '%s gave no answer Auster can read when asked about %s' "$2" "$1" ;;
+    *) printf '%s answered %s when asked about %s' "$2" "$AU_PUB_WHY" "$1" ;;   # a code au_publisher_ask matched
   esac
 }
 
@@ -683,7 +709,7 @@ au_step7_model() { # the model: the publisher asked first, then fetched, resumab
   wait "$pid"; got=$?
   code=$(cat "$AU_RUN/code" 2>/dev/null)
   if [ "$got" != 0 ] || { [ "$code" != 200 ] && [ "$code" != 206 ] && [ "$code" != 416 ]; }; then
-    au_fail "The model's download stopped (curl exit $got, answer ${code:-none}) at $(au_bytes "$(au_size "$AU_DATA/store/$sha.part" || echo 0)") of $(au_bytes "$size"). $again"
+    au_fail "The model's download stopped ($(au_fetch_said "$got" "$code")) at $(au_bytes "$(au_size "$AU_DATA/store/$sha.part" || echo 0)") of $(au_bytes "$size"). $again"
     return 1
   fi
   got=$(au_size "$AU_DATA/store/$sha.part")
@@ -733,7 +759,7 @@ au_step9_engine() { # the engine, in store/ and unpacked into engines/<sha256>/ 
     else
       au_say "Fetching the engine ($(au_bytes "$size"))..."
       au_fetch "$AU_ENGINE_HOST/$nb/$file" "$t" "$size"; got=$?
-      [ "$got" = 0 ] && [ "$AU_CODE" = 200 ] || { rm -f "$t"; au_fail "The engine could not be fetched from GitHub (curl exit $got)."; return 1; }
+      [ "$got" = 0 ] && [ "$AU_CODE" = 200 ] || { rm -f "$t"; au_fail "The engine could not be fetched from GitHub ($(au_fetch_said "$got" "$AU_CODE"))."; return 1; }
     fi
     [ "$(au_size "$t")" = "$size" ] && [ "$(au_sha "$t")" = "$sha" ] || { rm -f "$t"; au_fail "The engine is not the one the registry names, so it was deleted."; return 1; }
     au_store_put "$t" "$sha" || { au_fail "The engine could not be put in place."; return 1; }
@@ -1143,8 +1169,16 @@ au_update_ask() { # -> D3.6 step 1's last pre-checks, before the question, for t
   local v major e_mac sha url file keep="$AU_JNAME is not updated: it keeps serving build $AU_JNOW."
   v=$(sw_vers -productVersion 2>/dev/null); major=${v%%.*}
   e_mac=$(au_build_field "$AU_JPICK" 24)
-  if ! [[ $major =~ ^[1-9][0-9]?$ ]] || ! [[ $e_mac =~ ^[1-9]?[0-9]$ ]] || [ "$major" -lt "$e_mac" ]; then
-    AU_J=passed AU_JMOVEOFF=1 AU_J_SAY="Build $AU_JPICK needs an engine that runs on macOS $e_mac or later, and this Mac has macOS ${v:-of a version that cannot be read}. $keep"
+  if ! [[ $e_mac =~ ^[1-9]?[0-9]$ ]]; then   # each value matched before a sentence names it (T141)
+    AU_J=passed AU_JMOVEOFF=1 AU_J_SAY="The registry does not say which macOS the engine of build $AU_JPICK needs. $keep"
+    return 0
+  fi
+  if ! [[ $v =~ $AU_RE_MACOS ]]; then
+    AU_J=passed AU_JMOVEOFF=1 AU_J_SAY="Build $AU_JPICK needs an engine that runs on macOS $e_mac or later, and this Mac has a version of macOS that cannot be read. $keep"
+    return 0
+  fi
+  if [ "$major" -lt "$e_mac" ]; then
+    AU_J=passed AU_JMOVEOFF=1 AU_J_SAY="Build $AU_JPICK needs an engine that runs on macOS $e_mac or later, and this Mac has macOS $v. $keep"
     return 0
   fi
   sha=$(au_build_field "$AU_JPICK" 30) file=$(au_build_field "$AU_JPICK" 28)

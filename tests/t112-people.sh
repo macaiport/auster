@@ -124,6 +124,6 @@ same "$(requests | wc -l | tr -d ' ')" 0 "  ...and fetches nothing"
 route_drop "$INSTALL_SH"; curl_route GET "$INSTALL_SH" 404 -
 ANSWERS=$'yes\n' auster people 1
 same "$RC" 1 "auster people 1, GitHub giving no installer: exit 1"
-outsays "GitHub did not give Auster's installer (curl exit 0, answer 404), so nothing was changed." "  ...it says so"
+outsays "GitHub did not give Auster's installer (it answered 404), so nothing was changed." "  ...it says so"
 same "$(cat "$S"):$(ls "$DATA/builds/$IR/kept")" "$s1:$k1" "serving and kept/ as they were after all four"
 done_

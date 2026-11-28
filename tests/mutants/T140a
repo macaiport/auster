@@ -1,0 +1,3 @@
+# file: common/auster
+# the account's short name taken as `id -un` gave it, matched as nothing
+/^  \[\[ \$AU_USER =~ \$AU_RE_USER \]\]/d

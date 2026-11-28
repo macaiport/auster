@@ -1,0 +1,3 @@
+# file: common/auster
+# status gives the time the engine was stopped in the record's own form
+s/^  at="\${AU_STOPPED_AT:0:10} \${AU_STOPPED_AT:11:8} UTC".*$/  at=$AU_STOPPED_AT/

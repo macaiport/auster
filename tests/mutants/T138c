@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# the publisher's code taken as it came, as before the audit
+/^au_publisher_ask()/,/^}/s/^      if \[\[ \$code =~ .*; fi$/      AU_PUB_WHY=${code:-none}/

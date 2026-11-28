@@ -1,0 +1,3 @@
+# file: common/auster
+# bin/auster's EXIT trap releases the lock and erases the QR code, but leaves this run's temporary folders
+s/^  trap 'au_lock_release; au_qr_leave; au_tmp_clean' EXIT .*$/  trap 'au_lock_release; au_qr_leave' EXIT/

@@ -1,0 +1,3 @@
+# file: common/auster
+# the rule file's own sentence printed again after a failed --open, as before the audit
+/^au_cmd_update()/,/^}/s/^    failed) au_update_why "\${AU_F\[2\]:-}" ;;$/    failed) [ -z "${AU_F[1]:-}" ] || au_say "${AU_F[1]}" ;;/
