@@ -1,0 +1,3 @@
+# file: tools/release-gate
+# question 3 gone: the other v tags are not compared
+s/^  newer "$tag" "$t" || fail "the tag/  true || fail "the tag/

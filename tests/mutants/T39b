@@ -1,0 +1,3 @@
+# file: tools/release-gate
+# question 2 gone: a tag named release is not looked for
+s/^g rev-parse -q --verify refs\/tags\/release > \/dev\/null \&\& fail/false \&\& fail/

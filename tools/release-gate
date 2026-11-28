@@ -1,0 +1,261 @@
+#!/bin/bash
+# tools/release-gate: the release gate (docs/plans/v0.1.md, D3.9; T39), built by U9 (2026-11-28). Run on the
+# development Mac before a `v` tag is pushed and `release` moved to the commit it names; docs/release.md gives the
+# steps around it. It is maintainer tooling: it runs git and curl, as nothing on a household's Mac does, and it is
+# never copied into a data root (T98's gate on the source reads common/, install.sh and tools/mint-id, not this).
+# The registry's own questions are tools/check-registry's (V2), asked here with --tag, --assets and --release; what
+# needs git or the network is asked here.
+usage() {
+  cat >&2 <<'EOF'
+usage: tools/release-gate <tag> [--commit REV] [--first-release]
+
+Asks every question of D3.9 of one commit, REV (HEAD by default), reading that commit's own files
+(git archive), never the working tree, and names each failure on a line of its own:
+  1. the tag       <tag> is v<a>.<b>.<c>, never `release`, and a tag here that names the commit: an
+                   untagged commit fails. Run before tagging, this is the one failure left;
+  2. `release`     no tag is named release, here or on origin;
+  3. newer         every other v tag, here or on origin, is an older version;
+  4. CHANGELOG.md  its first `## ` heading is `## <tag> (YYYY-MM-DD)`; every `## ` heading has that
+                   form, each version older than the one above it; the version an installed Mac reads
+                   from it (the commit's own common/updates.sh --version-of) is the tag; and every change
+                   in the tag's section, each paragraph and each list item at its top level, opens with
+                   one bold sentence (`**...**`, ending in . ! or ?);
+  5. install.sh    AUSTER_SELF_VERSION is set on one line, to the tag (a tag install knows its tag by it);
+  6. registry.tsv  tools/check-registry with --tag, --assets (the commit's assets/) and --release
+                   (origin/release's registry.tsv): the version line is the tag, in format 1; no released
+                   line is missing, changed or moved; the version is newer than the release's; and every
+                   question the registry gate asks of a line. With no origin/release it fails unless
+                   --first-release says that this is the first release; with one, --first-release fails;
+  7. publishers    each model and engine that a build not withdrawn uses is what its publisher offers,
+                   at the addresses the commit's common/driver.sh fetches from. A model: a HEAD at Hugging
+                   Face, no redirect followed, whose x-linked-size and x-linked-etag are the registry's
+                   size and sha256; either missing fails here, though a Mac lets it pass. An engine: its
+                   archive fetched, at most its size, and measured, since GitHub's answer to a HEAD
+                   carries no sha256;
+  8. a new engine  a build not withdrawn names an engine that no build of origin/release's registry
+                   names. D3.9 asks that its --help be compared with the last released engine's and each
+                   new or changed option recorded in the recipe's findings file before the tag; how that
+                   is shown to this gate is the owner's decision, not yet taken, so until then it fails.
+                   A first release has no released engine to compare with, and is not asked.
+It first fetches origin: its branches, pruned, so that origin/release is what origin holds now; then its
+tags, never forced, so that a tag here naming another commit than origin's tag of that name fails the fetch.
+
+Exit 0 when every question passes (one line then says so), 1 when one fails, 2 for usage, or when this is
+not a git checkout or REV or its files cannot be read. It tags, moves and pushes nothing.
+EOF
+  exit 2
+}
+set -u
+export LC_ALL=C
+ROOT=$(cd "$(dirname "$0")/.." && pwd -P)
+RE_VER='^v(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$'
+RE_HEAD='^## (v(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})) \([0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])\)$'
+RE_BOLD='^\*\*[^*]+[.!?]\*\*'
+RE_HOST='^https://[A-Za-z0-9.-]+(/[A-Za-z0-9._-]+)*$'
+RE_SHA='^[0-9a-f]{64}$'
+RE_NUM='^(0|[1-9][0-9]{0,14})$'
+
+tag= rev=HEAD first=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --commit) [ $# -ge 2 ] || usage; rev=$2; shift 2 ;;
+    --first-release) first=1; shift ;;
+    -*) usage ;;
+    *) [ -z "$tag" ] || usage; tag=$1; shift ;;
+  esac
+done
+[ -n "$tag" ] || usage
+
+FAILS=() C=
+fail() { FAILS+=("$1"); }
+finish() {
+  if [ "${#FAILS[@]}" -gt 0 ]; then printf '%s\n' "${FAILS[@]}"; exit 1; fi
+  echo "release-gate: every question passes: the tag $tag names $C, and release may move to it."
+  exit 0
+}
+g() { git -C "$ROOT" -c fetch.pruneTags=false -c remote.origin.pruneTags=false "$@"; }
+newer() { # X Y -> 0 when the version X is later than the version Y, the three numbers compared as numbers
+  local x=${1#v} y=${2#v} a b i
+  for i in 1 2 3; do
+    a=${x%%.*} b=${y%%.*}; x=${x#*.} y=${y#*.}
+    [ "$a" -gt "$b" ] && return 0
+    [ "$a" -lt "$b" ] && return 1
+  done
+  return 1
+}
+
+# 1, the tag's own form, first: nothing after it means anything for a tag of another form
+if [ "$tag" = release ]; then fail "the tag is named release, and no tag ever is (D3.9)"; finish; fi
+[[ $tag =~ $RE_VER ]] || { fail "the tag $tag is not of the form v<a>.<b>.<c>"; finish; }
+g rev-parse --git-dir > /dev/null 2>&1 || { echo "release-gate: $ROOT is not a git checkout" >&2; exit 2; }
+C=$(g rev-parse -q --verify "$rev^{commit}") || { echo "release-gate: $rev is not a commit" >&2; exit 2; }
+
+g fetch -q --prune origin 2> /dev/null || { fail "origin could not be fetched, so what it holds is not known"; finish; }
+g fetch -q origin 'refs/tags/*:refs/tags/*' 2> /dev/null ||
+  { fail "origin's tags could not be fetched: a tag here may name another commit than origin's tag of that name"; finish; }
+
+# 1. The tag names the commit
+T=$(g rev-parse -q --verify "refs/tags/$tag^{commit}")
+if [ -z "$T" ]; then fail "there is no tag $tag here: when every other question passes, make it with git tag -a $tag -m $tag $C and run the gate again"
+elif [ "$T" != "$C" ]; then fail "the tag $tag names commit $T, not $C"; fi
+
+# 2. No tag is named release (origin's tags are fetched above)
+g rev-parse -q --verify refs/tags/release > /dev/null && fail "a tag is named release, here or on origin, and no tag ever is (D3.9): git would read release two ways"
+
+# 3. Every other v tag is older
+while IFS= read -r t; do
+  [ "$t" != "$tag" ] && [[ $t =~ $RE_VER ]] || continue
+  newer "$tag" "$t" || fail "the tag $t is not older than $tag"
+done <<< "$(g tag -l 'v*')"
+
+W=$(mktemp -d "${TMPDIR:-/tmp}/release-gate.XXXXXX") || exit 2
+trap 'rm -rf "$W"' EXIT
+X="$W/tree" XS="$W/tree/"   # XS: the tree's path in a failure is left out, so a failure names assets/ as the commit holds it
+mkdir "$X" && g archive --format=tar -o "$W/tree.tar" "$C" && tar -xf "$W/tree.tar" -C "$X" ||
+  { echo "release-gate: the files of commit $C could not be read" >&2; exit 2; }
+
+# 4. CHANGELOG.md. A fence (```) is passed over wherever it is, as the notes cleaner passes it over (D3.2)
+changelog() {
+  local f="$X/CHANGELOG.md" line n=0 heads=0 prev= sec=0 in=0 fence=0 para=0 changes=0 v item got
+  if [ ! -f "$f" ] || [ -L "$f" ]; then fail "CHANGELOG.md: the commit holds none"; return; fi
+  while IFS= read -r line || [ -n "$line" ]; do
+    n=$((n + 1))
+    case "$line" in '```'*) fence=$((1 - fence)); para=0; continue ;; esac
+    [ "$fence" = 0 ] || continue
+    case "$line" in
+      '## '*)
+        heads=$((heads + 1)) in=0 para=0
+        if ! [[ $line =~ $RE_HEAD ]]; then
+          if [ "$heads" = 1 ]; then fail "CHANGELOG.md line $n: the first heading is not \`## $tag (YYYY-MM-DD)\`"
+          else fail "CHANGELOG.md line $n: a heading not of the form \`## v<a>.<b>.<c> (YYYY-MM-DD)\`"; fi
+          continue
+        fi
+        v=${BASH_REMATCH[1]}
+        if [ "$heads" = 1 ]; then
+          if [ "$v" = "$tag" ]; then sec=1 in=1; else fail "CHANGELOG.md line $n: the first heading names $v, not the tag $tag"; fi
+        elif [ -n "$prev" ] && ! newer "$prev" "$v"; then
+          fail "CHANGELOG.md line $n: $v is not older than $prev, the heading above it"
+        fi
+        prev=$v
+        continue ;;
+    esac
+    [ "$in" = 1 ] || continue
+    if [[ $line =~ ^[[:space:]]*$ ]]; then para=0; continue; fi
+    case "$line" in
+      '#'*) para=0; continue ;;           # a heading below the version's
+      ' '*|$'\t'*) continue ;;            # an indented line belongs to the change above it
+    esac
+    if [[ $line =~ ^(- |\* |[0-9]+\. ) ]]; then item=${line#"${BASH_REMATCH[0]}"}
+    elif [ "$para" = 1 ]; then continue   # a paragraph's next line
+    else item=$line; fi
+    para=1 changes=$((changes + 1))
+    [[ $item =~ $RE_BOLD ]] || fail "CHANGELOG.md line $n: a change in the section of $tag that does not open with one bold sentence (**...**)"
+  done < "$f"
+  [ "$heads" -gt 0 ] || fail "CHANGELOG.md: no \`## \` heading, so no Mac reads a version from it"
+  [ "$sec" = 0 ] || [ "$changes" -gt 0 ] || fail "CHANGELOG.md: the section of $tag holds no change"
+  if [ -f "$X/common/updates.sh" ]; then
+    got=$(/bin/bash "$X/common/updates.sh" --version-of "$f" 2> /dev/null)
+    [ "$got" = "$tag" ] || fail "CHANGELOG.md: an installed Mac reads ${got:-no version} from it (common/updates.sh --version-of), not the tag $tag"
+  else
+    fail "common/updates.sh: the commit holds none, so what an installed Mac reads from CHANGELOG.md is not known"
+  fi
+}
+changelog
+
+# 5. install.sh's own version
+selfversion() {
+  local f="$X/install.sh" n v
+  [ -f "$f" ] || { fail "install.sh: the commit holds none"; return; }
+  n=$(grep -c '^AUSTER_SELF_VERSION=' "$f")
+  v=$(sed -n 's/^AUSTER_SELF_VERSION=//p' "$f" | head -n 1)
+  if [ "$n" != 1 ]; then fail "install.sh: AUSTER_SELF_VERSION is set on $n lines, not one"
+  elif [ "$v" != "$tag" ]; then fail "install.sh: AUSTER_SELF_VERSION is $v, not the tag $tag"; fi
+}
+selfversion
+
+# 6. The registry, through the registry gate
+R=
+if g rev-parse -q --verify refs/remotes/origin/release > /dev/null; then
+  [ "$first" = 0 ] || fail "--first-release was given, but origin has a release branch"
+  if g cat-file -e origin/release:registry.tsv 2> /dev/null; then
+    g show origin/release:registry.tsv > "$W/release.tsv" && R="$W/release.tsv"
+  else
+    fail "origin/release holds no registry.tsv, so no released line can be compared"
+  fi
+elif [ "$first" = 0 ]; then
+  fail "origin has no release branch, so no released line can be compared: if this is the first release, say so with --first-release"
+fi
+[ -d "$X/assets" ] || { fail "assets/: the commit holds none"; mkdir "$X/assets"; }
+if [ -f "$X/registry.tsv" ]; then
+  opts=(--assets "$X/assets" --tag "$tag")
+  [ -z "$R" ] || opts+=(--release "$R")
+  out=$("$ROOT/tools/check-registry" "$X/registry.tsv" "${opts[@]}" 2>&1)
+  case $? in
+    0) ;;
+    1) while IFS= read -r l; do [ -z "$l" ] || { l=${l//"$XS"/}; fail "registry.tsv: $l"; }; done <<< "$out" ;;
+    *) out=${out//"$XS"/}; fail "registry.tsv: the registry gate could not read it (tools/check-registry: $out)" ;;
+  esac
+else
+  fail "registry.tsv: the commit holds none"
+fi
+USES=
+[ -f "$X/registry.tsv" ] && USES=$(osascript -l JavaScript "$ROOT/tools/check-registry.js" "$ROOT" "$X/registry.tsv" 2> /dev/null | grep '^uses	')
+
+# 7. The publishers
+host() { # NAME -> the https address the commit's common/driver.sh gives that constant, or 1
+  local v
+  v=$(sed -n "s/^$1=//p" "$X/common/driver.sh" 2> /dev/null | head -n 1)
+  [[ $v =~ $RE_HOST ]] && printf '%s' "$v"
+}
+model() { # HOST ID REPOSITORY COMMIT FILE SIZE SHA256
+  local out code rest hs et
+  out=$(curl -q --proto =https --tlsv1.2 -sS -I --max-time 60 -o /dev/null \
+    -w '%{http_code}\t%header{x-linked-size}\t%header{x-linked-etag}' "$1/$3/resolve/$4/$5" 2> /dev/null) ||
+    { fail "model $2 ($5): Hugging Face could not be reached"; return; }
+  code=${out%%$'\t'*} rest=${out#*$'\t'}; hs=${rest%%$'\t'*} et=${rest#*$'\t'}
+  case "$code" in
+    200|301|302|303|307|308) ;;
+    404) fail "model $2 ($5): Hugging Face no longer offers it (404)"; return ;;
+    *) fail "model $2 ($5): Hugging Face answered ${code:-nothing}"; return ;;
+  esac
+  if [ -z "$hs" ]; then fail "model $2 ($5): Hugging Face's answer carries no size (x-linked-size)"
+  elif ! [[ $hs =~ $RE_NUM ]]; then fail "model $2 ($5): Hugging Face reports a size that is not a number"
+  elif [ "$hs" != "$6" ]; then fail "model $2 ($5): Hugging Face reports the size $hs, not the registry's $6"; fi
+  et=${et#W/}; et=${et//\"/}; et=$(printf '%s' "$et" | tr 'A-F' 'a-f')
+  if ! [[ $et =~ $RE_SHA ]]; then fail "model $2 ($5): Hugging Face's answer carries no sha256 (x-linked-etag)"
+  elif [ "$et" != "$7" ]; then fail "model $2 ($5): Hugging Face reports the sha256 $et, not the registry's $7"; fi
+}
+engine() { # HOST ID NUMBERED-BUILD FILE SIZE SHA256
+  local a="$W/engine" code rc got
+  rm -f "$a"
+  code=$(curl -q --proto =https --proto-redir =https --tlsv1.2 -sS -L --max-time 600 --max-filesize "$5" \
+    -o "$a" -w '%{http_code}' "$1/$3/$4" 2> /dev/null); rc=$?
+  if [ "$rc" != 0 ] || [ "$code" != 200 ]; then
+    fail "engine $2 ($4): its archive could not be fetched from its publisher (curl exit $rc, answer ${code:-none})"; return
+  fi
+  got=$(stat -f %z "$a")
+  [ "$got" = "$5" ] || { fail "engine $2 ($4): the publisher's archive is $got bytes, not the registry's $5"; return; }
+  got=$(shasum -a 256 < "$a" | cut -c1-64)
+  [ "$got" = "$6" ] || fail "engine $2 ($4): the publisher's archive has the sha256 $got, not the registry's $6"
+}
+EH=$(host AU_ENGINE_HOST) || fail "common/driver.sh: no AU_ENGINE_HOST that is an https address, so no engine archive was asked for"
+MH=$(host AU_MODEL_HOST) || fail "common/driver.sh: no AU_MODEL_HOST that is an https address, so no model was asked for"
+while IFS=$'\t' read -r -a F; do
+  [ "${F[0]:-}" = uses ] || continue
+  case "${F[1]}" in
+    model) [ -z "$MH" ] || model "$MH" "${F[@]:2}" ;;
+    engine) [ -z "$EH" ] || engine "$EH" "${F[@]:2}" ;;
+  esac
+done <<< "$USES"
+
+# 8. An engine no released build used
+if [ -n "$R" ]; then
+  released=$(osascript -l JavaScript "$ROOT/tools/check-registry.js" "$ROOT" "$R" 2> /dev/null | awk -F'\t' '$1 == "engine-of" { print $3 }')
+  while IFS=$'\t' read -r -a F; do
+    [ "${F[0]:-}" = uses ] && [ "${F[1]}" = engine ] || continue
+    printf '%s\n' "$released" | grep -qx "${F[2]}" ||
+      fail "engine ${F[2]} (llama.cpp ${F[3]}): no released build used it, so its --help must be compared with the last released engine's and each new or changed option recorded in the recipe's findings file before the tag (D3.9); this gate cannot yet see that it was, so it fails"
+  done <<< "$USES"
+fi
+
+finish

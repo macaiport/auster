@@ -1,0 +1,3 @@
+# file: tools/release-gate
+# question 5 gone: AUSTER_SELF_VERSION is not compared with the tag
+s/^  elif \[ "$v" != "$tag" \]; then fail "install.sh: AUSTER_SELF_VERSION is/  elif false; then fail "install.sh: AUSTER_SELF_VERSION is/

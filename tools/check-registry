@@ -25,9 +25,9 @@ Fails, naming each failure on its own line, when:
             sha256. Files are found by their hash, so their names do not matter.
 
 Exit 0 when nothing fails, 1 when something does, 2 for usage. Not asked here, because they need the
-network or the engine, and done by the release steps instead (D3.9): that every model and engine a
-build uses answers a HEAD at its publisher with the registry's size and hash, and that a new engine's
---help has been compared with the last released engine's.
+network or the engine, and asked by tools/release-gate instead (D3.9, U9), which runs this with --tag,
+--release and --assets: that every model and engine a build uses answers at its publisher with the
+registry's size and hash, and that a new engine's --help has been compared with the last released one's.
 EOF
   exit 2
 }

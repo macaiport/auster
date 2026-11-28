@@ -1,0 +1,3 @@
+# file: common/driver.sh
+# a refresh of _update after an update whatever the tree's changelog names
+s/^  \[ "$v" = "$AU_VERSION" \] || return 0$/  :/

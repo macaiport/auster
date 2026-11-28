@@ -1,0 +1,3 @@
+# file: tools/release-gate
+# question 8 gone: an engine no released build used passes
+s/^    printf '%s\\n' "$released" | grep -qx "${F\[2\]}" ||$/    true ||/

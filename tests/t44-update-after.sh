@@ -4,8 +4,10 @@
 # recipe: the update writes the stamp of v0.2.0, the tree's registry and changelog, and the offer v0.2.0; the rule file
 # then says current, the recipe the same, and `auster status` says so. An offer of a later version than the tree's is
 # never lowered, and the registry is then left as it was. A no to a waiting build deploys nothing and writes no stamp; the
-# run that then completes deploys the tree's updates.sh with the stamp.
-# Mutant: tests/mutants/T44c (no refresh of _update's registry after the update).
+# run that then completes deploys the tree's updates.sh with the stamp. U9: a tree whose CHANGELOG.md names no version
+# (the repo's own until a release's commit) moves the stamp and refreshes nothing in _update.
+# Mutants: tests/mutants/T44c (no refresh of _update's registry after the update), T44d (a refresh whatever the
+# changelog names).
 . "$TESTS/lib.sh"
 . "$TESTS/helpers.sh"
 . "$TESTS/install-helpers.sh"
@@ -54,4 +56,17 @@ cp "$W/pristine/builds/$IR/serving" "$DATA/builds/$IR/serving"
 update_run ''
 same "$RC:$(cut -f3 "$U/scripts")" "0:v0.2.2" "the run that completes: exit 0, the stamp v0.2.2"
 cmp -s "$U/updates.sh" "$FX/tree-src-0e1e3a5c7e9f1b3d5f7a9c1e3b5d7f9a1c3e5b7d/common/updates.sh" && ok "  ...with the tree's updates.sh deployed" || bad "  ...updates.sh not the tree's"
+
+# U9: a tree whose changelog names no version, as the repo's own does until a release's commit turns Unreleased into
+# its heading: the stamp moves, and _update's registry, notes and offer are left as they were, for the next check
+C4=0f1e3a5c7e9f1b3d5f7a9c1e3b5d7f9a1c3e5b7d
+release_at v0.2.3 "$C4"
+printf '# Changelog\n\n## Unreleased\n\n**Next.** Soon.\n' > "$FX/tree-src-$C4/CHANGELOG.md"
+tree_archive "$FX/tree-src-$C4" "auster-$C4" "$C4" "$FX/tree-$C4.tar.gz"
+printf 'auster-record 1\tv0.2.2\t1799990000\n' > "$U/offer"; cp "$FX/registry.tsv" "$U/registry"; printf '# the notes before\n' > "$U/notes.md"
+update_run ''
+same "$RC:$(cut -f3 "$U/scripts")" "0:v0.2.3" "a tree whose changelog names no version: exit 0, the stamp v0.2.3"
+same "$(cut -f2,3 "$U/offer")" "v0.2.2	1799990000" "  ...the offer as it was"
+cmp -s "$U/registry" "$FX/registry.tsv" && ok "  ...the registry as it was" || bad "  ..._update/registry was written: $(head -n 1 "$U/registry")"
+same "$(cat "$U/notes.md")" "# the notes before" "  ...and notes.md as it was"
 done_

@@ -1,0 +1,3 @@
+# file: tools/release-gate
+# question 1 gone: the tag is taken to name the commit, whatever tag there is
+s/^T=$(g rev-parse -q --verify "refs\/tags\/$tag^{commit}")$/T=$C/

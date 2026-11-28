@@ -8,6 +8,12 @@
 // each template, system prompt and test a build line names (template, system-prompt, test). Exit 0,
 // or 2 for usage. A failure names line numbers, fields and ids that match their patterns, and never
 // prints the registry's own text.
+// U9 (2026-11-28): two more kinds, which tools/check-registry passes over and tools/release-gate reads (D3.9,
+// T39), each from lines that were read, so every value has matched its pattern:
+//   uses<TAB>engine<TAB><id><TAB><numbered build><TAB><file><TAB><size><TAB><sha256>
+//   uses<TAB>model<TAB><id><TAB><repository><TAB><commit><TAB><file><TAB><size><TAB><sha256>
+//       once each, for every engine and model that a build not withdrawn uses (the publisher's answer);
+//   engine-of<TAB><build id><TAB><engine id>   for every build, withdrawn or not (an engine no released build used).
 ObjC.import('Foundation');
 ObjC.import('stdlib');
 
@@ -124,5 +130,15 @@ function run(argv) {
       if (AU_REG_PATTERNS.sha256.test(f[a[1]])) out.push(['asset', f[a[1]], f[1], a[0]].join('\t'));
     });
   }
+
+  // For tools/release-gate (U9): the files each build uses, and each build's engine
+  var told = {};
+  Object.keys(reg.builds).forEach(function (b) {
+    var bl = reg.builds[b], e = reg.engines[bl.engine], m = reg.models[bl.model];
+    out.push(['engine-of', b, bl.engine].join('\t'));
+    if (reg.withdrawn.hasOwnProperty(b)) return;
+    if (!told[e.id]) { told[e.id] = true; out.push(['uses', 'engine', e.id, e.numberedBuild, e.file, e.size, e.sha256].join('\t')); }
+    if (!told[m.id]) { told[m.id] = true; out.push(['uses', 'model', m.id, m.repository, m.commit, m.file, m.size, m.sha256].join('\t')); }
+  });
   finish();
 }

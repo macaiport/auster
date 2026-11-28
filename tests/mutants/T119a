@@ -1,0 +1,3 @@
+# file: common/auster-check
+# the lock is not read before _update is judged: a first install's first check says the checks are off
+s/^  if live "$DATA\/builds\/updating" 0; then log "a run of Auster holds builds\/ and has not written/  if false; then log "a run of Auster holds builds\/ and has not written/

@@ -1,0 +1,3 @@
+# file: tools/release-gate
+# question 4: a heading date of any number of digits passes the form
+/^RE_HEAD=/s/(0\[1-9\]|\[12\]\[0-9\]|3\[01\])/[0-9]+/

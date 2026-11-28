@@ -1,0 +1,3 @@
+# file: tools/release-gate
+# question 6: no origin/release passes without --first-release
+s/^elif \[ "$first" = 0 \]; then$/elif false; then/

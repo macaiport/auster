@@ -1,0 +1,3 @@
+# file: tools/release-gate
+# question 4: a change need not open with a bold sentence
+s/^    \[\[ $item =~ $RE_BOLD \]\] || fail/    true || fail/

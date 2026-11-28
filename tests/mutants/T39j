@@ -1,0 +1,3 @@
+# file: tools/release-gate
+# question 6: the registry gate is not given --release
+s/^  \[ -z "$R" \] || opts+=(--release "$R")$/  :/

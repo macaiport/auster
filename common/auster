@@ -30,6 +30,9 @@
 # U6, its third part (2026-11-28): `verify`'s closing words and `status`'s sentence after engine-hash say that pasting the
 # installer line again fetches a changed file again, which the driver now does (D3.6, "A changed file of the build in use is
 # fetched again"; T34, T117).
+# U9 (2026-11-28): with the word `unknown` and _update/tried readable, `status` and `update` say when the last check was
+# tried and that it did not read the release, not that no check has been made (au_tried_when; the first real install,
+# docs/phase-2.md section 13; T120).
 # Still to come, each marked TODO below: U8  the words of each withdrawal's reason in `status` and `rollback`.
 #
 # The readers (D3.1, Reading). Each checks the format first, from the first field of the first 4,096 bytes
@@ -1494,7 +1497,10 @@ au_cmd_update() { # [--retry] -> D3.6, B6: the update. At the Mac's own screen, 
       esac
       au_say "Pasting the installer line from the guide moves it to the release line."
       return 1 ;;
-    unknown) au_say "No update check has been made yet, so no update is known to be waiting. The check job makes one soon after the Mac starts, then once a day."; return 1 ;;
+    unknown)
+      if au_tried_when; then au_say "No update check has read the release yet (the last, at $AU_TRIED, could not), so no update is known to be waiting. The check job tries again a day after it."
+      else au_say "No update check has been made yet, so no update is known to be waiting. The check job makes one soon after the Mac starts, then once a day."; fi
+      return 1 ;;
     current)
       [ -n "$retry" ] || { au_say "Nothing is waiting: Auster ${AU_F[1]:-} is the newest version at the last update check, and this Mac serves the build for it."; return 1; } ;;
     *) au_say "Whether an update is waiting cannot be read (_update/updates.sh gave no state), so nothing was changed."; return 1 ;;
@@ -1818,6 +1824,15 @@ au_probe_read() { # -> AU_PR_RESULT, AU_PR_SPEED from the check job's record, _u
   AU_PR_RESULT=${v[0]} AU_PR_SPEED=${v[1]}
 }
 
+au_tried_when() { # -> 0 with AU_TRIED, the time of the last update check that was tried (_update/tried, D3.2: written
+  # before the fetch, whether it then worked or not) as `YYYY-MM-DD HH:MM:SS UTC`, when that record can be read; else 1.
+  # With the word `unknown` there is no offer, so a check that was tried did not read the release (U9: the first real
+  # install, with no release branch yet, found status saying no check had been made; T120)
+  AU_TRIED=
+  au_line_read "$AU_DATA/_update/tried" 1 && [[ ${AU_LF[0]} =~ ^(0|[1-9][0-9]{0,11})$ ]] || return 1
+  AU_TRIED=$(date -u -r "${AU_LF[0]}" '+%Y-%m-%d %H:%M:%S UTC' 2>/dev/null) && [ -n "$AU_TRIED" ]
+}
+
 au_status_updates() { # -> T5, D3.1: whether update checks are made, from the state line of the deployed rule file,
   # which fetches nothing here; and, when its word is current or ready, each recipe's line (U3, D3.3). It asks the rule
   # file for --recipes, whose first line is the state line (D3.2); a rule file too old to know that option gives no
@@ -1850,7 +1865,9 @@ au_status_updates() { # -> T5, D3.1: whether update checks are made, from the st
         tag) au_say "Update checks are not made: Auster was installed as a named version (${AU_F[1]:-}), which is never offered an update." ;;
         *) au_say "Update checks are not made: Auster was not installed from its release line, so it is never offered an update." ;;
       esac ;;
-    unknown:*) au_say "No update check has been made yet. The check job makes one soon after the Mac starts, then once a day." ;;
+    unknown:*)
+      if au_tried_when; then au_say "No update check has read the release yet: the last, at $AU_TRIED, could not. The check job tries again a day after it."
+      else au_say "No update check has been made yet. The check job makes one soon after the Mac starts, then once a day."; fi ;;
     current:*) [[ ${AU_F[1]:-} =~ $AU_RE_VERSION ]] && au_say "Auster ${AU_F[1]} is the newest version at the last update check." ;;
     ready:*)
       if [[ $off =~ $AU_RE_VERSION ]] && [ "$off" = "$inst" ]; then   # ready for a build waiting, not for a version (D3.3)

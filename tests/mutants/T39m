@@ -1,0 +1,3 @@
+# file: tools/release-gate
+# question 7: an engine archive whose sha256 is not the registry's passes
+s/^  \[ "$got" = "$6" \] || fail/  true || fail/

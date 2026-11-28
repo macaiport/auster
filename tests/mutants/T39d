@@ -1,0 +1,3 @@
+# file: tools/release-gate
+# question 4: the first heading need not name the tag
+s/if \[ "$v" = "$tag" \]; then sec=1 in=1; else fail .*; fi$/sec=1 in=1/

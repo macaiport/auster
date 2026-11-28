@@ -48,7 +48,7 @@ separate client such as Open WebUI (`llama-server` serves one by default); as fe
 safe. The shape this points to in the long run is the engine inside one native app, which is where
 MLX fits.
 
-Side tracks, not phases: the name checks and funding. Their notes are kept privately.
+Side tracks, not phases: funding, whose notes are kept privately. The name is settled (2026-11-28).
 
 **Current phase:** 2, building: V1 to V8 and U1 to U7 done, with U6's third part; U8 and U9 next. Phase 1's last items need the owner, and so do three of phase 2's first-step checks ([docs/phase-2.md](docs/phase-2.md)). The household recipe's model is chosen: Mistral Small 4, then Magistral Small (plan A6)
 
@@ -75,6 +75,13 @@ once it is a site, not a redirect here. The mark at the top only if the owner ch
    Terminal at the Mac's screen (the tests replace `open`, so no test opens Terminal).
 3. Build the rest of the update: withdrawn builds (U8), and the release gate (U9).
 
+**Auster's icon on the Mac (owner, 2026-11-28):** the app icon in `docs/brand/app-icon/` is to be Auster's own
+icon wherever it shows in Finder or the Dock. v0.1 puts nothing there yet; the first thing to carry it would be a
+double-clickable Auster that opens the chat page ([`docs/plans/app.md`](docs/plans/app.md), checked
+2026-11-28). **The owner registers as an Apple Developer in the week of 2026-11-30** (2026-11-28), so that
+Auster's app can later be signed and notarized; how a signed app reaches a Mac through the installer, which
+fetches a git tree, is not known yet and is a plan of its own.
+
 **Parked, for later discussion** (not phased, not in any plan): [docs/concepts/](docs/concepts/).
 - [central-services.md](docs/concepts/central-services.md): a central service that Auster works
   without: a collector of figures shared back, and a relay to data centers that pools households and
@@ -100,7 +107,8 @@ What was done first:
 
 Still open:
 
-- The name checks, the trademark search among them. The repo went public before that search, knowingly.
+- ~~The name checks.~~ **Settled by the owner on 2026-11-28:** searches found no prior art, no legal
+  clearance is sought, and the name stays Auster.
 - The rulesets on `release` and the `v` tags, which come with the first release (plan AD10).
 
 ---

@@ -32,6 +32,11 @@
 # root of mode 0700, and it and every folder in it, at any depth, this account's and nobody else's to write, with no
 # link in it that leads to a folder but inside an engine's unpacked tree (D3.1, Ownership; U2's reading). It is
 # checked once, before the update check, and the run writes nothing of its own before its step 5.
+# U9 (2026-11-28): with no `_update` while builds/updating names a live run, the log says that a run holds builds/,
+# not that the checks are off: a first install loads this job at its step 12, launchd runs it at once, and the install
+# writes `_update` at its step 15 a minute later (the first real install, docs/phase-2.md section 13). The lock is read
+# by its own reader (live, below), before the ownership rule, for nothing but which sentence the log gets. Its test is
+# T119 (tests/t119-check-first-run.sh).
 #
 # Time limits. Each request has curl's --max-time; each part also has a watchdog of this job's own, since
 # /usr/bin/timeout is not assumed (it may not exist before macOS 26, T79): the part runs in the background,
@@ -460,7 +465,11 @@ state_write() { # -> _update/engine from ST_*, by rename
 [[ $ME =~ ^[1-9][0-9]*$ ]] || { log "it does not run as root, nor as an account it cannot name"; exit 0; }
 dir_ok "$DATA" && [ "$(stat -f %Lp "$DATA" 2>/dev/null)" = 700 ] && [ -f "$DATA/.auster-data-root" ] ||
   { log "$DATA is not a data root that only this account owns, so nothing is done"; exit 0; }
-dir_ok "$DATA/_update" || { log "no _update folder: the checks are off until the installer line is pasted again"; exit 0; }
+if ! dir_ok "$DATA/_update"; then   # U9: an install loads this job at its step 12 and writes _update at its step 15
+  if live "$DATA/builds/updating" 0; then log "a run of Auster holds builds/ and has not written _update yet, so no check now"
+  else log "no _update folder: the checks are off until the installer line is pasted again"; fi
+  exit 0
+fi
 if ! bad=$(own_tree); then   # D3.1, Ownership (U7): the whole data root, before anything is done
   case "$bad" in
     .) log "$DATA cannot be read whole, so it is not known that only this account can write in it, and nothing is done" ;;

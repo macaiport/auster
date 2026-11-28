@@ -1,0 +1,3 @@
+# file: common/auster
+# status does not read _update/tried: after a check that could not read the release it says none has been made
+s/^      if au_tried_when; then au_say "No update check has read the release yet: the last/      if false; then au_say "No update check has read the release yet: the last/

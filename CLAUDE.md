@@ -10,7 +10,8 @@ The full concept, roadmap and open questions are in [docs/concept.md](docs/conce
 ## Name and home
 - The product is **Auster**, decided 2026-11-25. Its home on GitHub is `macaiport/auster`, the
   counterpart to `macgameport/1launcher`. This local folder is still called `macaiport`.
-- The name checks still open are listed in `private/`.
+- **The name is settled** (owner, 2026-11-28): searches found no prior art, no legal clearance is sought,
+  and it stays Auster. The notes from the checks are in `private/`.
 - **Two sites** (owner, 2026-11-28). `auster.build` is the technical site: the how-to, what connects to
   the server, the support contact and the roadmap. Its documentation, of Auster as it is and as it will
   be, is kept in this repo, so that it changes in the same commit as the code. `auster.works` says why,

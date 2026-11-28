@@ -1,0 +1,3 @@
+# file: tools/release-gate
+# question 4: the headings need not fall in version
+s/^        elif \[ -n "$prev" \] \&\& ! newer "$prev" "$v"; then$/        elif false; then/
