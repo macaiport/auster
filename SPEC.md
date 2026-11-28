@@ -61,6 +61,12 @@ a tester reads and emails to reports@auster.build ([`docs/plans/report.md`](docs
 build-ready-with-fixes 2026-11-28), as a v0.1.x; the owner sets that address up with the domain. A tester's Mac, by section C:
 Apple Silicon with 32 GB or more (24 GB is refused), on macOS 27 (BD15).
 
+**The README by 2026-12-16** (owner, 2026-11-28), each line only once it is true: the status, dated, and
+"beta" only after v0.1.0 is tagged; the households it is in daily use in, as a count; what was measured on
+which Mac (added 2026-11-28); which of "What it is meant to do" v0.1.0 does and which are planned, with no
+link to data centers claimed before it works; a link to auster.works once that site is live; auster.build
+once it is a site, not a redirect here. The mark at the top only if the owner chooses it.
+
 **Next:**
 1. Phase 1's last items: the restart tests for AD15 (they need the owner at the Mac and an administrator),
    and two devices at once with one key revoked.
